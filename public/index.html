@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <link rel="icon" href="<%= BASE_URL %>favicon.ico">
+    <title>test2</title>
+
+    <!--<script src='https://api.mapbox.com/mapbox-gl-js/v0.40.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v0.40.0/mapbox-gl.css' rel='stylesheet' /> -->
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.42.2/mapbox-gl.js'></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.0.0/mapbox-gl-draw.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.42.2/mapbox-gl.css' rel='stylesheet' />
+    <link rel='stylesheet' href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v0.19.0/mapbox-gl-draw.css' type='text/css' />
+    
+  </head>
+  <body>
+    <noscript>
+      <strong>We're sorry but test2 doesn't work properly without JavaScript enabled. Please enable it to continue.</strong>
+    </noscript>
+    <!-- #app -->
+    <div id="app">
+      <mapbox
+        @map-load="mapLoaded"
+        @map-click="mapClicked"
+        @geolocate-error="geolocateError"
+        @geolocate-geolocate="geolocate"
+      >
+      </mapbox>
+    </div>
+    <!-- built files will be auto injected -->
+  </body>
+</html>
