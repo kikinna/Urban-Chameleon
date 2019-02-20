@@ -29,6 +29,7 @@
         @map-click="mapClicked"
 				@map-mousemove="mapMouseMoved"
 				@geolocate-geolocate="geolocate"
+				@map-zoom="changeLevelOfDetail"
     >
     </Mapbox>
   </div>
@@ -57,6 +58,14 @@ export default {
 		},
 		geolocate(control, position) {
 			console.log(`User position: ${position.coords.latitude}, ${position.coords.longitude}`);
+		},
+		changeLevelOfDetail(map) {
+			if (map.getZoom() > 15) {
+				console.log("Ani s takýmto levelom priblíženia stále nevidíme Megi. :/");
+			}
+			else {
+				console.log("¯\_(ツ)_/¯");
+			}
 		}
   }
 }
