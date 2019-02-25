@@ -1,8 +1,10 @@
 <template>
   <div id="app">
+
     <Mapbox
         access-token="pk.eyJ1Ijoic2hvbmdvbG9sbyIsImEiOiJjamVoN25yYTQxMXBwMzNuc2ZkeGk5eGtzIn0.ZQNxwHhtZDBfsVNjDL0c7A"
         :map-options="{
+            container: 'map',
             style: 'https://maps.tilehosting.com/styles/positron/style.json?key=erAyQhECgFpHi6K8tzqm',//'mapbox://styles/mapbox/light-v9',
             center: [16.606837, 49.195060],
             zoom: 10
@@ -31,64 +33,56 @@
 				@map-mousemove="mapMouseMoved"
 				@geolocate-geolocate="geolocate"
 				@map-zoom="changeLevelOfDetail"
-    >
+    >	
+			
     </Mapbox>
+
+		<Visualization
+		>
+		</Visualization>
+		
   </div>
 </template>
 
 <script>
 import Mapbox from './components/Mapbox.vue'
+import Visualization from './components/Visualization.vue'
+import store from './store.js'
+import * as d3 from 'd3'
 
 export default {
   name: 'app',
   components: {
-     Mapbox
+		Mapbox,
+		Visualization
   },
+  store,
   methods: {
     mapInit(map) {
 			const Draw = new MapboxDraw();
 
       map.addControl(Draw);
+
+      /*  let canvas = map.getCanvasContainer();
+
+        console.log("canvas", canvas);
+
+      let svg = d3.select(canvas).append('svg')
+                        .attr("width", window.innerWidth)
+                        .attr("height", window.innerHeight);
+
+            let g = svg.append('g')
+                .append('circle')
+                .attr('class', '.nodes')
+                .attr('cx', '250')
+                .attr('cy', '150')
+                .attr('r', '100');*/
+
+      this.$store.commit('loadMap', map);
+
+      
 		},
 		mapLoaded(map) {
-			map.addLayer({
-        'id': 'points',
-        'type': 'symbol',
-        'source': {
-          'type': 'geojson',
-          'data': {
-            'type': 'FeatureCollection',
-            'features': [{
-              'type': 'Feature',
-              'geometry': {
-                'type': 'Point',
-                'coordinates': [-77.03238901390978, 38.913188059745586]
-              },
-              'properties': {
-                'title': 'Mapbox DC',
-                'icon': 'monument'
-              }
-            }, {
-              'type': 'Feature',
-              'geometry': {
-                'type': 'Point',
-                'coordinates': [-122.414, 37.776]
-              },
-              'properties': {
-                'title': 'Mapbox SF',
-                'icon': 'harbor'
-              }
-            }]
-          }
-        },
-        'layout': {
-          'icon-image': '{icon}-15',
-          'text-field': '{title}',
-          'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
-          'text-offset': [0, 0.6],
-          'text-anchor': 'top'
-        }
-      });
 		},
     mapClicked(map, e) {
 			console.log(map.getZoom());
@@ -101,12 +95,12 @@ export default {
 			console.log(`User position: ${position.coords.latitude}, ${position.coords.longitude}`);
 		},
 		changeLevelOfDetail(map) {
-			if (map.getZoom() > 15) {
+			/*if (map.getZoom() > 15) {
 				console.log("Ani s takýmto levelom priblíženia stále nevidíme Megi. :/");
 			}
 			else {
 				console.log("¯\_(ツ)_/¯");
-			}
+			}*/
 		}
   }
 }

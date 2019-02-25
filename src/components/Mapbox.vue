@@ -64,9 +64,13 @@ window.mapboxgl = require('mapbox-gl');
 		mounted () {
 			//Initialze Map
 			const map = this.mapInit();
+			
 
 			//Save map object to data
 			this._map = map;
+			//this.$store.dispatch('loadMap');
+			//this.$store.commit('loadMap', this._map, this.mapOptions.container);
+
 
 			//Add Controls to map
 			this.addControls(map);
@@ -151,6 +155,7 @@ window.mapboxgl = require('mapbox-gl');
 				//Map Move
 				map.on('move', e => {
 					this.$emit('map-move', map, e);
+					//this.$parent.$emit('map-move', map, e);
 				});
 
 				//Map Move End
@@ -241,12 +246,12 @@ window.mapboxgl = require('mapbox-gl');
 				//Map Zoom End
 				map.on('zoomend', e => {
           this.$emit('map-zoomend', map, e);
-          //console.log(map._map)
 				});
 
 				//Map Zoom
 				map.on('zoom', e => {
-          this.$emit('map-zoom', map, e);
+					this.$emit('map-zoom', map, e);
+					//this.$parent.$emit('map-zoom', map, e);
 				});
 
 				//Map Box Zoom Cancel
@@ -308,6 +313,17 @@ window.mapboxgl = require('mapbox-gl');
 				map.on('pitchend', e => {
 					this.$emit('map-pitchend', map, e);
 				});
+
+
+
+
+				/*map.on('viewreset', e => {
+					this.$root.$emit('map-viewreset', map, e);
+				});
+
+				map.on('move', e => {
+					this.$root.$emit('map-move', map, e);
+				});*/
 
 			},
 			addControls (map) {
