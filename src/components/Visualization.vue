@@ -3,57 +3,68 @@
 </template>
 
 <script>
-import * as d3 from "d3";
-import store from "../store.js";
-import accidentData from "../data/nehody2018.js";
+import * as d3 from "d3" //too many things
+import { csv } from "d3" 
+import store from "../store.js"
+import { mapState } from 'vuex'
 
 export default {
   name: "Visualization",
-  data() {
-    return {
-      _data: null,
-      graph: null,
-      simulation: null,
-    };
-  },
   store,
   mounted() {
-    this._data = accidentData;
-    console.log(this._data);
-    console.log(this._data.accidents[33]);
-    // this.loadData();
-    this.init();
+    this.loadData();
+    console.log(this.$store.state.dataset);
+    //console.log(this.$store.state.dataset[""0""]);
+    //this.init();
   },
   methods: {
-    // async loadData() {
-    //   const ddata = await d3.csv("./data/Nehody2018.csv");
-    //   console.log(ddata);
-    //   this._data = ddata;
-    // },
-    init() {
-      this.render();
+    loadData() {
+      csv("./data/Nehody2018.csv").then(data => { //d3.csv
+          /* data.forEach(d => {
+            stuff.OBJECTID = +d.OBJECTID;
+            //d.DruhNehody = +d.DruhNehody;
+            stuff["X"] = +d["X"]; 
+            //this.$store.dispatch('loadData', d);
+            //console.log(d);
+          }); */
+          //console.log(data);
+          this.$store.dispatch('loadData', data);
+        }).catch(error => {
+        console.error('Could not read the file.')
+      });
+      //console.log("loaded", this.dataset);
     },
-    render() {
-      //let theMap = this.$store.state.map;
-      console.log(this.$store.state);
-      let map = this.$store.state.map;
-      let container = map.getCanvasContainer(); //this.$store.state.container;
-      //let container = theMap.getCanvasContainer();
-      //let container = d3.select("#map");
-      //d3.select(this.$el)
-      let svg = d3
+    init() {
+      //this.renderCircle();
+      this.renderSimulation();
+    },
+    renderCircle() {
+      const svg = d3
         .select(this.$el)
         .attr("id", "test_svg")
         .attr("width", window.innerWidth)
         .attr("height", window.innerHeight);
 
-      let g = svg
+      const g = svg
         .append("g")
         .append("circle")
         .attr("class", "nodes")
         .attr("cx", "250")
         .attr("cy", "150")
         .attr("r", "100");
+    },
+    renderSimulation() {
+      const svg = d3
+        .select(this.$el)
+        .attr("id", "test_svg")
+        .attr("width", window.innerWidth)
+        .attr("height", window.innerHeight);
+
+        console.log("why", this.dataset);
+
+      //this.simulation = d3
+      //  .forceSimulation(this.dataset);
+        //.force("x", d3.forceX())
     }
   }
 };
