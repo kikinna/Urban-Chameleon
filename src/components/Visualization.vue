@@ -11,8 +11,9 @@ export default {
   data() {
     return {
       _data: null,
+      mockdata: null,
       graph: null,
-      simulation: null,
+      simulation: null
     };
   },
   store,
@@ -22,8 +23,9 @@ export default {
   },
   methods: {
     async loadData() {
-      const data = await d3.csv("./data/Nehody2018.csv");
-      this._data = data;
+      const ddata = await d3.csv("./data/Nehody2018.csv");
+      console.log(ddata);
+      this._data = ddata;
     },
     init() {
       this.render();
@@ -52,7 +54,6 @@ export default {
     }
   }
 };
-
 </script>
 
 <style>
