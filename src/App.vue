@@ -60,27 +60,8 @@ export default {
   methods: {
     mapInit(map) {
 			const Draw = new MapboxDraw();
-
       map.addControl(Draw);
-
-      /*  let canvas = map.getCanvasContainer();
-
-        console.log("canvas", canvas);
-
-      let svg = d3.select(canvas).append('svg')
-                        .attr("width", window.innerWidth)
-                        .attr("height", window.innerHeight);
-
-            let g = svg.append('g')
-                .append('circle')
-                .attr('class', '.nodes')
-                .attr('cx', '250')
-                .attr('cy', '150')
-                .attr('r', '100');*/
-
       this.$store.commit('loadMap', map);
-
-      
 		},
 		mapLoaded(map) {
 		},
