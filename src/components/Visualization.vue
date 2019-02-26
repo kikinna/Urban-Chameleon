@@ -11,7 +11,6 @@ export default {
   data() {
     return {
       _data: null,
-      mockdata: null,
       graph: null,
       simulation: null
     };
