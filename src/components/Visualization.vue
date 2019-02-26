@@ -5,6 +5,7 @@
 <script>
 import * as d3 from "d3";
 import store from "../store.js";
+import accidentData from "../data/nehody2018.js";
 
 export default {
   name: "Visualization",
@@ -12,20 +13,23 @@ export default {
     return {
       _data: null,
       graph: null,
-      simulation: null
+      simulation: null,
     };
   },
   store,
   mounted() {
-    this.loadData();
+    this._data = accidentData;
+    console.log(this._data);
+    console.log(this._data.accidents[33]);
+    // this.loadData();
     this.init();
   },
   methods: {
-    async loadData() {
-      const ddata = await d3.csv("./data/Nehody2018.csv");
-      console.log(ddata);
-      this._data = ddata;
-    },
+    // async loadData() {
+    //   const ddata = await d3.csv("./data/Nehody2018.csv");
+    //   console.log(ddata);
+    //   this._data = ddata;
+    // },
     init() {
       this.render();
     },
