@@ -5,11 +5,18 @@ import store from './store'
 
 Vue.config.productionTip = false
 
+import * as d3 from "d3";
+
 new Vue({
   //el: '#app',
   store,
   components: {
 
+  },
+  methods: {
+    plsWork() {
+
+    }
   },
   
   render: h => h(App),
