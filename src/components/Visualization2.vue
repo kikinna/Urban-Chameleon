@@ -7,7 +7,7 @@
 import { csv, select } from "d3" 
 import store from "../store.js"
 import { mapState, mapGetters } from 'vuex'
-import accidentData from "./data/nehody2018.js";
+// import accidentData from "./data/nehody2018.js";
 
 export default {
   name: "Visualization",
@@ -20,7 +20,7 @@ export default {
     }
   },
   mounted() {
-    //this.loadData();
+    this.loadData();
     /* console.log("yolo", this.$store.state.datasetObject);
     console.log("yolo", this.$store.state.datasetObject[0]);
     console.log("yolo", this.$store.state.datasetObject["0"]); */
@@ -31,9 +31,9 @@ export default {
     //this.init();
     //console.log(this.dataset[0]);
     
-    this._data = accidentData;
-    console.log(this._data);
-    console.log(this._data.accidents[33]);
+    // this._data = accidentData;
+    // console.log(this._data);
+    // console.log(this._data.accidents[33]);
 
   },
   computed: {
@@ -42,7 +42,7 @@ export default {
   methods: {
     loadData() {
       let count = 0;
-      d3.csv("./data/Nehody2018.csv").then(data => { //d3.csv
+      d3.csv("/data/Nehody2018.csv").then(data => { //d3.csv
            /* data.forEach(d => {
             //stuff.OBJECTID = +d.OBJECTID;
             //d.DruhNehody = +d.DruhNehody;
@@ -55,6 +55,9 @@ export default {
           //console.log(data);
           //console.log(data[0]);
           this.$store.dispatch('loadData', data);
+          console.log(data);  
+          console.log(data[2])
+          console.log(data[1].DruhNehody)
         }).catch(error => {
         console.error('Could not read the file.')
       });

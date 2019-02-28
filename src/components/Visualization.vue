@@ -1,16 +1,27 @@
 <template>
-  <svg></svg>
+  <div>
+    <svg ></svg>
+    <TestComponent :cx="200" :cy="100"></TestComponent>
+    <!-- <a class="button is-dark" style="position:absolute" @click="moveMe">Button</a> -->
+  </div>
 </template>
 
 <script>
 import * as d3 from "d3";
 import store from "../store.js";
 import accidentData from "../data/nehody2018.js";
+import TestComponent from "./TestComponent.vue";
 
 export default {
   name: "Visualization",
+  components: {
+    TestComponent
+  },
   data() {
     return {
+      testx: 0,
+      testy: 0,
+      oneAccident: null,
       _data: null,
       graph: null,
       simulation: null,
@@ -49,6 +60,31 @@ export default {
     console.log(this._data.accidents[33]); */
     // this.loadData();
     this.init();
+    this.testx=50;
+    this.testy=50;
+    oneAccident = {
+      "OBJECTID": 1260,
+      "DruhNehody": "Srážka s jedoucím nekolejovým vozidlem",
+      "HlavniPricina": "Nedání přednosti v jizdě",
+      "Zavineni": "Řidičem motorového vozidla",
+      "Datum": "1/1/2018",
+      "Den": "Pondělí",
+      "DenNoc": "Noc",
+      "Alkohol": "Ne",
+      "Usmrceno": 0,
+      "Tezce": 0,
+      "Lehce": 1,
+      "StavPovrchu": "Mokrý",
+      "Pocasi": "Neztížené",
+      "SpecifikaceMista": "Přechod pro chodce nebo v jeho blízkosti",
+      "DruhVozidla": "Osobní automobil",
+      "Smyk": "Ne",
+      "Skoda": 60000,
+      "X": 16.61599368,
+      "Y": 49.1963041400001,
+      "x": 1849683.9554818554,
+      "y": 6308235.978302982
+    }
   },
   methods: {
     // async loadData() {
@@ -58,6 +94,12 @@ export default {
     // },
     init() {
       this.render();
+    },
+    moveMe() {
+      console.log(this.testx, this.testy)
+      this.testx += 50;
+      this.testy -= 30;
+      console.log("haha", this.testx, this.testy)
     },
     render() {
 

@@ -8,6 +8,7 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "buefy": "^0.7.3",
     "d3": "^5.9.1",
     "mapbox-gl": "^0.53.0",
     "mapbox-gl-vue": "^1.9.0",
