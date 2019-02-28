@@ -36,7 +36,8 @@
     >
     </Mapbox>
 
-    <Visualization> </Visualization>
+    <Visualization>
+    </Visualization>
   </div>
 </template>
 

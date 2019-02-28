@@ -251,7 +251,7 @@ window.mapboxgl = require('mapbox-gl');
 				//Map Zoom
 				map.on('zoom', e => {
 					this.$emit('map-zoom', map, e);
-					//this.$parent.$emit('map-zoom', map, e);
+					this.$root.$emit('map-zoom', map, e);
 				});
 
 				//Map Box Zoom Cancel
@@ -317,13 +317,13 @@ window.mapboxgl = require('mapbox-gl');
 
 
 
-				/*map.on('viewreset', e => {
+				map.on('viewreset', e => {
 					this.$root.$emit('map-viewreset', map, e);
 				});
 
 				map.on('move', e => {
 					this.$root.$emit('map-move', map, e);
-				});*/
+				});
 
 			},
 			addControls (map) {
