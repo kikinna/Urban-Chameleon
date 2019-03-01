@@ -3,58 +3,60 @@
 
     <Mapbox
         access-token="pk.eyJ1Ijoic2hvbmdvbG9sbyIsImEiOiJjamVoN25yYTQxMXBwMzNuc2ZkeGk5eGtzIn0.ZQNxwHhtZDBfsVNjDL0c7A"
-        :map-options="{
-            container: 'map',
-            style: 'https://maps.tilehosting.com/styles/positron/style.json?key=erAyQhECgFpHi6K8tzqm',//'mapbox://styles/mapbox/light-v9',
-            center: [16.606837, 49.195060],
-            zoom: 10
-        }"
-        :geolocate-control="{
-					show: true, 
-					position: 'top-left',
-					options: {
-						positionOptions: {
-							enableHighAccuracy: true
-						},
-						trackUserLocation: true
-					}
-				}"
-				:scale-control="{
-					show: true,
-					position: 'top-left'
-				}"
-				:fullscreen-control="{
-					show: true,
-					position: 'top-left'
-				}"
-				@map-init="mapInit"
-				@map-load="mapLoaded"
-        @map-click="mapClicked"
-				@map-mousemove="mapMouseMoved"
-				@geolocate-geolocate="geolocate"
-				@map-zoom="changeLevelOfDetail"
-    >	
+      :map-options="{
+        container: 'map',
+        style:
+          'https://maps.tilehosting.com/styles/positron/style.json?key=erAyQhECgFpHi6K8tzqm', //'mapbox://styles/mapbox/light-v9',
+        center: [16.606837, 49.19506],
+        zoom: 13
+      }"
+      :geolocate-control="{
+        show: true,
+        position: 'top-left',
+        options: {
+          positionOptions: {
+            enableHighAccuracy: true
+          },
+          trackUserLocation: true
+        }
+      }"
+      :scale-control="{
+        show: true,
+        position: 'top-left'
+      }"
+      :fullscreen-control="{
+        show: true,
+        position: 'top-left'
+      }"
+      @map-init="mapInit"
+      @map-load="mapLoaded"
+      @map-click="mapClicked"
+      @map-mousemove="mapMouseMoved"
+      @geolocate-geolocate="geolocate"
+      @map-zoom="changeLevelOfDetail"
+    >
 			
     </Mapbox>
 
-		<Visualization
-		>
-		</Visualization>
+    <Visualization> </Visualization>
+    <AccidentDetail></AccidentDetail>
 		
   </div>
 </template>
 
 <script>
-import Mapbox from './components/Mapbox.vue'
-import Visualization from './components/Visualization.vue'
-import store from './store.js'
-import * as d3 from 'd3'
+import Mapbox from "./components/Mapbox.vue";
+import Visualization from "./components/Visualization.vue";
+import AccidentDetail from "./components/AccidentDetail.vue";
+import store from "./store.js";
+import * as d3 from "d3";
 
 export default {
   name: 'app',
   components: {
 		Mapbox,
-		Visualization
+    Visualization,
+    AccidentDetail,
   },
   store,
   methods: {
