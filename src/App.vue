@@ -39,7 +39,6 @@
     </Mapbox>
 
     <Visualization> </Visualization>
-    <AccidentDetail></AccidentDetail>
 		
   </div>
 </template>
@@ -47,7 +46,6 @@
 <script>
 import Mapbox from "./components/Mapbox.vue";
 import Visualization from "./components/Visualization.vue";
-import AccidentDetail from "./components/AccidentDetail.vue";
 import store from "./store.js";
 import * as d3 from "d3";
 
@@ -56,7 +54,6 @@ export default {
   components: {
 		Mapbox,
     Visualization,
-    AccidentDetail,
   },
   store,
   methods: {

@@ -1,10 +1,10 @@
 <template>
-    <div class = 'accidentDetail' align="left" style = "width:500; height:500" top="300" left = "500">
+    <div class = 'accidentDetail' style = "width:500; height:500; top=300; left = 500;">
         <h1 class='title'>{{title}} </h1>
        <!--- <p> {{ body }} </p>-->
-       <svg>
+       <!-- <svg> -->
             <!--<circle :cx='cx' :cy='cy' r=50></circle>-->
-        </svg>
+        <!-- </svg> -->
 
 
 
@@ -17,33 +17,27 @@
 
     export default {
         name: 'AccidentDetail',
-        props:[title,body],
-        data() {
-            return {
-                title : "Accident Detail",
-                body : ""
-            }
-        },
         store,
+        props:["title","body"], //musia byt v uvodzovkach
         mounted(){
-            this.loadData();
+            //this.loadData();
             this.init();
         },
         methods: {
-            async loadData() {
+            /* async loadData() {
                 const data = await d3.csv("./data/Nehody2018.csv");
-                this._data = data;
-            },
+                this._data = data; ///...ale nemas data lol - ale aj tak sa budu importovat cez store
+            }, */
             init(){
                 this.render();
             },
             render(){
-                let map = this.$store.state.map;
-                let container = map.getCanvasContainer();
 
                 let svg = d3
-                    .select(this.$store.map.getCanvasContainer)
-                    .attr("id","accidentDetail")
+                    //.select(this.$store.state.map.getCanvasContainer) //chybalo state
+                    .select(this.$el) //ale zrovna v tomto pripade chces pouzit "tento element" co je ten div z template... zatial to ber ako magiu, mozem vysvetlit nazivo :D ale je to kvoli tomu, ze AccidentDetail je vnutri Visualization
+                    .append("svg") //this bit is important
+                    .attr("class","accidentDetail") //asi je jedno ci je to id alebo class, ale potom sa to lisi v css, class ma ".accidentDetail", id myslim "#acc..."
                     .attr("width", window.innerWidth)
                     .attr("height", window.innerHeight);
 

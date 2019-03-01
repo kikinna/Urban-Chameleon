@@ -1,7 +1,7 @@
 <template>
   <div>
     <svg></svg>
-    <AccidentDetail  title = "Accident Detail" ></AccidentDetail>
+    <AccidentDetail title="Accident Detail" ></AccidentDetail>
   </div>
 </template>
 
@@ -20,14 +20,14 @@ export default {
       _data: null,
       graph: null,
       simulation: null,
-      accidents:[first,second,third],
+      accidents:[],
     };
   },
   store,
   mounted() {
-    this.loadData();
-    this.init();
-    first = {
+    //this.loadData();
+    //this.init();
+    let first = {
       "OBJECTID": 1260,
       "DruhNehody": "Srážka s jedoucím nekolejovým vozidlem",
       "HlavniPricina": "Nedání přednosti v jizdě",
@@ -50,7 +50,7 @@ export default {
       "x": 1849683.9554818554,
       "y": 6308235.978302982
     };
-    second = {
+    let second = {
       "OBJECTID": 1262,
       "DruhNehody": "Srážka s vozidlem zaparkovaným, odstaveným",
       "HlavniPricina": "Nesprávný způsob jízdy",
@@ -73,7 +73,7 @@ export default {
       "x": 1849683.9554818554,
       "y": 6308235.978302982
     };
-    third = {
+    let third = {
       "OBJECTID": 1263,
       "DruhNehody": "Srážka s jedoucím nekolejovým vozidlem",
       "HlavniPricina": "Nedání přednosti v jizdě",
@@ -96,7 +96,11 @@ export default {
       "x": 1849683.9554818554,
       "y": 6308235.978302982
     };
-
+    this.accidents.push(first);
+    this.accidents.push(second);
+    this.accidents.push(third);
+    //pozor na deklaraciu premennych - "let/const/var"
+    //a kedze tie obhjekty neexistovali pred "mounted" tak ich do toho pola pridavas az tu
   },
   methods: {
     async loadData() {
@@ -104,7 +108,7 @@ export default {
       this._data = data;
     },
     init() {
-      this.render();
+      //this.render();
     },
     render() {
       //let theMap = this.$store.state.map;
@@ -115,7 +119,7 @@ export default {
       //let container = d3.select("#map");
       //d3.select(this.$el)
       let svg = d3
-        .select(this.$el)
+        .select(container)
         .attr("id", "test_svg")
         .attr("width", window.innerWidth)
         .attr("height", window.innerHeight);
