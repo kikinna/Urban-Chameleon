@@ -1,5 +1,5 @@
 <template>
-    <div class = 'accidentDetail' >
+    <div class = 'accidentDetail' style="width:300; height:500; x:500; y:500">
         <h1 class='title'>{{title}} </h1>
         <p>{{parentdata[0].DruhNehody}}  </p>
        <svg style="width:250; height:130">
