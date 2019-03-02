@@ -155,7 +155,6 @@ window.mapboxgl = require('mapbox-gl');
 				//Map Move
 				map.on('move', e => {
 					this.$emit('map-move', map, e);
-					//this.$parent.$emit('map-move', map, e);
 				});
 
 				//Map Move End
@@ -251,7 +250,6 @@ window.mapboxgl = require('mapbox-gl');
 				//Map Zoom
 				map.on('zoom', e => {
 					this.$emit('map-zoom', map, e);
-					this.$root.$emit('map-zoom', map, e);
 				});
 
 				//Map Box Zoom Cancel
@@ -315,7 +313,9 @@ window.mapboxgl = require('mapbox-gl');
 				});
 
 
-
+				map.on('zoom', e => {
+					this.$root.$emit('map-zoom', map, e);
+				});
 
 				map.on('viewreset', e => {
 					this.$root.$emit('map-viewreset', map, e);

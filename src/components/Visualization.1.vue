@@ -48,31 +48,42 @@ export default {
   store,
   mounted() {
     this._data = accidentData;
+    /* console.log(this._data);
+    console.log(this._data.accidents[33]); */
+    // this.loadData();
     this.init();
   },
   methods: {
-
+    // async loadData() {
+    //   const ddata = await d3.csv("./data/Nehody2018.csv");
+    //   console.log(ddata);
+    //   this._data = ddata;
+    // },
     init() {
       this.render();
       this.listeners();
+      //this.addVizLayer();
+    },
+    addVizLayer() {
+
     },
     render() {
 
-      /* let d3zoom = d3.zoom().scaleExtent([3, 22]).on("zoom", () => {
+      let d3zoom = d3.zoom().scaleExtent([3, 22]).on("zoom", () => {
         //this.updateD3();
-      }); */
+      });
 
       let projection = this.getProjection();
 
-      /* let path = this.path = d3.geoPath().projection(projection); */
+      let path = this.path = d3.geoPath().projection(projection);
 
       let svg = this.svg = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
         .append("svg")
         .attr("id", "test_svg")
         //.attr("class", "mapboxgl-canvas-container mapboxgl-interactive mapboxgl-touch-zoom-rotate mapboxgl-touch-drag-pan")
-        .attr("width", window.innerWidth)
-        .attr("height", window.innerHeight)
+        //.attr("width", window.innerWidth)
+        //.attr("height", window.innerHeight)
         //.call(d3zoom);
 
       /* this.simulation = d3
@@ -88,7 +99,7 @@ export default {
         .on("tick", this.tick); */
 
 
-      //let g = this.g = svg.append("g");
+      let g = this.g = svg.append("g");
       /* let feature = g
         .selectAll("path")
         .data(this._data.accidents)
@@ -97,7 +108,8 @@ export default {
 
       //this.updateForces();
 
-      //this.pls();
+      this.pls();
+
 
       this.graph = svg
           .append("g")
@@ -106,11 +118,14 @@ export default {
           .enter().append("circle")
           .attr("r", 5)
           .attr("cx", d => {
+            //console.log(projection([d.X, d.Y])[0]);
+            //return projection([d.X, d.Y])[0];
             d.pos = projection([d.X, d.Y]);
             return d.pos[0];
             //return this.mapboxProjection([d.X, d.Y])[0];
           })
           .attr("cy", d => {
+            //return projection([d.X, d.Y])[1];
             return d.pos[1];
             //return this.mapboxProjection([d.X, d.Y])[1];
           })
@@ -121,6 +136,31 @@ export default {
             //d3.select(this).remove();
           });
 
+
+      /* this.simulation = d3
+        .forceSimulation(this.graph)
+        .force("center", d3.forceCenter(0.5, 0.5))
+        
+        .force("collide", d3.forceCollide(5).radius(10)
+          .strength(1)
+          
+          .iterations(1)) */
+        /* .force("forceX", d3.forceX(d => {
+          return 2000;
+        }).strength(1))
+        .force("forceY", d3.forceY(d => {
+          return 500;
+        }).strength(1)) */
+        //.on("tick", this.tick);
+
+        //this.simulation
+
+      /* this.graph.call(d3.zoom()
+              //.scaleExtent([3, 22])
+              .on("zoom", () => {
+                this.updateD3();
+                //.attr("transform", d3.event.transform);
+                  })); */
     },
     updateD3() {
       let projection = this.getProjection();
@@ -165,7 +205,7 @@ export default {
         .center([center.lng, center.lat])
         .translate([window.innerWidth / 2, window.innerHeight / 2]/* [bbox.width/2, bbox.height/2] */)
         .scale(scale)
-        //.scale((1 << 21) / (2 * Math.PI)) //https://observablehq.com/@mbostock/d3-vector-tiles //
+        //.scale((1 << 21) / (2 * Math.PI)) //https://observablehq.com/@mbostock/d3-vector-tiles //0 22
         //.precision(0);
       return d3projection;
     },
@@ -173,25 +213,20 @@ export default {
     },
     listeners() {
       this.$root.$on('map-zoom', d => { 
-        this.update();     
-        /*console.log(this.graph)
-        console.log(this.svg) */
-        //this.updateD3();
-        //this.pls();
-
+        this.updateD3();
+        this.pls();
+        console.log("d", d)
+        this.update(d.getZoom());
       });
-      this.$root.$on('map-move', d => {
-        //this.render();
-        /* this.updateD3();
-        this.pls(); */
-        this.update()
+      this.$root.$on('move', d => {
+        this.updateD3();
+        this.pls();
+        
       });
-      this.$root.$on('map-viewreset', d => { console.log("viewreset"); this.update(); })
+      //this.$root.$on('map-viewreset', d => { console.log("viewreset"); this.updateD3(); })
     },
-    update() {
-      d3.selectAll("g").selectAll("circle").remove();
-      //d3.select("svg").selectAll("*").remove();
-      this.render();
+    update(zoom) {
+      this.svg.selectAll("g").selectAll("circle").attr("transform", "translate(" + bbox.left/* -topLeft[0] */ + "," + bbox.top/* -topLeft[1] */ + ")");
     },
     pls() {
 
@@ -210,11 +245,11 @@ export default {
           topLeft = bounds[0],
           bottomRight = bounds[1]; */
 
-        /* let bbox = document.body.getBoundingClientRect();
+        let bbox = document.body.getBoundingClientRect();
         console.log(bbox)
       
       this.svg.attr("width", window.innerWidth)
-          .attr("height", window.innerHeight) */
+          .attr("height", window.innerHeight)
           //.style("left",  + "px")
           //.style("top",  + "px");
 
