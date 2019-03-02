@@ -22,12 +22,6 @@ export default {
             x: 0.5,
             y: 0.5
           },
-          charge: {
-            enabled: true,
-            strength: -300,
-            distanceMin: 1,
-            distanceMax: 2000
-          },
           collide: {
             enabled: true,
             strength: .7,
@@ -58,10 +52,6 @@ export default {
     },
     render() {
 
-      /* let d3zoom = d3.zoom().scaleExtent([3, 22]).on("zoom", () => {
-        //this.updateD3();
-      }); */
-
       let projection = this.getProjection();
 
       /* let path = this.path = d3.geoPath().projection(projection); */
@@ -87,7 +77,6 @@ export default {
         }))
         .on("tick", this.tick); */
 
-
       //let g = this.g = svg.append("g");
       /* let feature = g
         .selectAll("path")
@@ -96,8 +85,6 @@ export default {
         .attr("d", path);  */
 
       //this.updateForces();
-
-      //this.pls();
 
       this.graph = svg
           .append("g")
@@ -123,26 +110,21 @@ export default {
 
     },
     updateD3() {
-      let projection = this.getProjection();
 
-      this.graph.selectAll("g")
-      .selectAll("circle")
-          //.data(this._data.accidents)
-          //.enter().append("circle")
-          //.attr("r", 5 / event.transform.k + "px")
+      this.svg.attr("width", window.innerWidth)
+              .attr("height", window.innerHeight)
+
+      let projection = this.getProjection();
+      this.graph
+          .attr("r", 5 /* / event.transform.k + "px" */)
           .attr("cx", d => {
-            //console.log(projection([d.X, d.Y])[0]);
             d.pos = projection([d.X, d.Y]);
             //d.pos = this.mapboxProjection([d.X, d.Y]);
-            return d.posX[0];
+            return d.pos[0];
           })
           .attr("cy", d => {
-            //return projection([d.X, d.Y])[1];
-            //return this.mapboxProjection([d.X, d.Y])[1];
             return d.pos[1];
           })
-          //.attr("event.", d => { return "translate(" + d.pos + ")" })
-          //.attr("transform", event.transform)
           //.select(".nodes").style("stroke-width", 5 / d3.event.transform.k + "px");
     },
     tick() {
@@ -173,57 +155,18 @@ export default {
     },
     listeners() {
       this.$root.$on('map-zoom', d => { 
-        this.update();     
-        /*console.log(this.graph)
-        console.log(this.svg) */
-        //this.updateD3();
-        //this.pls();
-
+        //this.update();     
+        this.updateD3();
       });
       this.$root.$on('map-move', d => {
-        //this.render();
-        /* this.updateD3();
-        this.pls(); */
-        this.update()
+        this.updateD3();
+        //this.update()
       });
-      this.$root.$on('map-viewreset', d => { console.log("viewreset"); this.update(); })
+      //this.$root.$on('map-viewreset', d => { console.log("viewreset"); this.updateD3(); })
     },
     update() {
       d3.selectAll("g").selectAll("circle").remove();
-      //d3.select("svg").selectAll("*").remove();
       this.render();
-    },
-    pls() {
-
-      /* let coords = [];
-
-      this._data.accidents.forEach(d => {
-        //xCoords.push(d.X);
-        //yCoords.push(d.Y);
-        coords.push([d.X, d.Y]);
-      }); */
-
-      //console.log(coords)
-      //console.log(this.path.bounds(coords))
-
-        /* let bounds = this.path.bounds(coords),
-          topLeft = bounds[0],
-          bottomRight = bounds[1]; */
-
-        /* let bbox = document.body.getBoundingClientRect();
-        console.log(bbox)
-      
-      this.svg.attr("width", window.innerWidth)
-          .attr("height", window.innerHeight) */
-          //.style("left",  + "px")
-          //.style("top",  + "px");
-
-        // this.svg.attr("width", bbox.width/* bottomRight[0] - topLeft[0] */)
-        //   .attr("height", bbox.height * 10/* bottomRight[1] - topLeft[1] */)
-        //   .style("left", bbox.left/* topLeft[0] */ + "px")
-        //   .style("top", bbox.top/* topLeft[1] */ + "px");
-
-        //this.svg.selectAll("g").selectAll("circle").attr("transform", "translate(" + bbox.left/* -topLeft[0] */ + "," + bbox.top/* -topLeft[1] */ + ")");
     }
   }
 };
