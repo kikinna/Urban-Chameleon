@@ -1,10 +1,11 @@
 <template>
-    <div class = 'accidentDetail' style = "width:500; height:500; top=300; left = 500;">
+    <div class = 'accidentDetail' >
         <h1 class='title'>{{title}} </h1>
-       <!--- <p> {{ body }} </p>-->
-       <!-- <svg> -->
+        <p>{{parentdata[0].DruhNehody}}  </p>
+       <svg style="width:250; height:130">
             <!--<circle :cx='cx' :cy='cy' r=50></circle>-->
-        <!-- </svg> -->
+            <circle cx=130 cy=50 r=50></circle>
+        </svg> 
 
 
 
@@ -18,7 +19,10 @@
     export default {
         name: 'AccidentDetail',
         store,
-        props:["title","body"], //musia byt v uvodzovkach
+        props:{
+            title: String,
+            parentdata: Object,
+        }, 
         mounted(){
             //this.loadData();
             this.init();
@@ -26,7 +30,7 @@
         methods: {
             /* async loadData() {
                 const data = await d3.csv("./data/Nehody2018.csv");
-                this._data = data; ///...ale nemas data lol - ale aj tak sa budu importovat cez store
+                this._data = data; 
             }, */
             init(){
                 this.render();
@@ -38,8 +42,10 @@
                     .select(this.$el) //ale zrovna v tomto pripade chces pouzit "tento element" co je ten div z template... zatial to ber ako magiu, mozem vysvetlit nazivo :D ale je to kvoli tomu, ze AccidentDetail je vnutri Visualization
                     .append("svg") //this bit is important
                     .attr("class","accidentDetail") //asi je jedno ci je to id alebo class, ale potom sa to lisi v css, class ma ".accidentDetail", id myslim "#acc..."
-                    .attr("width", window.innerWidth)
-                    .attr("height", window.innerHeight);
+                    .attr("width", 250)
+                    .attr("height", 350)
+                    .attr("min-x",100)
+                    .attr("min-y",100)
 
             },
         }
@@ -50,10 +56,9 @@
 <style scoped>
 .accidentDetail {
     position: absolute;
-    top:600;
-    left:900;
+    width: 500;
     border: 1px solid black;
-    background-color: #eeeeeeaa;
+    background-color: #d8d3d3cd;
     border-radius: 30px;
 
 }

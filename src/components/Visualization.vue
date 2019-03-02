@@ -1,7 +1,8 @@
 <template>
   <div>
     <svg></svg>
-    <AccidentDetail title="Accident Detail" ></AccidentDetail>
+    <AccidentDetail  :title="title" :parentdata="accidents"></AccidentDetail>
+    
   </div>
 </template>
 
@@ -21,6 +22,7 @@ export default {
       graph: null,
       simulation: null,
       accidents:[],
+      title: null
     };
   },
   store,
@@ -99,6 +101,7 @@ export default {
     this.accidents.push(first);
     this.accidents.push(second);
     this.accidents.push(third);
+    this.title = " Accident Detail"
     //pozor na deklaraciu premennych - "let/const/var"
     //a kedze tie obhjekty neexistovali pred "mounted" tak ich do toho pola pridavas az tu
   },

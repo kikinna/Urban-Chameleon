@@ -84,7 +84,6 @@ export default {
 		}
   }
 }
-//jop
 
 </script>
 
