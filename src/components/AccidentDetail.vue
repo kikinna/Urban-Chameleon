@@ -1,10 +1,12 @@
 <template>
-    <div class = 'accidentDetail' style="width:300; height:500; x:500; y:500">
-        <h1 class='title'>{{title}} </h1>
-        <p>{{parentdata[0].DruhNehody}}  </p>
-       <svg style="width:250; height:130">
+    <div class = 'accidentDetail' >
+        <h1 class='title_style'  >{{title}} </h1>
+        <p class='text_style'> <strong>Druh nehody: </strong>{{parentdata[0].DruhNehody}} <br> 
+                            <strong>Hlavní příčina: </strong>{{parentdata[0].HlavniPricina}} <br> 
+                            <strong>Datum: </strong>{{parentdata[0].Datum}} </p>
+       <svg style="width:370; height:160">
             <!--<circle :cx='cx' :cy='cy' r=50></circle>-->
-            <circle cx=130 cy=50 r=50></circle>
+            <circle cx=180 cy=70 r=60 style="fill:#5490b0cd"></circle>
         </svg> 
 
 
@@ -56,10 +58,24 @@
 <style scoped>
 .accidentDetail {
     position: absolute;
-    width: 500;
-    border: 1px solid black;
-    background-color: #d8d3d3cd;
+    width: 800;
+    border: 1px solid rgb(94, 94, 94);
+    background-color: #d3d6d8cd;
     border-radius: 30px;
+    transform: translate(+255%, -70%)
+    
 
+}
+.title_style{
+    color:rgb(0, 0, 0);
+    font-family: Helvetica;
+    font-size: 27px;
+    text-align: center
+}
+.text_style{
+    color : black;
+    font-family: Helvetica;
+    font-size: 14px;
+    transform: translate(+4%, 0%)
 }
 </style>

@@ -101,7 +101,7 @@ export default {
     this.accidents.push(first);
     this.accidents.push(second);
     this.accidents.push(third);
-    this.title = " Accident Detail"
+    this.title = "Accident Detail"
     //pozor na deklaraciu premennych - "let/const/var"
     //a kedze tie obhjekty neexistovali pred "mounted" tak ich do toho pola pridavas az tu
   },
