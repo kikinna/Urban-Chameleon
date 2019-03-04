@@ -7,38 +7,38 @@ Vue.use(Vuex)
 export default new Vuex.Store({
   state: {
     map: {},
-    dataset: [],
-    datasetNumeroDuo: new Map(),
-    datasetObject: {}
+    datasetObject: { dataset: [] }
   },
   mutations: {
     loadMap(state, map) {
-      state.map = map;
+      state.map = map
     },
     loadData(state, data) {
       //state.dataset.push(data);
-      let count = 0;
+      // console.log('bef', state.dataset)
+      Object.defineProperty(state.datasetObject, 'nested', {
+        configurable: false
+      })
+      // console.log('af', state.dataset)
+      let count = 0 //1?
       data.forEach(d => {
         //store.set(state.dataset, count, d);
-        state.dataset[count] = d;
-        state.datasetObject[count] = d;
-        state.datasetNumeroDuo.set(count, d);
-        //state.dataset[count] = d;
+        //state.dataset[count] = d
         //state.dataset.push(d);
-        //count = ((parseInt(count, 10) + 1).toString());
-        //console.log(count);
-        count++;
-      });
+        Vue.set(state.datasetObject.dataset, count, d)
+        count++
+      })
+      Object.freeze(state.datasetObject)
+      state.datasetObject.dataset.forEach(o => Object.freeze(o))
     }
   },
   actions: {
     loadMap(context) {
-      context.commit('loadMap', map, container);
+      context.commit('loadMap', state.map)
     },
     loadData(context, data) {
-      context.commit('loadData', data);
+      context.commit('loadData', data)
     }
   },
-  getters: {
-  }
+  getters: {}
 })

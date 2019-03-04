@@ -41,7 +41,6 @@ export default {
     },
   methods: {
     loadData() {
-      let count = 0;
       d3.csv("./data/Nehody2018.csv").then(data => { //d3.csv
            /* data.forEach(d => {
             //stuff.OBJECTID = +d.OBJECTID;
