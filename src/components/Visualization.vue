@@ -17,6 +17,7 @@ export default {
       path: null,
       svg: null,
       nodes: null,
+      nodeRadius: 5,
       forceProperties: {
         center: {
           x: 0.5,
@@ -110,7 +111,7 @@ export default {
           'collide',
           d3
             .forceCollide()
-            .radius(10)
+            .radius(2 * this.nodeRadius)
             .strength(1)
             .iterations(1)
         )
@@ -140,7 +141,7 @@ export default {
         .data(this.graph.accidents)
         .enter()
         .append('circle')
-        .attr('r', 5)
+        .attr('r', this.nodeRadius)
         .attr('cx', d => {
           d.pos = projection([d.X, d.Y])
           d.x = d.pos[0]
