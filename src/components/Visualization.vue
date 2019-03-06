@@ -19,10 +19,6 @@ export default {
       nodes: null,
       nodeRadius: 5,
       forceProperties: {
-        center: {
-          x: 0.5,
-          y: 0.5
-        },
         collide: {
           enabled: true,
           strength: 0.7,
@@ -30,11 +26,11 @@ export default {
           radius: 35
         },
         forceX: {
-          enabled: false,
+          enabled: true,
           strength: 0.7
         },
         forceY: {
-          enabled: false,
+          enabled: true,
           strength: 0.7
         }
       }
@@ -108,6 +104,10 @@ export default {
           d3.forceCenter(center.lng, center.lat)
         ) */
         .force(
+          'charge',
+          d3.forceManyBody().strength(-50 /* -6 * this.nodeRadius */)
+        )
+        .force(
           'collide',
           d3
             .forceCollide()
@@ -134,6 +134,8 @@ export default {
         )
         .on('tick', this.tick)
 
+      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+
       this.nodes = svg
         .append('g')
         .attr('class', 'nodes')
@@ -142,9 +144,12 @@ export default {
         .enter()
         .append('circle')
         .attr('r', this.nodeRadius)
+        .attr('fill', d => {
+          return colorScale(d.DruhNehody)
+        })
         .attr('cx', d => {
           d.pos = projection([d.X, d.Y])
-          d.x = d.pos[0]
+          d.x = d.pos[0] //TODO: are we sure we don't need these data?
           return d.pos[0]
           //return this.mapboxProjection([d.X, d.Y])[0];
         })
@@ -155,7 +160,7 @@ export default {
         })
         .call(drag)
 
-      this.simulation.alpha(1).restart()
+      //this.simulation.alphaTarget(1).restart()
     },
     updateD3() {
       this.svg
@@ -163,8 +168,6 @@ export default {
         .attr('height', window.innerHeight)
 
       let projection = this.getProjection()
-
-      /* let center = this.$store.state.map.getCenter() */
 
       this.nodes
         .attr('cx', function(d) {
@@ -182,11 +185,6 @@ export default {
         }) */
 
       this.simulation
-        /*         .force(
-          'center',
-          //d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2)
-          d3.forceCenter(center.lng, center.lat)
-        ) */
         .force(
           'forceX',
           d3
@@ -207,7 +205,7 @@ export default {
             .strength(0.7)
         )
 
-      this.simulation.alphaTarget(1).restart()
+      this.simulation.alphaTarget(0.3).restart()
     },
     tick() {
       this.nodes
@@ -225,38 +223,7 @@ export default {
           return d.pos[1]
         }) */
 
-      let projection = this.getProjection() /* 
-      let center = this.$store.state.map.getCenter() */
-
-      this.svg
-        .attr('width', window.innerWidth)
-        .attr('height', window.innerHeight)
-
-      this.simulation
-        /*         .force(
-          'center',
-          //d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2)
-          d3.forceCenter(center.lng, center.lat)
-        ) */
-        .force(
-          'forceX',
-          d3
-            .forceX(d => {
-              d.pos = projection([d.X, d.Y])
-              return d.pos[0]
-            })
-            .strength(0.7)
-        )
-        .force(
-          'forceY',
-          d3
-            .forceY(d => {
-              return d.pos[1]
-            })
-            .strength(0.7)
-        )
-
-      this.simulation.alphaTarget(1).restart()
+      //this.simulation.alphaTarget(1).restart()
     },
     dragStarted(d) {
       this.simulation.alphaTarget(0.3).restart()
