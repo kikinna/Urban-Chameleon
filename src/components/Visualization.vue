@@ -158,7 +158,7 @@ export default {
           return d.pos[1]
           //return this.mapboxProjection([d.X, d.Y])[1];
         })
-        .call(drag)
+      //.call(drag)
 
       //this.simulation.alphaTarget(1).restart()
     },
@@ -169,13 +169,13 @@ export default {
 
       let projection = this.getProjection()
 
-      this.nodes
+      /* this.nodes
         .attr('cx', function(d) {
           return d.x
         })
         .attr('cy', function(d) {
           return d.y
-        })
+        }) */
       /* .attr('cx', function(d) {
           d.pos = projection([d.X, d.Y])
           return d.pos[0]
@@ -205,7 +205,7 @@ export default {
             .strength(0.7)
         )
 
-      this.simulation.alphaTarget(0.3).restart()
+      this.simulation.alphaTarget(0.3) //.restart()
     },
     tick() {
       this.nodes
@@ -265,14 +265,49 @@ export default {
       //.precision(0);
       return d3projection
     },
+    calculateDistanceDeviation() {
+      let projection = this.getProjection()
+      //console.log(this.nodes.data)
+      /* console.log(Array.from(this.nodes._groups[0]))
+      Array.from(this.nodes._groups[0]).forEach(d => {
+        d.pos = projection([d.X, d.Y])
+        let distX = d.pos[0] - d.x
+        let distY = d.pos[1] - d.y
+        d.dist = Math.abs([distX, distY])
+        console.log(d.dist)
+      }) */
+
+      this.nodes.attr('dist', function(d) {
+        d.pos = projection([d.X, d.Y])
+        let distX = d.pos[0] - d.x
+        let distY = d.pos[1] - d.y
+        d.dist = [Math.abs(distX), Math.abs(distY)]
+        //console.log(d)
+        return d.dist // d.x
+      })
+
+      /* let pls = d3.selectAll('nodes')
+      console.log(pls) */
+    },
     updateForces() {},
     listeners() {
+      //all events
       this.$root.$on('map-zoom', () => {
         this.updateD3()
       })
       this.$root.$on('map-move', () => {
         this.updateD3()
       })
+      //just end events
+      this.$root.$on('map-zoomend', () => {
+        //this.updateD3()
+        this.calculateDistanceDeviation()
+      })
+      this.$root.$on('map-moveend', () => {
+        //this.updateD3()
+        this.calculateDistanceDeviation()
+      })
+
       //this.$root.$on('map-viewreset', d => { console.log("viewreset"); this.updateD3(); })
     }
   }

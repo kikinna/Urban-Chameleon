@@ -1,5 +1,7 @@
 <template>
-  <div :id="(mapOptions.hasOwnProperty('container') ? mapOptions.container : 'map')"></div>
+  <div
+    :id="mapOptions.hasOwnProperty('container') ? mapOptions.container : 'map'"
+  ></div>
 </template>
 
 <script>
@@ -309,6 +311,8 @@ export default {
         this.$emit('map-pitchend', map, e)
       })
 
+      //events for d3
+
       map.on('zoom', e => {
         this.$root.$emit('map-zoom', map, e)
       })
@@ -319,6 +323,14 @@ export default {
 
       map.on('move', e => {
         this.$root.$emit('map-move', map, e)
+      })
+
+      map.on('moveend', e => {
+        this.$root.$emit('map-moveend', map, e)
+      })
+
+      map.on('zoomend', e => {
+        this.$root.$emit('map-zoomend', map, e)
       })
     },
     addControls(map) {

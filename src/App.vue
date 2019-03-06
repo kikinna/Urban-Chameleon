@@ -43,7 +43,6 @@
 import Mapbox from './components/Mapbox.vue'
 import Visualization from './components/Visualization.vue'
 import store from './store.js'
-import * as d3 from 'd3'
 
 export default {
   name: 'app',
