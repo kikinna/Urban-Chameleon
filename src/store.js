@@ -7,7 +7,12 @@ Vue.use(Vuex)
 export default new Vuex.Store({
   state: {
     map: {},
-    datasetObject: { dataset: [] }
+    datasetObject: {
+      dataset: [],
+      get getData() {
+        return Object.keys(this.dataset)
+      }
+    }
   },
   mutations: {
     loadMap(state, map) {
@@ -16,9 +21,9 @@ export default new Vuex.Store({
     loadData(state, data) {
       //state.dataset.push(data);
       // console.log('bef', state.dataset)
-      Object.defineProperty(state.datasetObject, 'nested', {
+      /* Object.defineProperty(state.datasetObject, 'nested', {
         configurable: false
-      })
+      }) */
       // console.log('af', state.dataset)
       let count = 0 //1?
       data.forEach(d => {
@@ -28,8 +33,9 @@ export default new Vuex.Store({
         Vue.set(state.datasetObject.dataset, count, d)
         count++
       })
-      Object.freeze(state.datasetObject)
-      state.datasetObject.dataset.forEach(o => Object.freeze(o))
+      /* state.dataset = data */
+      /* Object.freeze(state.datasetObject)
+      state.datasetObject.dataset.forEach(o => Object.freeze(o)) */
     }
   },
   actions: {

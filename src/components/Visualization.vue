@@ -5,16 +5,15 @@
 <script>
 import * as d3 from 'd3'
 import store from '../store.js'
-import accidentData from '../data/nehody2018.js'
+import accidentData from '../data/nehody2018full.js'
 
 export default {
   name: 'Visualization',
   data() {
     return {
-      dataVisualization: [],
+      dataD3: [],
       graph: null,
       simulation: null,
-      path: null,
       svg: null,
       nodes: null,
       nodeRadius: 5,
@@ -39,7 +38,7 @@ export default {
   store,
   mounted() {
     //this.loadData()
-    this.dataVisualization = accidentData
+    this.dataD3 = accidentData
     this.init()
   },
   methods: {
@@ -52,23 +51,24 @@ export default {
       }) */
       d3.csv('./data/Nehody2018.csv')
         .then(data => {
-          data.forEach(o => Object.freeze(o))
+          //data.forEach(o => Object.freeze(o))
           this.$store.dispatch('loadData', data)
-          this.dataVisualization = data
+          this.dataD3 = data
         })
         .catch(error => {
           console.error('Could not read the file.', error)
         })
       console.log('acc', accidentData.accidents)
-      //this.dataVisualization = Object.freeze(this.$store.state.dataset)
-      //this.dataVisualization = this.$store.state.dataset
-      console.log('lel', this.dataVisualization)
+      //this.dataD3 = Object.freeze(this.$store.state.dataset)
+      //this.dataD3 = this.$store.state.dataset
+      console.log('lel', this.dataD3)
       console.log('cmon', this.$store.state.datasetObject)
-      console.log('cmonnnn', this.$store.state.datasetObject.dataset)
+      //console.log('cmonnnn', this.$store.state.datasetObject.dataset)
       console.log(
         'cmonnnn',
-        this.$store.state.datasetObject.dataset.__ob__.value
+        this.$store.state.datasetObject.dataset //.__ob__.value
       )
+      console.log('array', this.$store.state.datasetObject.getData)
     },
     init() {
       this.render()
@@ -105,13 +105,13 @@ export default {
         ) */
         .force(
           'charge',
-          d3.forceManyBody().strength(-50 /* -6 * this.nodeRadius */)
+          d3.forceManyBody().strength(-30 /* -6 * this.nodeRadius */)
         )
         .force(
           'collide',
           d3
             .forceCollide()
-            .radius(2 * this.nodeRadius)
+            .radius(this.nodeRadius)
             .strength(1)
             .iterations(1)
         )
@@ -148,8 +148,8 @@ export default {
           return colorScale(d.DruhNehody)
         })
         .attr('cx', d => {
-          d.pos = projection([d.X, d.Y])
-          d.x = d.pos[0] //TODO: are we sure we don't need these data?
+          //d.pos = projection([d.X, d.Y])
+          d.x = d.pos[0]
           return d.pos[0]
           //return this.mapboxProjection([d.X, d.Y])[0];
         })
