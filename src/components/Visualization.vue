@@ -5,7 +5,7 @@
 <script>
 import * as d3 from 'd3'
 import store from '../store.js'
-import accidentData from '../data/nehody2018full.js'
+import accidentData from '../data/nehody2018.js'
 
 export default {
   name: 'Visualization',
@@ -103,10 +103,10 @@ export default {
           //d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2)
           d3.forceCenter(center.lng, center.lat)
         ) */
-        .force(
-          'charge',
-          d3.forceManyBody().strength(-30 /* -6 * this.nodeRadius */)
-        )
+        // .force(
+        //   'charge',
+        //   d3.forceManyBody().strength(-30 /* -6 * this.nodeRadius */)
+        // )
         .force(
           'collide',
           d3
@@ -145,6 +145,9 @@ export default {
         .append('circle')
         .attr('r', this.nodeRadius)
         .attr('fill', d => {
+          if (d.dist > 10) {
+            return "white"
+          }
           return colorScale(d.DruhNehody)
         })
         .attr('cx', d => {
@@ -159,7 +162,7 @@ export default {
           //return this.mapboxProjection([d.X, d.Y])[1];
         })
       //.call(drag)
-
+      this.calculateDistanceDeviation()
       //this.simulation.alphaTarget(1).restart()
     },
     updateD3() {
@@ -209,6 +212,14 @@ export default {
     },
     tick() {
       this.nodes
+        .attr('fill', d => {
+          if (d.dist > 10) {
+            console.log("dist", d.dist)
+            return "white"
+          } else {
+            return "red"
+          }
+        })
         .attr('cx', function(d) {
           return d.x
         })
@@ -222,7 +233,7 @@ export default {
         .attr('cy', function(d) {
           return d.pos[1]
         }) */
-
+      
       //this.simulation.alphaTarget(1).restart()
     },
     dragStarted(d) {
@@ -279,10 +290,13 @@ export default {
 
       this.nodes.attr('dist', function(d) {
         d.pos = projection([d.X, d.Y])
+        //console.log(d.pos)
         let distX = d.pos[0] - d.x
         let distY = d.pos[1] - d.y
-        d.dist = [Math.abs(distX), Math.abs(distY)]
-        //console.log(d)
+        d.dist = Math.sqrt(distX * distX + distY * distY) //[Math.abs(distX), Math.abs(distY)]
+        if (d.dist > 0) {
+          console.log(d.dist)
+        }
         return d.dist // d.x
       })
 
@@ -316,7 +330,6 @@ export default {
 
 <style>
 .nodes {
-  fill: rgb(177, 0, 0);
   stroke: #fff;
   stroke-width: 2px;
 }
