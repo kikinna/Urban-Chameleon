@@ -1,5 +1,8 @@
 <template>
-  <svg></svg>
+  <div @click.left="calculateDistanceDeviation" @click.right.prevent="simulation.restart" style="background-color:white; position:relative">
+
+    <svg></svg>
+  </div>
 </template>
 
 <script>
@@ -32,7 +35,8 @@ export default {
           enabled: true,
           strength: 0.7
         }
-      }
+      },
+      curr_zoom : 0
     }
   },
   store,
@@ -111,7 +115,7 @@ export default {
           'collide',
           d3
             .forceCollide()
-            .radius(this.nodeRadius)
+            .radius(this.nodeRadius*2)
             .strength(1)
             .iterations(1)
         )
@@ -120,6 +124,7 @@ export default {
           d3
             .forceX(d => {
               d.pos = projection([d.X, d.Y])
+              // console.log(d.pos);
               return d.pos[0]
             })
             .strength(0.7)
@@ -145,11 +150,12 @@ export default {
         .append('circle')
         .attr('r', this.nodeRadius)
         .attr('fill', d => {
-          if (d.dist > 10) {
+          if (d.tooFar) {
             return "white"
           }
           return colorScale(d.DruhNehody)
         })
+        .attr('class', "dots")
         .attr('cx', d => {
           //d.pos = projection([d.X, d.Y])
           d.x = d.pos[0]
@@ -162,7 +168,7 @@ export default {
           //return this.mapboxProjection([d.X, d.Y])[1];
         })
       //.call(drag)
-      this.calculateDistanceDeviation()
+      // this.calculateDistanceDeviation()
       //this.simulation.alphaTarget(1).restart()
     },
     updateD3() {
@@ -186,7 +192,19 @@ export default {
         .attr('cy', function(d) {
           return d.pos[1]
         }) */
-
+      this.calculateDistanceDeviation();
+      this.nodes
+        .attr('fill', d => {
+          if (d.tooFar) {
+          // console.log(d.tooFar, d.vzdalenost)
+            
+          }
+          if (d.tooFar) {
+            return "white"
+          } else {
+            return "red"
+          }
+        })
       this.simulation
         .force(
           'forceX',
@@ -211,15 +229,23 @@ export default {
       this.simulation.alphaTarget(0.3) //.restart()
     },
     tick() {
+            // this.calculateDistanceDeviation();
+
+      let zoom = this.$store.state.map.getZoom();
+      if (Math.abs(zoom-this.curr_zoom) > 0.001) { 
+        // console.log(zoom);
+        this.curr_zoom = zoom; 
+      }
+      
       this.nodes
-        .attr('fill', d => {
-          if (d.dist > 10) {
-            console.log("dist", d.dist)
-            return "white"
-          } else {
-            return "red"
-          }
-        })
+        // .attr('fill', d => {
+        //   if (d.dist > 10) {
+        //     // console.log("dist", d.dist)
+        //     return "white"
+        //   } else {
+        //     return "red"
+        //   }
+        // })
         .attr('cx', function(d) {
           return d.x
         })
@@ -235,6 +261,8 @@ export default {
         }) */
       
       //this.simulation.alphaTarget(1).restart()
+      // this.calculateDistanceDeviation();
+
     },
     dragStarted(d) {
       this.simulation.alphaTarget(0.3).restart()
@@ -277,31 +305,36 @@ export default {
       return d3projection
     },
     calculateDistanceDeviation() {
+      // console.log("clicked")
       let projection = this.getProjection()
-      //console.log(this.nodes.data)
-      /* console.log(Array.from(this.nodes._groups[0]))
-      Array.from(this.nodes._groups[0]).forEach(d => {
-        d.pos = projection([d.X, d.Y])
-        let distX = d.pos[0] - d.x
-        let distY = d.pos[1] - d.y
-        d.dist = Math.abs([distX, distY])
-        console.log(d.dist)
-      }) */
 
-      this.nodes.attr('dist', function(d) {
+      this.simulation.stop();
+      this.dataD3.accidents.forEach(d => {
+        let A = this.mapboxProjection([49.2153206, 16.6001003])
+        let B = this.mapboxProjection([49.2141556, 16.6008667])
+        let test_dist = Math.sqrt(Math.pow(A[0] - B[0],2) * Math.pow(A[1] - B[1], 2)) / 20;
+        // if (d.index == 3) { console.log(test_dist) }
         d.pos = projection([d.X, d.Y])
-        //console.log(d.pos)
+        // console.log(d.index, d.X, d.Y, d.pos[0], d.pos[1]);
         let distX = d.pos[0] - d.x
         let distY = d.pos[1] - d.y
-        d.dist = Math.sqrt(distX * distX + distY * distY) //[Math.abs(distX), Math.abs(distY)]
-        if (d.dist > 0) {
-          console.log(d.dist)
-        }
-        return d.dist // d.x
+        d.vzdalenost = Math.sqrt(distX * distX + distY * distY)
+        // console.log(distX, distY, d.dist);
+        d.tooFar = (d.vzdalenost > test_dist);
+        // if (d.tooFar) {
+        //   // console.log(d);
+        // }
       })
 
-      /* let pls = d3.selectAll('nodes')
-      console.log(pls) */
+      this.nodes.attr('fill', d => {
+        
+        if (d.tooFar) {
+            return "red"
+            console.log(d.tooFar)
+          }
+          return "green"
+      })
+      
     },
     updateForces() {},
     listeners() {
@@ -315,11 +348,11 @@ export default {
       //just end events
       this.$root.$on('map-zoomend', () => {
         //this.updateD3()
-        this.calculateDistanceDeviation()
+        // this.calculateDistanceDeviation()
       })
       this.$root.$on('map-moveend', () => {
         //this.updateD3()
-        this.calculateDistanceDeviation()
+        // this.calculateDistanceDeviation()
       })
 
       //this.$root.$on('map-viewreset', d => { console.log("viewreset"); this.updateD3(); })
