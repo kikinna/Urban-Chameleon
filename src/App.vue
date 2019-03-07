@@ -33,26 +33,24 @@
       @map-mousemove="mapMouseMoved"
       @geolocate-geolocate="geolocate"
       @map-zoom="changeLevelOfDetail"
-    >
-    </Mapbox>
+    ></Mapbox>
 
-    <Visualization> </Visualization>
+    <Visualization></Visualization>
   </div>
 </template>
 
 <script>
-import Mapbox from "./components/Mapbox.vue";
-import Visualization from "./components/Visualization.vue";
-import store from "./store.js";
-import * as d3 from "d3";
+import Mapbox from './components/Mapbox.vue'
+import Visualization from './components/Visualization.vue'
+import store from './store.js'
 
 export default {
-  name: "app",
+  name: 'app',
   data() {
     return {
       csv_data: null,
-      hello: "hello"
-    };
+      hello: 'hello'
+    }
   },
   components: {
     Mapbox,
@@ -64,26 +62,26 @@ export default {
   },
   methods: {
     mapInit(map) {
-      const Draw = new MapboxDraw();
-      map.addControl(Draw);
-      this.$store.commit("loadMap", map);
+      const Draw = new MapboxDraw()
+      map.addControl(Draw)
+      this.$store.commit('loadMap', map)
     },
     mapLoaded(map) {},
     mapClicked(map, e) {
-      console.log(map.getZoom());
+      console.log(map.getZoom())
     },
     mapMouseMoved(map, e) {
       const features = map.queryRenderedFeatures(e.point, {
-        layers: ["points"]
-      });
-      map.getCanvas().style.cursor = features.length ? "pointer" : "";
+        layers: ['points']
+      })
+      map.getCanvas().style.cursor = features.length ? 'pointer' : ''
     },
     geolocate(control, position) {
       console.log(
         `User position: ${position.coords.latitude}, ${
           position.coords.longitude
         }`
-      );
+      )
     },
     changeLevelOfDetail(map) {
       /*if (map.getZoom() > 15) {
@@ -94,12 +92,12 @@ export default {
 			}*/
     }
   }
-};
+}
 </script>
 
 <style>
 #app {
-  font-family: "Avenir", Helvetica, Arial, sans-serif;
+  font-family: 'Avenir', Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* text-align: center; */
