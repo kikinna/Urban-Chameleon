@@ -1,6 +1,9 @@
 <template>
-  <div @click.left="calculateDistanceDeviation" @click.right.prevent="simulation.restart" style="background-color:white; position:relative">
-
+  <div
+    style="background-color:white; position:relative; visibility: hidden;"
+    @click.left="calculateDistanceDeviation"
+    @click.right.prevent="simulation.restart"
+  >
     <svg></svg>
   </div>
 </template>
@@ -15,6 +18,7 @@ export default {
   data() {
     return {
       dataD3: [],
+      initialised: false,
       graph: null,
       simulation: null,
       svg: null,
@@ -36,7 +40,7 @@ export default {
           strength: 0.7
         }
       },
-      curr_zoom : 0
+      curr_zoom: 0
     }
   },
   store,
@@ -62,17 +66,6 @@ export default {
         .catch(error => {
           console.error('Could not read the file.', error)
         })
-      console.log('acc', accidentData.accidents)
-      //this.dataD3 = Object.freeze(this.$store.state.dataset)
-      //this.dataD3 = this.$store.state.dataset
-      console.log('lel', this.dataD3)
-      console.log('cmon', this.$store.state.datasetObject)
-      //console.log('cmonnnn', this.$store.state.datasetObject.dataset)
-      console.log(
-        'cmonnnn',
-        this.$store.state.datasetObject.dataset //.__ob__.value
-      )
-      console.log('array', this.$store.state.datasetObject.getData)
     },
     init() {
       this.render()
@@ -80,6 +73,7 @@ export default {
     },
     render() {
       let projection = this.getProjection()
+      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
       let drag = d3
         .drag()
@@ -87,35 +81,54 @@ export default {
         .on('drag', this.dragged)
         .on('end', this.dragEnded)
 
-      let svg = (this.svg = d3
+      this.svg = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
         .append('svg')
         .attr('id', 'test_svg')
         .attr('width', window.innerWidth)
-        .attr('height', window.innerHeight))
-      //.call(d3zoom);
+        .attr('height', window.innerHeight)
 
-      this.graph = accidentData
+      const t = d3
+        .transition()
+        .duration(750)
+        .ease(d3.easeLinear)
 
-      //let center = this.$store.state.map.getCenter()
+      this.nodes = this.svg
+        .append('g')
+        .attr('class', 'nodes')
+        .selectAll('circle')
+        .data(this.dataD3.accidents)
+        .enter()
+        .append('circle')
+        .attr('r', this.nodeRadius)
+        .attr('fill', d => {
+          if (d.tooFar) {
+            return 'red'
+          }
+          return 'black' //return colorScale(d.DruhNehody)
+        })
+        .attr('cx', d => {
+          d.pos = projection([d.X, d.Y])
+          d.x = d.pos[0]
+          return d.pos[0]
+        })
+        .attr('cy', d => {
+          d.y = d.pos[1]
+          return d.pos[1]
+        })
+
+      //.call(drag)
+
+      this.calculateDistanceDeviation()
 
       this.simulation = d3
         .forceSimulation()
-        .nodes(this.graph.accidents)
-        /* .force(
-          'center',
-          //d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2)
-          d3.forceCenter(center.lng, center.lat)
-        ) */
-        // .force(
-        //   'charge',
-        //   d3.forceManyBody().strength(-30 /* -6 * this.nodeRadius */)
-        // )
+        .nodes(this.dataD3.accidents)
         .force(
           'collide',
           d3
             .forceCollide()
-            .radius(this.nodeRadius*2)
+            .radius(this.nodeRadius * 2)
             .strength(1)
             .iterations(1)
         )
@@ -124,7 +137,6 @@ export default {
           d3
             .forceX(d => {
               d.pos = projection([d.X, d.Y])
-              // console.log(d.pos);
               return d.pos[0]
             })
             .strength(0.7)
@@ -139,37 +151,7 @@ export default {
         )
         .on('tick', this.tick)
 
-      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
-
-      this.nodes = svg
-        .append('g')
-        .attr('class', 'nodes')
-        .selectAll('circle')
-        .data(this.graph.accidents)
-        .enter()
-        .append('circle')
-        .attr('r', this.nodeRadius)
-        .attr('fill', d => {
-          if (d.tooFar) {
-            return "white"
-          }
-          return colorScale(d.DruhNehody)
-        })
-        .attr('class', "dots")
-        .attr('cx', d => {
-          //d.pos = projection([d.X, d.Y])
-          d.x = d.pos[0]
-          return d.pos[0]
-          //return this.mapboxProjection([d.X, d.Y])[0];
-        })
-        .attr('cy', d => {
-          d.y = d.pos[1]
-          return d.pos[1]
-          //return this.mapboxProjection([d.X, d.Y])[1];
-        })
-      //.call(drag)
-      // this.calculateDistanceDeviation()
-      //this.simulation.alphaTarget(1).restart()
+      //this.simulation.alpha(1).restart()
     },
     updateD3() {
       this.svg
@@ -192,19 +174,8 @@ export default {
         .attr('cy', function(d) {
           return d.pos[1]
         }) */
-      this.calculateDistanceDeviation();
-      this.nodes
-        .attr('fill', d => {
-          if (d.tooFar) {
-          // console.log(d.tooFar, d.vzdalenost)
-            
-          }
-          if (d.tooFar) {
-            return "white"
-          } else {
-            return "red"
-          }
-        })
+      //this.calculateDistanceDeviation()
+
       this.simulation
         .force(
           'forceX',
@@ -212,7 +183,6 @@ export default {
             .forceX(d => {
               d.pos = projection([d.X, d.Y])
               return d.pos[0]
-              //return d.X;
             })
             .strength(0.7)
         )
@@ -221,31 +191,54 @@ export default {
           d3
             .forceY(d => {
               return d.pos[1]
-              //return d.Y;
             })
             .strength(0.7)
         )
 
-      this.simulation.alphaTarget(0.3) //.restart()
+      this.simulation.alpha(0.3).restart()
     },
     tick() {
-            // this.calculateDistanceDeviation();
+      this.calculateDistanceDeviation()
 
-      let zoom = this.$store.state.map.getZoom();
-      if (Math.abs(zoom-this.curr_zoom) > 0.001) { 
+      /* let zoom = this.$store.state.map.getZoom()
+      if (Math.abs(zoom - this.curr_zoom) > 0.001) {
         // console.log(zoom);
-        this.curr_zoom = zoom; 
-      }
-      
+        this.curr_zoom = zoom
+      } */
+      let projection = this.getProjection()
+
+      this.simulation
+        .force(
+          'forceX',
+          d3
+            .forceX(d => {
+              d.pos = projection([d.X, d.Y])
+              return d.pos[0]
+            })
+            .strength(0.7)
+        )
+        .force(
+          'forceY',
+          d3
+            .forceY(d => {
+              return d.pos[1]
+            })
+            .strength(0.7)
+        )
+
+      /* d3.selectAll('nodes').attr(
+        'transform',
+        d => 'translate(' + d.x + ',' + d.y + ')'
+      ) */
+
+      const t = d3
+        .transition()
+        //.duration(0)
+        .ease(d3.easeLinear)
+
       this.nodes
-        // .attr('fill', d => {
-        //   if (d.dist > 10) {
-        //     // console.log("dist", d.dist)
-        //     return "white"
-        //   } else {
-        //     return "red"
-        //   }
-        // })
+        .transition(t)
+        //d3.selectAll('.nodes')
         .attr('cx', function(d) {
           return d.x
         })
@@ -259,13 +252,13 @@ export default {
         .attr('cy', function(d) {
           return d.pos[1]
         }) */
-      
-      //this.simulation.alphaTarget(1).restart()
-      // this.calculateDistanceDeviation();
 
+      //this.simulation.alpha(1).restart()
+      // this.calculateDistanceDeviation();
     },
     dragStarted(d) {
-      this.simulation.alphaTarget(0.3).restart()
+      // this.simulation.alpha(0.3).restart()
+      this.simulation.restart()
       d.fx = d.x
       d.fy = d.y
     },
@@ -274,7 +267,8 @@ export default {
       d.fy = d3.event.y
     },
     dragEnded(d) {
-      this.simulation.alphaTarget(0)
+      //this.simulation.alpha(0)
+      this.simulation.stop(0)
       d.fx = null
       d.fy = null
     },
@@ -305,14 +299,15 @@ export default {
       return d3projection
     },
     calculateDistanceDeviation() {
-      // console.log("clicked")
       let projection = this.getProjection()
-
-      this.simulation.stop();
+      //this.simulation.stop()
       this.dataD3.accidents.forEach(d => {
-        let A = this.mapboxProjection([49.2153206, 16.6001003])
-        let B = this.mapboxProjection([49.2141556, 16.6008667])
-        let test_dist = Math.sqrt(Math.pow(A[0] - B[0],2) * Math.pow(A[1] - B[1], 2)) / 20;
+        let A = projection([49.2153206, 16.6001003])
+        //let A = this.mapboxProjection([49.2153206, 16.6001003])
+        let B = projection([49.2141556, 16.6008667])
+        //let B = this.mapboxProjection([49.2141556, 16.6008667])
+        let test_dist =
+          Math.sqrt(Math.pow(A[0] - B[0], 2) * Math.pow(A[1] - B[1], 2)) / 10
         // if (d.index == 3) { console.log(test_dist) }
         d.pos = projection([d.X, d.Y])
         // console.log(d.index, d.X, d.Y, d.pos[0], d.pos[1]);
@@ -320,23 +315,21 @@ export default {
         let distY = d.pos[1] - d.y
         d.vzdalenost = Math.sqrt(distX * distX + distY * distY)
         // console.log(distX, distY, d.dist);
-        d.tooFar = (d.vzdalenost > test_dist);
+        d.tooFar = d.vzdalenost > test_dist
         // if (d.tooFar) {
         //   // console.log(d);
         // }
       })
 
       this.nodes.attr('fill', d => {
-        
         if (d.tooFar) {
-            return "red"
-            console.log(d.tooFar)
-          }
-          return "green"
+          //console.log(d.tooFar)
+          return 'red'
+        }
+        return 'black'
       })
-      
+      //this.simulation.alpha(0.3).restart()
     },
-    updateForces() {},
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
@@ -347,15 +340,79 @@ export default {
       })
       //just end events
       this.$root.$on('map-zoomend', () => {
-        //this.updateD3()
-        // this.calculateDistanceDeviation()
+        //this.simulation.alphaTarget(0)
+        this.calculateDistanceDeviation()
       })
       this.$root.$on('map-moveend', () => {
-        //this.updateD3()
-        // this.calculateDistanceDeviation()
+        this.calculateDistanceDeviation()
       })
 
       //this.$root.$on('map-viewreset', d => { console.log("viewreset"); this.updateD3(); })
+    }
+  },
+  computed: {
+    computedForceLayout: function() {
+      if (this.simulation) {
+        const projection = this.getProjection()
+
+        this.simulation
+          .force(
+            'forceX',
+            d3
+              .forceX(d => {
+                d.pos = projection([d.X, d.Y])
+                // console.log(d.pos);
+                return d.pos[0]
+              })
+              .strength(0.7)
+          )
+          .force(
+            'forceY',
+            d3
+              .forceY(d => {
+                return d.pos[1]
+              })
+              .strength(0.7)
+          )
+      }
+
+      return this.simulation
+    },
+    computedSvg: function() {
+      if (this.svg) {
+        this.svg
+          .attr('width', window.innerWidth)
+          .attr('height', window.innerHeight)
+      }
+
+      return this.svg
+    },
+
+    computedNodes: function() {
+      if (this.nodes) {
+        //const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+        const projection = this.getProjection()
+
+        this.nodes
+          .attr('r', this.nodeRadius)
+          .attr('fill', d => {
+            if (d.tooFar) {
+              return 'red'
+            }
+            return 'black' //return colorScale(d.DruhNehody)
+          })
+          .attr('cx', d => {
+            d.pos = projection([d.X, d.Y])
+            d.x = d.pos[0]
+            return d.pos[0]
+          })
+          .attr('cy', d => {
+            d.y = d.pos[1]
+            return d.pos[1]
+          })
+      }
+
+      return this.nodes
     }
   }
 }
