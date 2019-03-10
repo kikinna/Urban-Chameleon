@@ -41,7 +41,8 @@ export default {
           strength: 0.7
         }
       },
-      curr_zoom: 0
+      curr_zoom: 0,
+      distanceLimit: 3
     }
   },
   store,
@@ -73,7 +74,8 @@ export default {
       this.listeners()
     },
     render() {
-      let projection = this.getProjection()
+      //let projection = this.getProjection()
+      const viewport = this.getViewport()
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
       let drag = d3
@@ -109,7 +111,8 @@ export default {
           return 'black' //return colorScale(d.DruhNehody)
         })
         .attr('cx', d => {
-          d.pos = projection([d.X, d.Y])
+          d.pos = viewport.project([d.X, d.Y])
+          //d.pos = projection([d.X, d.Y])
           d.x = d.pos[0]
           return d.pos[0]
         })
@@ -137,7 +140,8 @@ export default {
           'forceX',
           d3
             .forceX(d => {
-              d.pos = projection([d.X, d.Y])
+              d.pos = viewport.project([d.X, d.Y])
+              //d.pos = projection([d.X, d.Y])
               return d.pos[0]
             })
             .strength(0.7)
@@ -159,7 +163,8 @@ export default {
         .attr('width', window.innerWidth)
         .attr('height', window.innerHeight)
 
-      let projection = this.getProjection()
+      //let projection = this.getProjection()
+      const viewport = this.getViewport()
 
       /* this.nodes
         .attr('cx', function(d) {
@@ -182,7 +187,8 @@ export default {
           'forceX',
           d3
             .forceX(d => {
-              d.pos = projection([d.X, d.Y])
+              d.pos = viewport.project([d.X, d.Y])
+              //d.pos = projection([d.X, d.Y])
               return d.pos[0]
             })
             .strength(0.7)
@@ -200,20 +206,22 @@ export default {
     },
     tick() {
       this.calculateDistanceDeviation()
+      const viewport = this.getViewport()
 
       /* let zoom = this.$store.state.map.getZoom()
       if (Math.abs(zoom - this.curr_zoom) > 0.001) {
         // console.log(zoom);
         this.curr_zoom = zoom
       } */
-      let projection = this.getProjection()
+      //let projection = this.getProjection()
 
       this.simulation
         .force(
           'forceX',
           d3
             .forceX(d => {
-              d.pos = projection([d.X, d.Y])
+              d.pos = viewport.project([d.X, d.Y])
+              //d.pos = projection([d.X, d.Y])
               return d.pos[0]
             })
             .strength(0.7)
@@ -226,11 +234,6 @@ export default {
             })
             .strength(0.7)
         )
-
-      /* d3.selectAll('nodes').attr(
-        'transform',
-        d => 'translate(' + d.x + ',' + d.y + ')'
-      ) */
 
       const t = d3
         .transition()
@@ -255,7 +258,6 @@ export default {
         }) */
 
       //this.simulation.alpha(1).restart()
-      // this.calculateDistanceDeviation();
     },
     dragStarted(d) {
       // this.simulation.alpha(0.3).restart()
@@ -272,12 +274,6 @@ export default {
       this.simulation.stop(0)
       d.fx = null
       d.fy = null
-    },
-    mapboxProjection(lonlat) {
-      let p = this.$store.state.map.project(
-        new mapboxgl.LngLat(lonlat[0], lonlat[1])
-      )
-      return [p.x, p.y]
     },
     getProjection() {
       //let bbox = document.body.getBoundingClientRect()
@@ -314,19 +310,6 @@ export default {
         pitch: pitch,
         bearing: bearing
       })
-      /* const viewport = new WebMercatorViewport({ //test values
-        width: 800,
-        height: 600,
-        longitude: -122.45,
-        latitude: 37.78,
-        zoom: 12,
-        pitch: 60,
-        bearing: 30
-      })
-      console.log('1', viewport.project([-122.45, 37.78]))
-      // returns pixel coordinates [400, 300]
-      console.log('2', viewport.unproject([400, 300]))
-      // returns map coordinates [-122.45, 37.78] */
       return viewport
     },
     worldToLngLat() {
@@ -338,27 +321,35 @@ export default {
       const vpA = viewport.unproject(A)
       console.log('lonlat: ', vpA)
     },
+    measureGeoDistance(lat1, lon1, lat2, lon2) {
+      // generally used geo measurement function
+      var R = 6378.137 // Radius of earth in KM
+      var dLat = (lat2 * Math.PI) / 180 - (lat1 * Math.PI) / 180
+      var dLon = (lon2 * Math.PI) / 180 - (lon1 * Math.PI) / 180
+      var a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2)
+      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+      var d = R * c
+      return d * 1000 // meters
+    },
     calculateDistanceDeviation() {
-      let projection = this.getProjection()
-      //this.simulation.stop()
+      const viewport = this.getViewport()
       this.dataD3.accidents.forEach(d => {
-        let A = projection([49.2153206, 16.6001003])
-        //let A = this.mapboxProjection([49.2153206, 16.6001003])
-        let B = projection([49.2141556, 16.6008667])
-        //let B = this.mapboxProjection([49.2141556, 16.6008667])
-        let test_dist =
-          Math.sqrt(Math.pow(A[0] - B[0], 2) * Math.pow(A[1] - B[1], 2)) / 10
-        // if (d.index == 3) { console.log(test_dist) }
-        d.pos = projection([d.X, d.Y])
-        // console.log(d.index, d.X, d.Y, d.pos[0], d.pos[1]);
-        let distX = d.pos[0] - d.x
-        let distY = d.pos[1] - d.y
-        d.vzdalenost = Math.sqrt(distX * distX + distY * distY)
-        // console.log(distX, distY, d.dist);
-        d.tooFar = d.vzdalenost > test_dist
-        // if (d.tooFar) {
-        //   // console.log(d);
-        // }
+        const unshiftedCoords = [d.X, d.Y]
+        const currentCoords = viewport.unproject(d.pos)
+
+        const distanceInMeters = this.measureGeoDistance(
+          unshiftedCoords[0],
+          unshiftedCoords[1],
+          currentCoords[0],
+          currentCoords[1]
+        )
+
+        d.tooFar = distanceInMeters > 0.000001 // currentDistance > 0.000000001 //this.distanceLimit
       })
 
       this.nodes.attr('fill', d => {
@@ -374,7 +365,7 @@ export default {
       //all events
       this.$root.$on('map-zoom', () => {
         this.updateD3()
-        this.worldToLngLat()
+        //this.worldToLngLat()
       })
       this.$root.$on('map-move', () => {
         this.updateD3()
@@ -383,6 +374,12 @@ export default {
       this.$root.$on('map-zoomend', () => {
         //this.simulation.alphaTarget(0)
         this.calculateDistanceDeviation()
+
+        const A = [49.2153206, 16.6001003]
+        const B = [49.2141556, 16.6008667]
+
+        const distanceInMeters = this.measureGeoDistance(A[0], A[1], B[0], B[1])
+        console.log('test distanceInMeters', distanceInMeters)
       })
       this.$root.$on('map-moveend', () => {
         this.calculateDistanceDeviation()
@@ -394,14 +391,16 @@ export default {
   computed: {
     computedForceLayout: function() {
       if (this.simulation) {
-        const projection = this.getProjection()
+        //const projection = this.getProjection()
+        const viewport = this.getViewport()
 
         this.simulation
           .force(
             'forceX',
             d3
               .forceX(d => {
-                d.pos = projection([d.X, d.Y])
+                d.pos = viewport.project([d.X, d.Y])
+                //d.pos = projection([d.X, d.Y])
                 // console.log(d.pos);
                 return d.pos[0]
               })
@@ -432,7 +431,8 @@ export default {
     computedNodes: function() {
       if (this.nodes) {
         //const colorScale = d3.scaleOrdinal(d3.schemeDark2)
-        const projection = this.getProjection()
+        //const projection = this.getProjection()
+        const viewport = this.getViewport()
 
         this.nodes
           .attr('r', this.nodeRadius)
@@ -443,7 +443,8 @@ export default {
             return 'black' //return colorScale(d.DruhNehody)
           })
           .attr('cx', d => {
-            d.pos = projection([d.X, d.Y])
+            d.pos = viewport.project([d.X, d.Y])
+            //d.pos = projection([d.X, d.Y])
             d.x = d.pos[0]
             return d.pos[0]
           })
