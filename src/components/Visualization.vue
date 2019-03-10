@@ -12,6 +12,7 @@
 import * as d3 from 'd3'
 import store from '../store.js'
 import accidentData from '../data/nehody2018.js'
+import WebMercatorViewport from 'viewport-mercator-project'
 
 export default {
   name: 'Visualization',
@@ -298,6 +299,45 @@ export default {
       //.precision(0);
       return d3projection
     },
+    getViewport() {
+      const center = this.$store.state.map.getCenter()
+      const zoom = this.$store.state.map.getZoom()
+      const pitch = this.$store.state.map.getPitch()
+      const bearing = this.$store.state.map.getBearing()
+
+      const viewport = new WebMercatorViewport({
+        longitude: center.lng,
+        latitude: center.lat,
+        zoom: zoom,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        pitch: pitch,
+        bearing: bearing
+      })
+      /* const viewport = new WebMercatorViewport({ //test values
+        width: 800,
+        height: 600,
+        longitude: -122.45,
+        latitude: 37.78,
+        zoom: 12,
+        pitch: 60,
+        bearing: 30
+      })
+      console.log('1', viewport.project([-122.45, 37.78]))
+      // returns pixel coordinates [400, 300]
+      console.log('2', viewport.unproject([400, 300]))
+      // returns map coordinates [-122.45, 37.78] */
+      return viewport
+    },
+    worldToLngLat() {
+      const projection = this.getProjection()
+      console.log('49.2153206, 16.6001003')
+      const A = projection([49.2153206, 16.6001003])
+      console.log('world coords: ', A)
+      const viewport = this.getViewport()
+      const vpA = viewport.unproject(A)
+      console.log('lonlat: ', vpA)
+    },
     calculateDistanceDeviation() {
       let projection = this.getProjection()
       //this.simulation.stop()
@@ -334,6 +374,7 @@ export default {
       //all events
       this.$root.$on('map-zoom', () => {
         this.updateD3()
+        this.worldToLngLat()
       })
       this.$root.$on('map-move', () => {
         this.updateD3()
