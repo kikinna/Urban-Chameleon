@@ -28,21 +28,21 @@ export default {
       forceProperties: {
         collide: {
           enabled: true,
-          strength: 0.7,
+          strength: 1,
           iterations: 1,
           radius: 35
         },
         forceX: {
           enabled: true,
-          strength: 0.7
+          strength: 1
         },
         forceY: {
           enabled: true,
-          strength: 0.7
+          strength: 1
         }
       },
       curr_zoom: 0,
-      distanceLimit: 3
+      distanceLimit: 0.000001
     }
   },
   store,
@@ -74,7 +74,7 @@ export default {
       this.listeners()
     },
     render() {
-      //let projection = this.getProjection()
+      let projection = this.getProjection()
       const viewport = this.getViewport()
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
@@ -88,8 +88,8 @@ export default {
         .select(this.$store.state.map.getCanvasContainer()) //'map'
         .append('svg')
         .attr('id', 'test_svg')
-        .attr('width', window.innerWidth)
-        .attr('height', window.innerHeight)
+        .attr('width', this.computedWidth)
+        .attr('height', this.computedHeight)
 
       const t = d3
         .transition()
@@ -112,13 +112,22 @@ export default {
         })
         .attr('cx', d => {
           d.pos = viewport.project([d.X, d.Y])
-          //d.pos = projection([d.X, d.Y])
+          // d.pos = projection([d.X, d.Y])
           d.x = d.pos[0]
           return d.pos[0]
         })
         .attr('cy', d => {
           d.y = d.pos[1]
           return d.pos[1]
+        })
+        .on('click', d => {
+          console.log(
+            'deviation',
+            d.deviation,
+            ' but is it too far? ',
+            d.tooFar
+          )
+          this.calculateDistanceDeviation()
         })
 
       //.call(drag)
@@ -141,10 +150,10 @@ export default {
           d3
             .forceX(d => {
               d.pos = viewport.project([d.X, d.Y])
-              //d.pos = projection([d.X, d.Y])
+              // d.pos = projection([d.X, d.Y])
               return d.pos[0]
             })
-            .strength(0.7)
+            .strength(1)
         )
         .force(
           'forceY',
@@ -152,7 +161,7 @@ export default {
             .forceY(d => {
               return d.pos[1]
             })
-            .strength(0.7)
+            .strength(1)
         )
         .on('tick', this.tick)
 
@@ -160,10 +169,10 @@ export default {
     },
     updateD3() {
       this.svg
-        .attr('width', window.innerWidth)
-        .attr('height', window.innerHeight)
+        .attr('width', this.computedWidth)
+        .attr('height', this.computedHeight)
 
-      //let projection = this.getProjection()
+      let projection = this.getProjection()
       const viewport = this.getViewport()
 
       /* this.nodes
@@ -188,10 +197,10 @@ export default {
           d3
             .forceX(d => {
               d.pos = viewport.project([d.X, d.Y])
-              //d.pos = projection([d.X, d.Y])
+              // d.pos = projection([d.X, d.Y])
               return d.pos[0]
             })
-            .strength(0.7)
+            .strength(1)
         )
         .force(
           'forceY',
@@ -199,7 +208,7 @@ export default {
             .forceY(d => {
               return d.pos[1]
             })
-            .strength(0.7)
+            .strength(1)
         )
 
       this.simulation.alpha(0.3).restart()
@@ -213,7 +222,7 @@ export default {
         // console.log(zoom);
         this.curr_zoom = zoom
       } */
-      //let projection = this.getProjection()
+      let projection = this.getProjection()
 
       this.simulation
         .force(
@@ -221,10 +230,10 @@ export default {
           d3
             .forceX(d => {
               d.pos = viewport.project([d.X, d.Y])
-              //d.pos = projection([d.X, d.Y])
+              // d.pos = projection([d.X, d.Y])
               return d.pos[0]
             })
-            .strength(0.7)
+            .strength(1)
         )
         .force(
           'forceY',
@@ -232,7 +241,7 @@ export default {
             .forceY(d => {
               return d.pos[1]
             })
-            .strength(0.7)
+            .strength(1)
         )
 
       const t = d3
@@ -276,7 +285,7 @@ export default {
       d.fy = null
     },
     getProjection() {
-      //let bbox = document.body.getBoundingClientRect()
+      let bbox = document.body.getBoundingClientRect()
       let center = this.$store.state.map.getCenter()
       let zoom = this.$store.state.map.getZoom()
       // 512 is hardcoded tile size, might need to be 256 or changed to suit your map config
@@ -284,12 +293,7 @@ export default {
       let d3projection = d3
         .geoMercator()
         .center([center.lng, center.lat])
-        .translate(
-          [
-            window.innerWidth / 2,
-            window.innerHeight / 2
-          ] /* [bbox.width/2, bbox.height/2] */
-        )
+        .translate([this.computedWidth / 2, this.computedHeight / 2])
         .scale(scale)
       //.scale((1 << 21) / (2 * Math.PI)) //https://observablehq.com/@mbostock/d3-vector-tiles //
       //.precision(0);
@@ -305,15 +309,16 @@ export default {
         longitude: center.lng,
         latitude: center.lat,
         zoom: zoom,
-        width: window.innerWidth,
-        height: window.innerHeight,
+        width: this.computedWidth,
+        height: this.computedHeight,
         pitch: pitch,
         bearing: bearing
       })
       return viewport
     },
     worldToLngLat() {
-      const projection = this.getProjection()
+      //test function
+      // const projection = this.getProjection()
       console.log('49.2153206, 16.6001003')
       const A = projection([49.2153206, 16.6001003])
       console.log('world coords: ', A)
@@ -348,8 +353,8 @@ export default {
           currentCoords[0],
           currentCoords[1]
         )
-
-        d.tooFar = distanceInMeters > 0.000001 // currentDistance > 0.000000001 //this.distanceLimit
+        d.deviation = distanceInMeters
+        d.tooFar = distanceInMeters > this.distanceLimit //0.000001 // currentDistance > 0.000000001 //this.distanceLimit
       })
 
       this.nodes.attr('fill', d => {
@@ -373,16 +378,24 @@ export default {
       //just end events
       this.$root.$on('map-zoomend', () => {
         //this.simulation.alphaTarget(0)
-        this.calculateDistanceDeviation()
+        /* this.calculateDistanceDeviation() //testing
 
         const A = [49.2153206, 16.6001003]
         const B = [49.2141556, 16.6008667]
 
         const distanceInMeters = this.measureGeoDistance(A[0], A[1], B[0], B[1])
-        console.log('test distanceInMeters', distanceInMeters)
+        console.log('test distanceInMeters', distanceInMeters) */
+        /* this.dataD3.accidents.forEach(d => {
+          console.log(
+            'deviation',
+            d.deviation,
+            ' but is it too far? ',
+            d.tooFar
+          )
+        }) */
       })
       this.$root.$on('map-moveend', () => {
-        this.calculateDistanceDeviation()
+        //this.calculateDistanceDeviation()
       })
 
       //this.$root.$on('map-viewreset', d => { console.log("viewreset"); this.updateD3(); })
@@ -391,7 +404,7 @@ export default {
   computed: {
     computedForceLayout: function() {
       if (this.simulation) {
-        //const projection = this.getProjection()
+        const projection = this.getProjection()
         const viewport = this.getViewport()
 
         this.simulation
@@ -400,11 +413,11 @@ export default {
             d3
               .forceX(d => {
                 d.pos = viewport.project([d.X, d.Y])
-                //d.pos = projection([d.X, d.Y])
+                // d.pos = projection([d.X, d.Y])
                 // console.log(d.pos);
                 return d.pos[0]
               })
-              .strength(0.7)
+              .strength(1)
           )
           .force(
             'forceY',
@@ -412,7 +425,7 @@ export default {
               .forceY(d => {
                 return d.pos[1]
               })
-              .strength(0.7)
+              .strength(1)
           )
       }
 
@@ -421,8 +434,8 @@ export default {
     computedSvg: function() {
       if (this.svg) {
         this.svg
-          .attr('width', window.innerWidth)
-          .attr('height', window.innerHeight)
+          .attr('width', this.computedWidth)
+          .attr('height', this.computedHeight)
       }
 
       return this.svg
@@ -431,7 +444,7 @@ export default {
     computedNodes: function() {
       if (this.nodes) {
         //const colorScale = d3.scaleOrdinal(d3.schemeDark2)
-        //const projection = this.getProjection()
+        const projection = this.getProjection()
         const viewport = this.getViewport()
 
         this.nodes
@@ -444,7 +457,7 @@ export default {
           })
           .attr('cx', d => {
             d.pos = viewport.project([d.X, d.Y])
-            //d.pos = projection([d.X, d.Y])
+            // d.pos = projection([d.X, d.Y])
             d.x = d.pos[0]
             return d.pos[0]
           })
@@ -455,6 +468,14 @@ export default {
       }
 
       return this.nodes
+    },
+
+    computedWidth: function() {
+      return this.$store.state.map.getCanvas().width
+    },
+
+    computedHeight: function() {
+      return this.$store.state.map.getCanvas().height
     }
   }
 }
