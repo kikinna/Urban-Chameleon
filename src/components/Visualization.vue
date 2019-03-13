@@ -164,16 +164,27 @@ export default {
             .strength(1)
         )
         .on('tick', this.tick)
+        .on('end', this.end)
 
       //this.simulation.alpha(1).restart()
     },
     updateD3() {
-      this.svg
-        .attr('width', this.computedWidth)
-        .attr('height', this.computedHeight)
+      // this.svg
+      //   .attr('width', this.computedWidth)
+      //   .attr('height', this.computedHeight)
 
       let projection = this.getProjection()
       const viewport = this.getViewport()
+
+      this.nodes
+        .attr('cx', function(d) {
+          d.x = viewport.project(d.forceGPS)[0]
+          return d.x
+        })
+        .attr('cy', function(d) {
+          d.y = viewport.project(d.forceGPS)[1]
+          return d.y
+        })
 
       /* this.nodes
         .attr('cx', function(d) {
@@ -211,9 +222,22 @@ export default {
             .strength(1)
         )
 
-      this.simulation.alpha(0.3).restart()
+      // this.nodes
+      //   // .transition(t)
+      //   //d3.selectAll('.nodes')
+      //   .attr('cx', function(d) {
+      //     return d.x
+      //   })
+      //   .attr('cy', function(d) {
+      //     return d.y
+      //   })
+
+      this.simulation.alpha(0.1).restart()
     },
     tick() {
+      // console.log('simulation tick')
+      // console.log('alpha', this.simulation.alpha()*100)
+      // console.log(this.$store.state.map.getZoom())
       this.calculateDistanceDeviation()
       const viewport = this.getViewport()
 
@@ -224,35 +248,39 @@ export default {
       } */
       let projection = this.getProjection()
 
-      this.simulation
-        .force(
-          'forceX',
-          d3
-            .forceX(d => {
-              d.pos = viewport.project([d.X, d.Y])
-              // d.pos = projection([d.X, d.Y])
-              return d.pos[0]
-            })
-            .strength(1)
-        )
-        .force(
-          'forceY',
-          d3
-            .forceY(d => {
-              return d.pos[1]
-            })
-            .strength(1)
-        )
+      // this.simulation
+      //   .force(
+      //     'forceX',
+      //     d3
+      //       .forceX(d => {
+      //         d.pos = viewport.project([d.X, d.Y])
+      //         // d.pos = projection([d.X, d.Y])
+      //         return d.pos[0]
+      //       })
+      //       .strength(1)
+      //   )
+      //   .force(
+      //     'forceY',
+      //     d3
+      //       .forceY(d => {
+      //         return d.pos[1]
+      //       })
+      //       .strength(1)
+      //   )
 
-      const t = d3
-        .transition()
-        //.duration(0)
-        .ease(d3.easeLinear)
+      // const t = d3
+      //   .transition()
+      //   .duration(0)
+      //   // .ease(d3.easeLinear)
 
       this.nodes
-        .transition(t)
-        //d3.selectAll('.nodes')
+        // .transition(t)
+        // d3.selectAll('.nodes')
         .attr('cx', function(d) {
+          d.forceGPS = viewport.unproject([d.x, d.y])
+          // if (d.OBJECTID == 1260) {
+          //   console.log(d.forceGPS[0]-d.X, d.forceGPS[1]-d.Y)
+          // }
           return d.x
         })
         .attr('cy', function(d) {
@@ -267,6 +295,10 @@ export default {
         }) */
 
       //this.simulation.alpha(1).restart()
+    },
+    end() {
+      // this.calculateDistanceDeviation();
+      console.log('simulation end')
     },
     dragStarted(d) {
       // this.simulation.alpha(0.3).restart()
@@ -368,15 +400,19 @@ export default {
     },
     listeners() {
       //all events
-      this.$root.$on('map-zoom', () => {
+      this.$root.$on('map-zoomend', () => {
         this.updateD3()
+
+        // console.log('zoomed',  this.$store.state.map.getZoom())
         //this.worldToLngLat()
       })
       this.$root.$on('map-move', () => {
         this.updateD3()
+        // console.log('moved')
       })
       //just end events
       this.$root.$on('map-zoomend', () => {
+        // console.log('zoomend')
         //this.simulation.alphaTarget(0)
         /* this.calculateDistanceDeviation() //testing
 
@@ -395,8 +431,18 @@ export default {
         }) */
       })
       this.$root.$on('map-moveend', () => {
-        //this.calculateDistanceDeviation()
+        console.log('map moveend')
       })
+      this.$root.$on('map-movestart', () => {
+        console.log('map movestart')
+      })
+      this.$root.$on('map-zoomstart', () => {
+        console.log('map zoom START', this.$store.state.map.getZoom())
+      })
+      this.$root.$on('map-zoomend', () => {
+        console.log('map zoom END', this.$store.state.map.getZoom())
+      })
+      
 
       //this.$root.$on('map-viewreset', d => { console.log("viewreset"); this.updateD3(); })
     }
@@ -456,6 +502,8 @@ export default {
             return 'black' //return colorScale(d.DruhNehody)
           })
           .attr('cx', d => {
+            
+            d.forceGPS = viewport.unproject([d.x, d.y])
             d.pos = viewport.project([d.X, d.Y])
             // d.pos = projection([d.X, d.Y])
             d.x = d.pos[0]
