@@ -336,6 +336,10 @@ export default {
       map.on('zoomstart', e => {
         this.$root.$emit('map-zoomstart', map, e)
       })
+
+      map.on('click', e => {
+        this.$root.$emit('map-click', map, e)
+      })
     },
     addControls(map) {
       //Nav Control

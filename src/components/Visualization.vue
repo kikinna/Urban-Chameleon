@@ -19,6 +19,10 @@ export default {
   data() {
     return {
       dataD3: [],
+      cells: [],
+      firstParty: [],
+      partyNodes: null,
+      partySimulation: null,
       initialised: false,
       graph: null,
       simulation: null,
@@ -74,15 +78,10 @@ export default {
       this.listeners()
     },
     render() {
-      let projection = this.getProjection()
       const viewport = this.getViewport()
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
-      let drag = d3
-        .drag()
-        .on('start', this.dragStarted)
-        .on('drag', this.dragged)
-        .on('end', this.dragEnded)
+      //let drag = d3.drag().on('start', this.dragStarted).on('drag', this.dragged).on('end', this.dragEnded)
 
       this.svg = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
@@ -90,11 +89,6 @@ export default {
         .attr('id', 'test_svg')
         .attr('width', this.computedWidth)
         .attr('height', this.computedHeight)
-
-      const t = d3
-        .transition()
-        .duration(750)
-        .ease(d3.easeLinear)
 
       this.nodes = this.svg
         .append('g')
@@ -121,18 +115,18 @@ export default {
           return d.pos[1]
         })
         .on('click', d => {
-          console.log(
+          /* console.log(
             'deviation',
             d.deviation,
             ' but is it too far? ',
             d.tooFar
-          )
-          this.calculateDistanceDeviation()
+          ) */
+          // this.calculateDistanceDeviation()
         })
 
       //.call(drag)
 
-      this.calculateDistanceDeviation()
+      // this.calculateDistanceDeviation()
 
       this.simulation = d3
         .forceSimulation()
@@ -164,7 +158,7 @@ export default {
             .strength(1)
         )
         .on('tick', this.tick)
-        .on('end', this.end)
+      //.on('end', this.end)
 
       //this.simulation.alpha(1).restart()
     },
@@ -172,8 +166,6 @@ export default {
       // this.svg
       //   .attr('width', this.computedWidth)
       //   .attr('height', this.computedHeight)
-
-      let projection = this.getProjection()
       const viewport = this.getViewport()
 
       this.nodes
@@ -186,20 +178,6 @@ export default {
           return d.y
         })
 
-      /* this.nodes
-        .attr('cx', function(d) {
-          return d.x
-        })
-        .attr('cy', function(d) {
-          return d.y
-        }) */
-      /* .attr('cx', function(d) {
-          d.pos = projection([d.X, d.Y])
-          return d.pos[0]
-        })
-        .attr('cy', function(d) {
-          return d.pos[1]
-        }) */
       //this.calculateDistanceDeviation()
 
       this.simulation
@@ -222,60 +200,19 @@ export default {
             .strength(1)
         )
 
-      // this.nodes
-      //   // .transition(t)
-      //   //d3.selectAll('.nodes')
-      //   .attr('cx', function(d) {
-      //     return d.x
-      //   })
-      //   .attr('cy', function(d) {
-      //     return d.y
-      //   })
-
       this.simulation.alpha(0.1).restart()
     },
     tick() {
       // console.log('simulation tick')
       // console.log('alpha', this.simulation.alpha()*100)
-      // console.log(this.$store.state.map.getZoom())
-      this.calculateDistanceDeviation()
+      // this.calculateDistanceDeviation()
       const viewport = this.getViewport()
-
-      /* let zoom = this.$store.state.map.getZoom()
-      if (Math.abs(zoom - this.curr_zoom) > 0.001) {
-        // console.log(zoom);
-        this.curr_zoom = zoom
-      } */
-      let projection = this.getProjection()
-
-      // this.simulation
-      //   .force(
-      //     'forceX',
-      //     d3
-      //       .forceX(d => {
-      //         d.pos = viewport.project([d.X, d.Y])
+      // this.simulation.force('forceX',d3.forceX(d => {d.pos = viewport.project([d.X, d.Y])
       //         // d.pos = projection([d.X, d.Y])
-      //         return d.pos[0]
-      //       })
-      //       .strength(1)
-      //   )
-      //   .force(
-      //     'forceY',
-      //     d3
-      //       .forceY(d => {
-      //         return d.pos[1]
-      //       })
-      //       .strength(1)
-      //   )
-
-      // const t = d3
-      //   .transition()
-      //   .duration(0)
-      //   // .ease(d3.easeLinear)
+      //         return d.pos[0]}).strength(1))
+      //   .force('forceY',d3.forceY(d => {return d.pos[1]}).strength(1))
 
       this.nodes
-        // .transition(t)
-        // d3.selectAll('.nodes')
         .attr('cx', function(d) {
           d.forceGPS = viewport.unproject([d.x, d.y])
           // if (d.OBJECTID == 1260) {
@@ -286,18 +223,9 @@ export default {
         .attr('cy', function(d) {
           return d.y
         })
-      /* .attr('cx', function(d) {
-          d.pos = projection([d.X, d.Y])
-          return d.pos[0]
-        })
-        .attr('cy', function(d) {
-          return d.pos[1]
-        }) */
-
-      //this.simulation.alpha(1).restart()
     },
     end() {
-      // this.calculateDistanceDeviation();
+      this.calculateDistanceDeviation()
       console.log('simulation end')
     },
     dragStarted(d) {
@@ -348,16 +276,6 @@ export default {
       })
       return viewport
     },
-    worldToLngLat() {
-      //test function
-      // const projection = this.getProjection()
-      console.log('49.2153206, 16.6001003')
-      const A = projection([49.2153206, 16.6001003])
-      console.log('world coords: ', A)
-      const viewport = this.getViewport()
-      const vpA = viewport.unproject(A)
-      console.log('lonlat: ', vpA)
-    },
     measureGeoDistance(lat1, lon1, lat2, lon2) {
       // generally used geo measurement function
       var R = 6378.137 // Radius of earth in KM
@@ -372,6 +290,115 @@ export default {
       var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
       var d = R * c
       return d * 1000 // meters
+    },
+    initGrid(arrayLength) {
+      const GRID_SIZE = 25
+      const GRID_COLS = 6
+      const GRID_ROWS = Math.ceil(arrayLength / GRID_COLS)
+
+      const cells = []
+
+      for (var c = 0; c < GRID_COLS; c++) {
+        for (var r = 0; r < GRID_ROWS; r++) {
+          var cell
+          cell = {
+            x: c * GRID_SIZE,
+            y: r * GRID_SIZE,
+            occupied: false
+          }
+          cells.push(cell)
+        }
+      }
+
+      this.cells = cells
+    },
+    sqdist(a, b) {
+      return Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2)
+    },
+    occupyNearest(p) {
+      var minDist = 1000000
+      var d
+      var candidate = null
+      for (var i = 0; i < this.cells.length; i++) {
+        if (
+          !this.cells[i].occupied &&
+          (d = this.sqdist(p, this.cells[i])) < minDist
+        ) {
+          minDist = d
+          candidate = this.cells[i]
+        }
+      }
+      if (candidate) candidate.occupied = true
+      return candidate
+    },
+    housePartyAreas() {
+      //this.simulation.stop()
+      const latlon1 = [16.59512715090524, 49.20013082305056]
+      //const latlon2 = [16.595096320004444, 49.19380583417316]
+      const latlon3 = [16.605566189434686, 49.19358091860195]
+      //const latlon4 = [16.605512948005973, 49.19883456531343]
+
+      this.firstParty = this.computedFirstPartyData
+
+      const viewport = this.getViewport()
+
+      this.initPartyForceSimulation(
+        viewport.project(latlon1),
+        viewport.project(latlon3)
+      )
+    },
+    initPartyForceSimulation(latlon1, latlon3) {
+      this.partySimulation = d3
+        .forceSimulation(this.computedFirstPartyData)
+        .force(
+          'center',
+          d3.forceCenter(
+            window.innerWidth / 2,
+            window.innerHeight / 2
+            /* (latlon1[0] + latlon3[0]) / 2,
+            (latlon1[1] + latlon3[1]) / 2 */
+          )
+        )
+      // .force('forceX', d3.forceX(window.innerWidth / 2).strength(1))
+      // .force('forceY', d3.forceY(window.innerHeight / 2).strength(1))
+
+      const shiftX = (latlon1[0] + latlon3[0]) / 2 //window.innerWidth / 2
+      const shiftY = (latlon1[1] + latlon3[1]) / 2 //window.innerHeight / 2
+
+      console.log('shift', shiftX, shiftY)
+
+      this.partyNodes = this.svg
+        .append('g')
+        .attr('stroke', '#fff')
+        .attr('stroke-width', 1.5)
+        .selectAll('circle')
+        .data(this.computedFirstPartyData)
+        .join('circle')
+        .attr('class', 'partyCircles')
+        .attr('r', 5)
+        .attr('fill', 'blue')
+
+      this.partySimulation.on('tick', () => {
+        this.initGrid(this.computedFirstPartyData.length)
+        console.log('ticked', this.computedFirstPartyData.length)
+
+        this.partyNodes
+          .each(d => {
+            let gridpoint = this.occupyNearest(d)
+            if (gridpoint) {
+              // ensures smooth movement towards final positoin
+              // d.x += (gridpoint.x - d.x) * 0.05
+              // d.y += (gridpoint.y - d.y) * 0.05
+
+              // jumps directly into final position
+              d.x = gridpoint.x
+              d.y = gridpoint.y
+            }
+            //console.log(d)
+          })
+          .attr('cx', d => d.x + shiftX)
+          .attr('cy', d => d.y + shiftY)
+      })
     },
     calculateDistanceDeviation() {
       const viewport = this.getViewport()
@@ -431,18 +458,20 @@ export default {
         }) */
       })
       this.$root.$on('map-moveend', () => {
-        console.log('map moveend')
+        //console.log('map moveend')
       })
       this.$root.$on('map-movestart', () => {
-        console.log('map movestart')
+        //console.log('map movestart')
       })
       this.$root.$on('map-zoomstart', () => {
-        console.log('map zoom START', this.$store.state.map.getZoom())
+        //console.log('map zoom START', this.$store.state.map.getZoom())
       })
       this.$root.$on('map-zoomend', () => {
-        console.log('map zoom END', this.$store.state.map.getZoom())
+        //console.log('map zoom END', this.$store.state.map.getZoom())
       })
-      
+      this.$root.$on('map-click', () => {
+        this.housePartyAreas()
+      })
 
       //this.$root.$on('map-viewreset', d => { console.log("viewreset"); this.updateD3(); })
     }
@@ -502,7 +531,6 @@ export default {
             return 'black' //return colorScale(d.DruhNehody)
           })
           .attr('cx', d => {
-            
             d.forceGPS = viewport.unproject([d.x, d.y])
             d.pos = viewport.project([d.X, d.Y])
             // d.pos = projection([d.X, d.Y])
@@ -518,18 +546,71 @@ export default {
       return this.nodes
     },
 
+    computedFirstPartyData: function() {
+      const latlon1 = [16.59512715090524, 49.20013082305056]
+      //const latlon2 = [16.595096320004444, 49.19380583417316]
+      const latlon3 = [16.605566189434686, 49.19358091860195]
+      //const latlon4 = [16.605512948005973, 49.19883456531343]
+      this.dataD3.accidents.forEach(d => {
+        if (
+          d.forceGPS[0] > latlon1[0] &&
+          d.forceGPS[0] < latlon3[0] &&
+          d.forceGPS[1] < latlon1[1] &&
+          d.forceGPS[1] > latlon3[1]
+        ) {
+          d.area = true
+          d.party = 1
+          //console.log(d)
+        } else {
+          d.area = false
+          d.party = 0
+        }
+      })
+
+      const firstParty = []
+
+      this.nodes
+        .attr('class', d => {
+          if (d.area) {
+            //console.log(d)
+            firstParty.push(d)
+            return 'houseParty'
+          } else {
+            return 'nodes'
+          }
+        })
+        .attr('fill', d => {
+          if (d.area) {
+            //console.log(d.tooFar)
+            return 'green'
+          }
+          return 'black'
+        })
+
+      this.firstParty = firstParty
+
+      return this.firstParty
+    },
+    computedPartyNodes: function() {},
+
     computedWidth: function() {
-      return this.$store.state.map.getCanvas().width
+      // return this.$store.state.map.getCanvas().width
+      return window.innerWidth
     },
 
     computedHeight: function() {
-      return this.$store.state.map.getCanvas().height
+      //return this.$store.state.map.getCanvas().height
+      return window.innerHeight
     }
   }
 }
 </script>
 
 <style>
+.houseParty {
+  visibility: hidden;
+}
+
 .nodes {
   stroke: #fff;
   stroke-width: 2px;
