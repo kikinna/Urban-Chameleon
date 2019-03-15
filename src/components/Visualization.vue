@@ -253,13 +253,16 @@ export default {
 
       const viewport = getViewport(this.$store.state.map)
 
-      this.initPartyForceSimulation(
-        viewport.project(latlon1),
-        viewport.project(latlon3)
-      )
+      this.initPartyForceSimulation(latlon1, latlon3)
     },
     updatePartyNodes(shiftX, shiftY) {
       //d3.selectAll('.partyCircles').remove()
+      const viewport = getViewport(this.$store.state.map)
+
+      //console.log('shift', [shiftX, shiftY])
+      const shift = viewport.project([shiftX, shiftY])
+      //console.log('shift proj', shift)
+
       this.partyNodes
         .each(d => {
           let gridpoint = occupyNearest(d, this.cells)
@@ -269,12 +272,20 @@ export default {
             // d.y += (gridpoint.y - d.y) * 0.05
 
             // jumps directly into final position
-            d.x = gridpoint.x
-            d.y = gridpoint.y
+            d.x = gridpoint.x + shift[0]
+            d.y = gridpoint.y + shift[1]
           }
         })
-        .attr('cx', d => d.x + shiftX)
-        .attr('cy', d => d.y + shiftY)
+        .attr('cx', d => {
+          d.forceGPS = viewport.unproject([d.x, d.y])
+          d.pos = viewport.project(d.forceGPS)
+          d.x = d.pos[0]
+          return d.pos[0]
+        })
+        .attr('cy', d => {
+          d.y = d.pos[1]
+          return d.pos[1]
+        })
     },
     initPartyForceSimulation(latlon1, latlon3) {
       this.partySimulation = d3
@@ -288,8 +299,8 @@ export default {
           )
         )
 
-      const shiftX = latlon1[0] //(latlon1[0] + latlon3[0]) / 2 //window.innerWidth / 2
-      const shiftY = latlon3[1] //(latlon1[1] + latlon3[1]) / 2 //window.innerHeight / 2
+      const shiftX = (latlon1[0] + latlon3[0]) / 2
+      const shiftY = (latlon1[1] + latlon3[1]) / 2
 
       this.computedPartyNodes
 
@@ -327,7 +338,7 @@ export default {
     },
     listeners() {
       //all events
-      this.$root.$on('map-zoomend', () => {
+      this.$root.$on('map-zoom', () => {
         this.updateD3()
 
         const latlon1 = [16.59512715090524, 49.20013082305056]
@@ -339,13 +350,19 @@ export default {
       })
       this.$root.$on('map-move', () => {
         this.updateD3()
+        const latlon1 = [16.59512715090524, 49.20013082305056]
+        const latlon3 = [16.605566189434686, 49.19358091860195]
+
+        const shiftX = (latlon1[0] + latlon3[0]) / 2
+        const shiftY = (latlon1[1] + latlon3[1]) / 2
+        this.updatePartyNodes(shiftX, shiftY)
       })
       //just end events
-      this.$root.$on('map-zoomend', () => {})
-      this.$root.$on('map-moveend', () => {})
-      this.$root.$on('map-movestart', () => {})
-      this.$root.$on('map-zoomstart', () => {})
-      this.$root.$on('map-zoomend', () => {})
+      // this.$root.$on('map-zoomend', () => {})
+      // this.$root.$on('map-moveend', () => {})
+      // this.$root.$on('map-movestart', () => {})
+      // this.$root.$on('map-zoomstart', () => {})
+      // this.$root.$on('map-zoomend', () => {})
       this.$root.$on('map-click', () => {
         this.housePartyAreas()
       })
@@ -459,6 +476,8 @@ export default {
       return this.firstParty
     },
     computedPartyNodes: function() {
+      const viewport = getViewport(this.$store.state.map)
+
       const partyNodes = this.svg
         .append('g')
         .attr('stroke', '#fff')
@@ -469,6 +488,16 @@ export default {
         .attr('class', 'partyCircles')
         .attr('r', 5)
         .attr('fill', 'blue')
+        .attr('cx', d => {
+          d.forceGPS = viewport.unproject([d.x, d.y])
+          d.pos = viewport.project(d.forceGPS)
+          d.x = d.pos[0]
+          return d.pos[0]
+        })
+        .attr('cy', d => {
+          d.y = d.pos[1]
+          return d.pos[1]
+        })
 
       this.partyNodes = partyNodes
 
