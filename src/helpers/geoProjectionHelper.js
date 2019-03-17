@@ -1,5 +1,17 @@
 import WebMercatorViewport from 'viewport-mercator-project'
 
+/**
+ * Manages coordinate system transformations
+ * Returns viewport with functions project() and unproject()
+ * 
+ * viewport.project([lat, lon]) 
+ * projects map coordinates to pixel coordinates
+ * [longitude, latitude] => [x, y]
+ * 
+ * viewport.unproject([x, y])
+ * unprojects pixel coordinates to map coordinates
+ * [x, y] => [lng, lat]
+ */
 export function getViewport(map) {
   const center = map.getCenter()
   const zoom = map.getZoom()
@@ -18,6 +30,7 @@ export function getViewport(map) {
   return viewport
 }
 
+//Measures distance between two geo points in meters
 export function measureGeoDistance(lat1, lon1, lat2, lon2) {
   // generally used geo measurement function
   var R = 6378.137 // Radius of earth in KM

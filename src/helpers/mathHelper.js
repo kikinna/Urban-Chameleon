@@ -1,7 +1,9 @@
+//trivial
 export function sqdist(a, b) {
   return Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2)
 }
 
+//left as an excercise for the reader
 export function occupyNearest(p, cells) {
   var minDist = 1000000
   var d

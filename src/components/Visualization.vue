@@ -20,21 +20,21 @@ export default {
   name: 'Visualization',
   data() {
     return {
-      dataD3: [],
-      cells: [],
-      firstParty: [],
-      partyNodes: null,
-      partySimulation: null,
-      simulation: null,
+      dataD3: [], //accident data
+      cells: [], // barchart grid positions //TODO: temporary
+      firstParty: [], // accident data for first barchart // tmp
+      partyNodes: null, // nodes for first barchart // tmp
+      partySimulation: null, // barchart force simulation // tmp
+      simulation: null, // accident data force simulation
       svg: null,
-      nodes: null,
+      nodes: null, //accident nodes
       nodeRadius: 5,
       forceProperties: {
         collide: {
           enabled: true,
           strength: 1,
           iterations: 1,
-          radius: 35
+          radius: 10
         },
         forceX: {
           enabled: true,
@@ -45,7 +45,7 @@ export default {
           strength: 1
         }
       },
-      distanceLimit: 0.000001
+      distanceLimit: 0.000001 //used in calculateDistanceDeviation to compare with the calculated distance between nodes 
     }
   },
   store,
@@ -72,10 +72,10 @@ export default {
       this.render()
       this.listeners()
     },
+    //force layout initialisation (svg, nodes, simulation)
     render() {
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
-
       //let drag = d3.drag().on('start', this.dragStarted).on('drag', this.dragged).on('end', this.dragEnded)
 
       this.svg = d3
@@ -101,7 +101,6 @@ export default {
         })
         .attr('cx', d => {
           d.pos = viewport.project([d.X, d.Y])
-          // d.pos = projection([d.X, d.Y])
           d.x = d.pos[0]
           return d.pos[0]
         })
@@ -110,12 +109,7 @@ export default {
           return d.pos[1]
         })
         .on('click', d => {
-          /* console.log(
-            'deviation',
-            d.deviation,
-            ' but is it too far? ',
-            d.tooFar
-          ) */
+          /* console.log( 'deviation', d.deviation, ' but is it too far? ', d.tooFar ) */
           // this.calculateDistanceDeviation()
         }) //.call(drag)
 
@@ -129,18 +123,17 @@ export default {
           d3
             .forceCollide()
             .radius(this.nodeRadius * 2)
-            .strength(1)
-            .iterations(1)
+            .strength(this.forceProperties.collide.enabled * this.forceProperties.collide.strength)
+            .iterations(this.forceProperties.collide.iterations)
         ) */
         .force(
           'forceX',
           d3
             .forceX(d => {
               d.pos = viewport.project([d.X, d.Y])
-              // d.pos = projection([d.X, d.Y])
               return d.pos[0]
             })
-            .strength(1)
+            .strength(this.forceProperties.forceX.enabled * this.forceProperties.forceX.strength)
         )
         .force(
           'forceY',
@@ -148,13 +141,12 @@ export default {
             .forceY(d => {
               return d.pos[1]
             })
-            .strength(1)
+            .strength(this.forceProperties.forceY.enabled * this.forceProperties.forceY.strength)
         )
         .on('tick', this.tick)
       //.on('end', this.end)
-
-      //this.simulation.alpha(1).restart()
     },
+    //force layout update, called on zoom and move
     updateD3() {
       const viewport = getViewport(this.$store.state.map)
 
@@ -191,6 +183,7 @@ export default {
 
       this.simulation.alpha(0.1).restart()
     },
+    //accident's simulation tick
     tick() {
       // this.calculateDistanceDeviation()
       const viewport = getViewport(this.$store.state.map)
@@ -204,26 +197,12 @@ export default {
           return d.y
         })
     },
+    //accident's simulation end
     end() {
       this.calculateDistanceDeviation()
       console.log('simulation end')
     },
-    dragStarted(d) {
-      // this.simulation.alpha(0.3).restart()
-      this.simulation.restart()
-      d.fx = d.x
-      d.fy = d.y
-    },
-    dragged(d) {
-      d.fx = d3.event.x
-      d.fy = d3.event.y
-    },
-    dragEnded(d) {
-      //this.simulation.alpha(0)
-      this.simulation.stop(0)
-      d.fx = null
-      d.fy = null
-    },
+    //initialisation of grid for aggregated visualization (house parties)
     initGrid(arrayLength) {
       const GRID_SIZE = 10
       const GRID_COLS = 6
@@ -245,6 +224,10 @@ export default {
 
       this.cells = cells
     },
+    //so aptly named that it speaks for itself
+    //jk, this initializes the aggregated vis. (house parties)
+    //right now I hardcoded two latlon coordinates for one square
+    //those will be changed when Megi actually does something for once :o
     housePartyAreas() {
       const latlon1 = [16.59512715090524, 49.20013082305056] //const latlon2 = [16.595096320004444, 49.19380583417316]
       const latlon3 = [16.605566189434686, 49.19358091860195] //const latlon4 = [16.605512948005973, 49.19883456531343]
@@ -255,21 +238,18 @@ export default {
 
       this.initPartyForceSimulation(latlon1, latlon3)
     },
+    //updating aggregated vis. (house parties); called on zoom and move
     updatePartyNodes(shiftX, shiftY) {
-      //d3.selectAll('.partyCircles').remove()
       const viewport = getViewport(this.$store.state.map)
-
-      //console.log('shift', [shiftX, shiftY])
       const shift = viewport.project([shiftX, shiftY])
-      //console.log('shift proj', shift)
 
       this.partyNodes
         .each(d => {
           let gridpoint = occupyNearest(d, this.cells)
           if (gridpoint) {
             // ensures smooth movement towards final positoin
-            // d.x += (gridpoint.x - d.x) * 0.05
-            // d.y += (gridpoint.y - d.y) * 0.05
+             //d.x += (gridpoint.x - d.x) * 0.05
+             //d.y += (gridpoint.y - d.y) * 0.05
 
             // jumps directly into final position
             d.x = gridpoint.x + shift[0]
@@ -287,6 +267,7 @@ export default {
           return d.pos[1]
         })
     },
+    //initializes aggregated vis.'s simulation (house parties), also contains tick function
     initPartyForceSimulation(latlon1, latlon3) {
       this.partySimulation = d3
         .forceSimulation(this.computedFirstPartyData)
@@ -304,13 +285,20 @@ export default {
 
       this.computedPartyNodes
 
+      this.partySimulation.alpha(0.1).restart()
+
       this.partySimulation.on('tick', () => {
         this.initGrid(this.computedFirstPartyData.length)
-        //console.log('ticked', this.computedFirstPartyData.length)
 
         this.updatePartyNodes(shiftX, shiftY)
+
+        this.partySimulation.alpha(0.1) //TODO: is this needed?
       })
+      .on('end', console.log('party ended'))
     },
+    //calculates distance for all accidents, between the point A (where they are right now)
+    //and point B (where they were supposed to be according to their geo data)
+    //if the difference is larger than distanceLimit, it sets "tooFar" flag
     calculateDistanceDeviation() {
       const viewport = getViewport(this.$store.state.map)
       this.dataD3.accidents.forEach(d => {
@@ -324,17 +312,15 @@ export default {
           currentCoords[1]
         )
         d.deviation = distanceInMeters
-        d.tooFar = distanceInMeters > this.distanceLimit //0.000001 // currentDistance > 0.000000001 //this.distanceLimit
+        d.tooFar = distanceInMeters > this.distanceLimit
       })
 
       this.nodes.attr('fill', d => {
         if (d.tooFar) {
-          //console.log(d.tooFar)
           return 'red'
         }
         return 'black'
       })
-      //this.simulation.alpha(0.3).restart()
     },
     listeners() {
       //all events
@@ -358,18 +344,30 @@ export default {
         this.updatePartyNodes(shiftX, shiftY)
       })
       //just end events
-      // this.$root.$on('map-zoomend', () => {})
-      // this.$root.$on('map-moveend', () => {})
-      // this.$root.$on('map-movestart', () => {})
-      // this.$root.$on('map-zoomstart', () => {})
+      // this.$root.$on('map-zoomend', () => {}) // this.$root.$on('map-moveend', () => {})
+      // this.$root.$on('map-movestart', () => {}) // this.$root.$on('map-zoomstart', () => {})
       // this.$root.$on('map-zoomend', () => {})
       this.$root.$on('map-click', () => {
         this.housePartyAreas()
       })
-
-      //this.$root.$on('map-viewreset', d => { console.log("viewreset"); this.updateD3(); })
     }
   },
+    dragStarted(d) {
+      // this.simulation.alpha(0.3).restart()
+      this.simulation.restart()
+      d.fx = d.x
+      d.fy = d.y
+    },
+    dragged(d) {
+      d.fx = d3.event.x
+      d.fy = d3.event.y
+    },
+    dragEnded(d) {
+      //this.simulation.alpha(0)
+      this.simulation.stop(0)
+      d.fx = null
+      d.fy = null
+    },
   computed: {
     computedForceLayout: function() {
       if (this.simulation) {
