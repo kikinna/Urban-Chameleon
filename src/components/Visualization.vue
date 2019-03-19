@@ -321,7 +321,10 @@ export default {
         console.log(this.points, this.anchorPoint, this.compute)
         //console.log(this.anchorPoint)
         this.hull = this.getHull();
-        console.log(this.hull)
+        this.hull.forEach(o => {
+          accidentData.accidents[o].theNeighbourhood = accidentData.accidents[this.anchorPoint].theNeighbourhood;
+        })
+        //console.log(this.hull)
       }
     },
     dragStarted(d) {
@@ -473,7 +476,7 @@ export default {
       let point = accidentData.accidents[index]
       let anchorP = accidentData.accidents[this.anchorPoint]
       //console.log(this.anchorPoint === null)
-      if(this.anchorPoint === null || point.y < anchorP.y || (point.y === anchorP.y && anchorP.x > point.x)){
+      if(this.anchorPoint === null || point.Y < anchorP.Y || (point.Y === anchorP.Y && anchorP.X > point.X)){
         if(this.anchorPoint !== null){
           //this.points.push(index)
           this.points.push(this.anchorPoint);
@@ -485,16 +488,16 @@ export default {
     },
 
     findPolarAngle(anchor,p){
-      console.log("hhs")
+      //console.log("hhs")
       let ONE_RADIAN = 57.295779513082;
       let deltaX = null;
       let deltaY = null;
-      console.log("hhs")
+      //console.log("hhs")
       let point = accidentData.accidents[p];
       let anchorP = accidentData.accidents[anchor];
       deltaX = (point.X - anchorP.X);
       deltaY = (point.Y - anchorP.Y);
-
+      //console.log(deltaX,deltaY)
       if (deltaX == 0 && deltaY == 0) {
           return 0;
       }
@@ -513,37 +516,20 @@ export default {
 
       return angle;
     },
-    iHaveNoIdeaWhyThatSortDontWork(a,b){
-      console.log("hih")
-      let polarA = this.findPolarAngle(this.anchorPoint,a);
-      let polarB = this.findPolarAngle(this.anchorPoint,b);
-      console.log(accidentData.accidents[a].theNeighbourhood)
-      accidentData.accidents[a].theNeighbourhood = 2;
-      accidentData.accidents[b].theNeighbourhood = 2;
-      console.log(this.anchorPoint,accidentData.accidents[this.anchorPoint].theNeighbourhood)
-      accidentData.accidents[this.anchorPoint].theNeighbourhood = 2;
-      console.log(polarA,polarB)
-      if(polarA < polarB){
-        return -1;
-      }
-      if(polarA > polarB){
-        return 1;
-      }
-      return 0;
-    },
 
     sortPoints(){
       //console.log("haf")
-      console.log(this.anchorPoint)
-      let something = this.iHaveNoIdeaWhyThatSortDontWork(204,274);
+      //console.log(this.anchorPoint)
+      //let something = this.iHaveNoIdeaWhyThatSortDontWork(204,274);
       return this.points.sort((a,b) => {
-        console.log(a);
-        console.log("haf");
-        console.log(this.anchorPoint); //PRECO SA TOTO NEVYPISE KED PRED FUNKCIOU SA TO VYPISALO MADAFAKA
-        let something = this.iHaveNoIdeaWhyThatSortDontWork(a,b);
         let polarA = this.findPolarAngle(this.anchorPoint,a);
         let polarB = this.findPolarAngle(this.anchorPoint,b);
-        console.log("hh")
+        //console.log(accidentData.accidents[a].theNeighbourhood)
+        accidentData.accidents[a].theNeighbourhood = 2;
+        accidentData.accidents[b].theNeighbourhood = 2;
+        //console.log(this.anchorPoint,accidentData.accidents[this.anchorPoint].theNeighbourhood)
+        //accidentData.accidents[this.anchorPoint].theNeighbourhood = 2;
+        //console.log(polarA,polarB)
         if(polarA < polarB){
           return -1;
         }
@@ -569,11 +555,11 @@ export default {
       return true;
     },
     checkIfPositive(points){
-      console.log(points)
+      //console.log(points)
       points.forEach(
         o => {
-          console.log(accidentData.accidents[o].X)
-          if(!(accidentData.accidents[o].x < 0 && accidentData.accidents[o].y < 0)){ //(point.x < 0 && point.y < 0)
+          //console.log(accidentData.accidents[o].X)
+          if(!(accidentData.accidents[o].X < 0 && accidentData.accidents[o].Y < 0)){ //(point.x < 0 && point.y < 0)
             return false;
           }
         })
@@ -586,9 +572,9 @@ export default {
       let pointsLength = null;
       //this.reverse = this.checkIfPositive(this.points);
       //console.log(this.reverse)
-      console.log(this.anchorPoint)
+      //console.log(this.anchorPoint)
       pointis = this.sortPoints();
-      console.log(pointis)
+      //console.log(pointis)
       pointsLength = pointis.length;
       if (pointsLength < 3) {
         pointis.unshift(this.anchorPoint);
@@ -616,7 +602,7 @@ export default {
             //remove any udefined elements in the hullPoints array.
             hullPoints = hullPoints.filter(function(p) { return !!p; });
             if (!hullPoints.some(function(p){
-              return(accidentData.accidents[p].x == accidentData.accidents[ap].x && accidentData.accidents[p].y == accidentData.accidents[ap].y);
+              return(accidentData.accidents[p].X == accidentData.accidents[ap].X && accidentData.accidents[p].Y == accidentData.accidents[ap].Y);
             })) {
               hullPoints.unshift(this.anchorPoint);
             }
