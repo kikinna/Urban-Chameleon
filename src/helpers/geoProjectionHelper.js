@@ -3,11 +3,11 @@ import WebMercatorViewport from 'viewport-mercator-project'
 /**
  * Manages coordinate system transformations
  * Returns viewport with functions project() and unproject()
- * 
- * viewport.project([lat, lon]) 
+ *
+ * viewport.project([lat, lon])
  * projects map coordinates to pixel coordinates
  * [longitude, latitude] => [x, y]
- * 
+ *
  * viewport.unproject([x, y])
  * unprojects pixel coordinates to map coordinates
  * [x, y] => [lng, lat]

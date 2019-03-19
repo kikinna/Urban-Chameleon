@@ -45,7 +45,7 @@ export default {
           strength: 1
         }
       },
-      distanceLimit: 0.000001 //used in calculateDistanceDeviation to compare with the calculated distance between nodes 
+      distanceLimit: 0.000001 //used in calculateDistanceDeviation to compare with the calculated distance between nodes
     }
   },
   store,
@@ -123,7 +123,10 @@ export default {
           d3
             .forceCollide()
             .radius(this.nodeRadius * 2)
-            .strength(this.forceProperties.collide.enabled * this.forceProperties.collide.strength)
+            .strength(
+              this.forceProperties.collide.enabled *
+                this.forceProperties.collide.strength
+            )
             .iterations(this.forceProperties.collide.iterations)
         ) */
         .force(
@@ -133,7 +136,10 @@ export default {
               d.pos = viewport.project([d.X, d.Y])
               return d.pos[0]
             })
-            .strength(this.forceProperties.forceX.enabled * this.forceProperties.forceX.strength)
+            .strength(
+              this.forceProperties.forceX.enabled *
+                this.forceProperties.forceX.strength
+            )
         )
         .force(
           'forceY',
@@ -141,7 +147,10 @@ export default {
             .forceY(d => {
               return d.pos[1]
             })
-            .strength(this.forceProperties.forceY.enabled * this.forceProperties.forceY.strength)
+            .strength(
+              this.forceProperties.forceY.enabled *
+                this.forceProperties.forceY.strength
+            )
         )
         .on('tick', this.tick)
       //.on('end', this.end)
@@ -228,6 +237,7 @@ export default {
     //jk, this initializes the aggregated vis. (house parties)
     //right now I hardcoded two latlon coordinates for one square
     //those will be changed when Megi actually does something for once :o
+    //called on click
     housePartyAreas() {
       const latlon1 = [16.59512715090524, 49.20013082305056] //const latlon2 = [16.595096320004444, 49.19380583417316]
       const latlon3 = [16.605566189434686, 49.19358091860195] //const latlon4 = [16.605512948005973, 49.19883456531343]
@@ -243,13 +253,16 @@ export default {
       const viewport = getViewport(this.$store.state.map)
       const shift = viewport.project([shiftX, shiftY])
 
+      this.firstParty - this.computedFirstPartyData
+      this.partyNodes - this.computedPartyNodes
+
       this.partyNodes
         .each(d => {
           let gridpoint = occupyNearest(d, this.cells)
           if (gridpoint) {
             // ensures smooth movement towards final positoin
-             //d.x += (gridpoint.x - d.x) * 0.05
-             //d.y += (gridpoint.y - d.y) * 0.05
+            //d.x += (gridpoint.x - d.x) * 0.05
+            //d.y += (gridpoint.y - d.y) * 0.05
 
             // jumps directly into final position
             d.x = gridpoint.x + shift[0]
@@ -287,14 +300,15 @@ export default {
 
       this.partySimulation.alpha(0.1).restart()
 
-      this.partySimulation.on('tick', () => {
-        this.initGrid(this.computedFirstPartyData.length)
+      this.partySimulation
+        .on('tick', () => {
+          this.initGrid(this.computedFirstPartyData.length)
 
-        this.updatePartyNodes(shiftX, shiftY)
+          this.updatePartyNodes(shiftX, shiftY)
 
-        this.partySimulation.alpha(0.1) //TODO: is this needed?
-      })
-      .on('end', console.log('party ended'))
+          this.partySimulation.alpha(0.1) //TODO: is this needed?
+        })
+        .on('end', console.log('party ended'))
     },
     //calculates distance for all accidents, between the point A (where they are right now)
     //and point B (where they were supposed to be according to their geo data)
@@ -333,6 +347,8 @@ export default {
         const shiftX = (latlon1[0] + latlon3[0]) / 2
         const shiftY = (latlon1[1] + latlon3[1]) / 2
         this.updatePartyNodes(shiftX, shiftY)
+
+        this.drawPolygon()
       })
       this.$root.$on('map-move', () => {
         this.updateD3()
@@ -342,6 +358,8 @@ export default {
         const shiftX = (latlon1[0] + latlon3[0]) / 2
         const shiftY = (latlon1[1] + latlon3[1]) / 2
         this.updatePartyNodes(shiftX, shiftY)
+
+        this.drawPolygon()
       })
       //just end events
       // this.$root.$on('map-zoomend', () => {}) // this.$root.$on('map-moveend', () => {})
@@ -349,9 +367,9 @@ export default {
       // this.$root.$on('map-zoomend', () => {})
       this.$root.$on('map-click', () => {
         this.housePartyAreas()
+        this.drawPolygon()
       })
-    }
-  },
+    },
     dragStarted(d) {
       // this.simulation.alpha(0.3).restart()
       this.simulation.restart()
@@ -368,6 +386,54 @@ export default {
       d.fx = null
       d.fy = null
     },
+    drawPolygon() {
+      const viewport = getViewport(this.$store.state.map)
+
+      //large house party
+      const latlon1 = viewport.project([16.59512715090524, 49.20013082305056])
+      const latlon2 = viewport.project([16.595096320004444, 49.19380583417316])
+      const latlon3 = viewport.project([16.605566189434686, 49.19358091860195])
+      const latlon4 = viewport.project([16.605512948005973, 49.19883456531343])
+
+      //The data for our line
+      let lineData = [
+        { x: latlon1[0], y: latlon1[1] },
+        { x: latlon2[0], y: latlon2[1] },
+        { x: latlon3[0], y: latlon3[1] },
+        { x: latlon4[0], y: latlon4[1] },
+        { x: latlon1[0], y: latlon1[1] }
+      ]
+
+      //This is the accessor function we talked about above
+      let lineFunction = d3
+        .line()
+        .x(function(d) {
+          return d.x
+        })
+        .y(function(d) {
+          return d.y
+        })
+
+      //The SVG Container
+      let svgContainer = this.svg
+        .append('svg')
+        .attr('class', 'polygon')
+        .attr('width', window.innerWidth)
+        .attr('height', window.innerHeight)
+
+      d3.selectAll('.line').remove()
+
+      //The line SVG Path we draw
+      svgContainer
+        .append('path')
+        .attr('class', 'line')
+        .attr('d', lineFunction(lineData))
+        .attr('stroke', 'red')
+        .attr('stroke-width', 2)
+        .attr('fill', 'none')
+    }
+  },
+
   computed: {
     computedForceLayout: function() {
       if (this.simulation) {
@@ -475,6 +541,8 @@ export default {
     },
     computedPartyNodes: function() {
       const viewport = getViewport(this.$store.state.map)
+
+      d3.selectAll('.partyCircles').remove()
 
       const partyNodes = this.svg
         .append('g')
