@@ -123,10 +123,7 @@ export default {
           d3
             .forceCollide()
             .radius(this.nodeRadius * 2)
-            .strength(
-              this.forceProperties.collide.enabled *
-                this.forceProperties.collide.strength
-            )
+            .strength(this.forceProperties.collide.enabled * this.forceProperties.collide.strength)
             .iterations(this.forceProperties.collide.iterations)
         ) */
         .force(
@@ -252,9 +249,6 @@ export default {
     updatePartyNodes(shiftX, shiftY) {
       const viewport = getViewport(this.$store.state.map)
       const shift = viewport.project([shiftX, shiftY])
-
-      this.firstParty - this.computedFirstPartyData
-      this.partyNodes - this.computedPartyNodes
 
       this.partyNodes
         .each(d => {
@@ -433,7 +427,6 @@ export default {
         .attr('fill', 'none')
     }
   },
-
   computed: {
     computedForceLayout: function() {
       if (this.simulation) {
@@ -541,8 +534,6 @@ export default {
     },
     computedPartyNodes: function() {
       const viewport = getViewport(this.$store.state.map)
-
-      d3.selectAll('.partyCircles').remove()
 
       const partyNodes = this.svg
         .append('g')
