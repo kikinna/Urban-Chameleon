@@ -8,7 +8,7 @@ import store from '../store.js'
 import accidentData from '../data/nehody2018.js'
 
 export default {
-  name: 'Visualization',
+  name: 'VisualizationCircles',
   data() {
     return {
       dataVisualization: [],
@@ -97,7 +97,7 @@ export default {
       let svg = (this.svg = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
         .append('svg')
-        .attr('id', 'test_svg')
+        .attr('id', 'test_svgg')
         //.attr("class", "mapboxgl-canvas-container mapboxgl-interactive mapboxgl-touch-zoom-rotate mapboxgl-touch-drag-pan")
         .attr('width', window.innerWidth)
         .attr('height', window.innerHeight))
@@ -129,14 +129,14 @@ export default {
           return d.pos[1]
           //return this.mapboxProjection([d.X, d.Y])[1];
         })
-        .attr('class', 'nodes')
+        .attr('class', 'nodess')
         //.call(d3zoom)
         .on('click', function() {
           console.log(this)
           //d3.select(this).remove();
         })
 
-      this.simulation = d3
+      /* this.simulation = d3
         .forceSimulation()
         .nodes(this.graph)
         //.forceSimulation(this.graph)
@@ -168,7 +168,7 @@ export default {
           })
         )
         .on('tick', this.tick)
-      this.simulation.alpha(1).restart()
+      this.simulation.alpha(1).restart() */
     },
     updateD3() {
       this.svg
@@ -215,7 +215,7 @@ export default {
       return [p.x, p.y]
     },
     getProjection() {
-      let bbox = document.body.getBoundingClientRect()
+      //let bbox = document.body.getBoundingClientRect()
       let center = this.$store.state.map.getCenter()
       let zoom = this.$store.state.map.getZoom()
       // 512 is hardcoded tile size, might need to be 256 or changed to suit your map config
@@ -257,13 +257,13 @@ export default {
 </script>
 
 <style>
-.nodes {
-  fill: rgb(177, 0, 0);
+.nodess {
+  fill: 'black';
   stroke: #fff;
   stroke-width: 2px;
 }
 
-#test_svg {
+#test_svgg {
   position: relative;
 }
 </style>
