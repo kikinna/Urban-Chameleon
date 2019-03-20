@@ -31,9 +31,12 @@ export default {
       allData: [],
       testovacie: [4, 3, 2, 1],
       points: [],
+      points2: [],
       hull: [],
+      hull2: [],
       compute: 0,
       anchorPoint: null,
+      anchorPoint2: null,
       reverse: false,
       title: null,
       svg: null,
@@ -73,9 +76,11 @@ export default {
         o.theNeighbourhood = null;
         o.index = count;
         count += 1;
+        
       }
     )
     accidentData.accidents[1199].theNeighbourhood = accidentData.accidents[1199].OBJECTID
+    accidentData.accidents[478].theNeighbourhood = accidentData.accidents[479].OBJECTID
     // let projection = this.getProjection();
     // let posi = [];
     // accidentData.accidents.forEach(
@@ -153,7 +158,7 @@ export default {
         .append('circle')
         .attr('r', this.nodeRadius)
         .attr('fill', d => {
-          if (d.theNeighbourhood==3442) {
+          if (d.theNeighbourhood==3442 || d.theNeighbourhood==2111 ) {
               return 'blue'
           }else if(d.theNeighbourhood==2){
             return 'yellow'
@@ -179,14 +184,14 @@ export default {
       this.simulation = d3
         .forceSimulation()
         .nodes(this.dataD3.accidents)
-        .force(
-          'collide',
-          d3
-            .forceCollide()
-            .radius(this.nodeRadius * 2)
-            .strength(1)
-            .iterations(1)
-        )
+        // .force(
+        //   'collide',
+        //   d3
+        //     .forceCollide()
+        //     .radius(this.nodeRadius * 2)
+        //     .strength(1)
+        //     .iterations(1)
+        // )
         .force(
           'forceX',
           d3
@@ -314,16 +319,47 @@ export default {
         let neighbourHall = [];
         this.points = [];
         this.hull = [];
+        this.hull2 = []
         this.reverse = false;
         this.anchorPoint = null;
-        this.getNeighbours(accidentData.accidents[1199],neighbourHall);
+        this.getNeighbours(accidentData.accidents[1199]);
+        //this.getNeighbours(accidentData.accidents[478]);
         this.recompute = false;
         console.log(this.points, this.anchorPoint, this.compute)
         //console.log(this.anchorPoint)
-        this.hull = this.getHull();
-        this.hull.forEach(o => {
+        this.hull.push(this.getHull())
+        this.hull[0].forEach(o => {
           accidentData.accidents[o].theNeighbourhood = accidentData.accidents[this.anchorPoint].theNeighbourhood;
+          //console.log((accidentData.accidents[o].X).toString(10) + ',' + (accidentData.accidents[o].Y).toString(10))
+          //o = (accidentData.accidents[o].X).toString(10) + ',' + (accidentData.accidents[o].Y).toString(10)
         })
+        console.log(this.hull)
+        this.svg
+          //.append("polygon")
+          .selectAll("polygon")
+            .data(this.hull)
+          .enter().append("polygon")
+            .attr("points", function(d) { 
+                //console.log(accidentData.accidents[d].x)
+                //console.log(Math.round(accidentData.accidents[d].x).toString(10) + ',' + Math.round(accidentData.accidents[d].y).toString(10) + ' ')
+                let str = ""
+                d.forEach( o => {
+                  str += (accidentData.accidents[o].x).toString(10) + ',' + (accidentData.accidents[o].y).toString(10) + ' '
+                })
+                return str})
+                //return function(o){
+                ///  return [(accidentData.accidents[d].x).toString(10) + ',' + (accidentData.accidents[d].y).toString(10) + ' '];})
+                //})
+            .style("fill", "#60bac6bb")
+            .style("stroke", "black")
+            .style("strokeWidth", "2px");
+
+
+        // this.hull2 = this.getHull();
+        // this.hull2.forEach(o => {
+        //   accidentData.accidents[o].theNeighbourhood = accidentData.accidents[this.anchorPoint2].theNeighbourhood;
+        // })
+        
         //console.log(this.hull)
       }
     },
@@ -421,7 +457,7 @@ export default {
       })
 
       this.nodes.attr('fill', d => {
-        if (d.theNeighbourhood == 3442) {
+        if (d.theNeighbourhood == 3442 ||  d.theNeighbourhood==2111 ) {
           //console.log('blue2')
           //console.log(d.tooFar)
           //getNeighbours(d);
@@ -433,7 +469,7 @@ export default {
       })
       //this.simulation.alpha(0.3).restart()
     },
-    getNeighbours(obj,arr) {
+    getNeighbours(obj) {
       //accidentData.accidents[1199].theNeighbourhood = accidentData.accidents[1199].OBJECTID
       //console.log(obj.OBJECTID)
       let projection = this.getProjection()
@@ -452,7 +488,7 @@ export default {
             if(inNeighbour <= r){
               o.theNeighbourhood = obj.theNeighbourhood;
               //console.log(o)
-              this.getNeighbours(o,arr);
+              this.getNeighbours(o);
             }
           }
         })
@@ -461,7 +497,7 @@ export default {
         //let hull = this.getHull();
         //console.log(hull)
         this.nodes.attr('fill', d => {
-          if(d.theNeighbourhood == obj.theNeighbourhood){
+          if(d.theNeighbourhood==3442 ||  d.theNeighbourhood==2111){
             //console.log('blue1')
             return 'blue'
           }
@@ -644,8 +680,8 @@ export default {
             o.theNeighbourhood = null;
           }
         )
-        let neighbourHall = [];
         accidentData.accidents[1199].theNeighbourhood = accidentData.accidents[1199].OBJECTID;
+        accidentData.accidents[478].theNeighbourhood = accidentData.accidents[478].OBJECTID;
         this.recompute = true;
         //this.getNeighbours(accidentData.accidents[1199]);
         this.calculateDistanceDeviation();
@@ -725,7 +761,7 @@ export default {
         this.nodes
           .attr('r', this.nodeRadius)
           .attr('fill', d => {
-            if (d.theNeighbourhood==3442) {
+            if (d.theNeighbourhood==3442 ||  d.theNeighbourhood==2111 ) {
               return 'blue'
             }else if(d.theNeighbourhood==2){
               return 'yellow'
