@@ -7,7 +7,7 @@
         style:
           'https://maps.tilehosting.com/styles/positron/style.json?key=erAyQhECgFpHi6K8tzqm', //'mapbox://styles/mapbox/light-v9',
         center: [16.606837, 49.19506],
-        zoom: 10
+        zoom: 14
       }"
       :geolocate-control="{
         show: true,

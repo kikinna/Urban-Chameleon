@@ -42,7 +42,7 @@ export default {
   methods: {
     loadData() {
       d3.csv("./data/Nehody2018.csv").then(data => { //d3.csv
-           /* data.forEach(d => {
+           /* data.aEach(d => {
             //stuff.OBJECTID = +d.OBJECTID;
             //d.DruhNehody = +d.DruhNehody;
             //stuff["X"] = +d["X"]; 
