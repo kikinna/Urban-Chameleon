@@ -21,8 +21,6 @@ export default {
   name: 'Visualization',
   data() {
     return {
-      aggregatedData: [],
-      aggregatedNodes: null,
       dataD3: [], //accident data
       cells: [], // barchart grid positions //TODO: temporary
       firstParty: [], // accident data for first barchart // tmp
@@ -53,15 +51,33 @@ export default {
   },
   store,
   mounted() {
+    //this.loadData()
     this.dataD3 = accidentData
-    this.render()
-    this.listeners()
+    this.init()
   },
   methods: {
+    loadData() {
+      /* Object.defineProperty(this.dataObject, 'nested', {configurable: false}) */
+      /* Object.defineProperty(this.dataObject.actualData, 'nested', {configurable: false}) */
+      d3.csv('./data/Nehody2018.csv')
+        .then(data => {
+          //data.forEach(o => Object.freeze(o))
+          this.$store.dispatch('loadData', data)
+          this.dataD3 = data
+        })
+        .catch(error => {
+          console.error('Could not read the file.', error)
+        })
+    },
+    init() {
+      this.render()
+      this.listeners()
+    },
     //force layout initialisation (svg, nodes, simulation)
     render() {
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+      //let drag = d3.drag().on('start', this.dragStarted).on('drag', this.dragged).on('end', this.dragEnded)
 
       this.svg = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
@@ -96,16 +112,22 @@ export default {
         .on('click', d => {
           /* console.log( 'deviation', d.deviation, ' but is it too far? ', d.tooFar ) */
           // this.calculateDistanceDeviation()
-        })
+        }) //.call(drag)
 
       // this.calculateDistanceDeviation()
 
       this.simulation = d3
         .forceSimulation()
         .nodes(this.dataD3.accidents)
-        /* .force('collide',d3.forceCollide().radius(this.nodeRadius * 2).strength(this.forceProperties.collide.enabled * this.forceProperties.collide.strength)
-            .iterations(this.forceProperties.collide.iterations)) */
         /* .force(
+          'collide',
+          d3
+            .forceCollide()
+            .radius(this.nodeRadius * 2)
+            .strength(this.forceProperties.collide.enabled * this.forceProperties.collide.strength)
+            .iterations(this.forceProperties.collide.iterations)
+        ) */
+        .force(
           'forceX',
           d3
             .forceX(d => {
@@ -127,13 +149,12 @@ export default {
               this.forceProperties.forceY.enabled *
                 this.forceProperties.forceY.strength
             )
-        ) */
+        )
         .on('tick', this.tick)
       //.on('end', this.end)
     },
     //force layout update, called on zoom and move
     updateD3() {
-      this.recomputeSvg()
       const viewport = getViewport(this.$store.state.map)
 
       this.nodes
@@ -154,7 +175,7 @@ export default {
 
       //this.calculateDistanceDeviation()
 
-      /* this.simulation
+      this.simulation
         .force(
           'forceX',
           d3
@@ -177,7 +198,7 @@ export default {
               return d.pos[1]
             })
             .strength(1)
-        ) */
+        )
 
       this.simulation.alpha(0.1).restart()
     },
@@ -185,7 +206,6 @@ export default {
     tick() {
       // this.calculateDistanceDeviation()
       const viewport = getViewport(this.$store.state.map)
-      this.recomputeSvg()
 
       this.nodes
         .attr('cx', function(d) {
@@ -205,6 +225,7 @@ export default {
     //accident's simulation end
     end() {
       this.calculateDistanceDeviation()
+      console.log('simulation end')
     },
     //initialisation of grid for aggregated visualization (house parties)
     initGrid(arrayLength) {
@@ -230,9 +251,22 @@ export default {
 
       this.cells = cells
     },
+    //so aptly named that it speaks for itself
+    //jk, this initializes the aggregated vis. (house parties)
+    //right now I hardcoded two latlon coordinates for one square
+    //those will be changed when Megi actually does something for once :o
+    //called on click
+    //housePartyAreas() { // in memoriam of the better name of this method...
+    housePartyAreas() {
+      const latlon1 = [16.59512715090524, 49.20013082305056] //const latlon2 = [16.595096320004444, 49.19380583417316]
+      const latlon3 = [16.605566189434686, 49.19358091860195] //const latlon4 = [16.605512948005973, 49.19883456531343]
+
+      this.computeFirstPartyData()
+
+      this.initPartyForceSimulation(latlon1, latlon3)
+    },
     //updating aggregated vis. (house parties); called on zoom and move
-    //updatePartyNodes() { // in memoriam of party names
-    updateAggregatedVis() {
+    updatePartyNodes() {
       const viewport = getViewport(this.$store.state.map)
 
       const latlon1 = [16.59512715090524, 49.20013082305056]
@@ -243,11 +277,9 @@ export default {
 
       const shift = viewport.project([shiftX, shiftY])
 
-      //console.log(this.aggregatedData)
-
-      this.aggregatedNodes
+      this.partyNodes
         .each(d => {
-          let gridpoint = occupyNearest(d, this.cells) //this.cells should change
+          let gridpoint = occupyNearest(d, this.cells)
           if (gridpoint) {
             // ensures smooth movement towards final positoin
             //d.x += (gridpoint.x - d.x) * 0.05
@@ -268,6 +300,23 @@ export default {
           d.fy = d.pos[1]
           return d.pos[1]
         })
+    },
+    //initializes aggregated vis.'s simulation (house parties), also contains tick function
+    initPartyForceSimulation(latlon1, latlon3) {
+      this.partySimulation = d3.forceSimulation(this.firstParty)
+      // .force('center',d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2
+      //     /* (latlon1[0] + latlon3[0]) / 2, (latlon1[1] + latlon3[1]) / 2 */))
+      /* 
+      const shiftX = (latlon1[0] + latlon3[0]) / 2
+      const shiftY = (latlon1[1] + latlon3[1]) / 2 */
+
+      //this.partyNodes = this.computePartyNodes()
+      this.computePartyNodes()
+
+      this.partySimulation.on('tick', () => {
+        this.initGrid(this.firstParty.length)
+        this.updatePartyNodes()
+      })
     },
     //calculates distance for all accidents, between the point A (where they are right now)
     //and point B (where they were supposed to be according to their geo data)
@@ -295,14 +344,52 @@ export default {
         return 'black'
       })
     },
-    //do I get the nodes or just polygon from Megi?
-    //yeah the name sucks, it will get better
-    copyDataFromNeighbourhoodNodes() {
+    listeners() {
+      //all events
+      this.$root.$on('map-zoom', () => {
+        this.updateD3()
+
+        /* this.computePartyNodes()
+        this.updatePartyNodes() */
+
+        drawPolygon(this.svg, this.$store.state.map) //will be replaced by convex hull
+      })
+      this.$root.$on('map-move', () => {
+        this.updateD3()
+
+        /* this.computePartyNodes()
+        this.updatePartyNodes() */
+
+        drawPolygon(this.svg, this.$store.state.map) //will be replaced by convex hull
+      })
+      //just end events
+      // this.$root.$on('map-zoomend', () => {}) // this.$root.$on('map-moveend', () => {})
+      // this.$root.$on('map-movestart', () => {}) // this.$root.$on('map-zoomstart', () => {})
+      // this.$root.$on('map-zoomend', () => {})
+      this.$root.$on('map-click', () => {
+        this.housePartyAreas()
+        drawPolygon(this.svg, this.$store.state.map) //will be replaced by convex hull
+      })
+    },
+    dragStarted(d) {
+      // this.simulation.alpha(0.3).restart()
+      this.simulation.restart()
+      d.fx = d.x
+      d.fy = d.y
+    },
+    dragged(d) {
+      d.fx = d3.event.x
+      d.fy = d3.event.y
+    },
+    dragEnded(d) {
+      //this.simulation.alpha(0)
+      this.simulation.stop(0)
+      d.fx = null
+      d.fy = null
+    },
+    computeFirstPartyData() {
       const latlon1 = [16.59512715090524, 49.20013082305056]
       const latlon3 = [16.605566189434686, 49.19358091860195]
-
-      //let nodesInNeighbourhood = []
-
       this.dataD3.accidents.forEach(d => {
         if (
           //TODO: should be d.x,y
@@ -312,28 +399,19 @@ export default {
           d.forceGPS[1] > latlon3[1]
         ) {
           d.area = true
-          let currentNode = {
-            id: d.OBJECTID,
-            x: d.x,
-            y: d.y,
-            X: d.X,
-            Y: d.Y,
-            neighbourhoodID: 1, //idk
-            center: [
-              (latlon1[0] + latlon3[0]) / 2,
-              (latlon1[1] + latlon3[1]) / 2
-            ]
-          }
-          //nodesInNeighbourhood.push(currentNode)
-          this.aggregatedData.push(currentNode)
+          d.party = 1
         } else {
           d.area = false
+          d.party = 0
         }
       })
+
+      this.firstParty = []
 
       this.nodes
         .attr('class', d => {
           if (d.area) {
+            this.firstParty.push(d)
             return 'houseParty'
           } else {
             return 'nodes'
@@ -345,50 +423,19 @@ export default {
           }
           return 'black'
         })
-
-      //this.aggregatedData.push(nodesInNeighbourhood)
     },
-    initAggregatedVis() {
-      this.copyDataFromNeighbourhoodNodes()
-      this.computeAggregatedNodes()
-      this.initGrid(this.aggregatedData.length)
-    },
-    listeners() {
-      //all events
-      this.$root.$on('map-zoom', () => {
-        this.updateD3()
-
-        drawPolygon(this.svg, this.$store.state.map) //will be replaced by convex hull
-        this.initGrid(this.aggregatedData.length)
-        this.updateAggregatedVis()
-      })
-      this.$root.$on('map-move', () => {
-        this.updateD3()
-
-        drawPolygon(this.svg, this.$store.state.map) //will be replaced by convex hull
-        this.initGrid(this.aggregatedData.length)
-        this.updateAggregatedVis()
-      })
-
-      this.$root.$on('map-click', () => {
-        this.initAggregatedVis()
-        drawPolygon(this.svg, this.$store.state.map) //will be replaced by convex hull
-        this.initGrid(this.aggregatedData.length)
-        this.updateAggregatedVis()
-      })
-    },
-    computeAggregatedNodes() {
-      //this.computeFirstPartyData()
+    computePartyNodes() {
+      this.computeFirstPartyData()
       const viewport = getViewport(this.$store.state.map)
 
       d3.selectAll('.partyCircles').remove()
 
-      this.aggregatedNodes = this.svg
+      const partyNodes = this.svg
         .append('g')
         .attr('stroke', '#fff')
         .attr('stroke-width', 1.5)
         .selectAll('circle')
-        .data(this.aggregatedData)
+        .data(this.firstParty)
         .join('circle')
         .attr('class', 'partyCircles')
         .attr('r', 5)
@@ -407,15 +454,14 @@ export default {
           d.fy = d.pos[1]
           return d.pos[1]
         })
-    },
-    recomputeSvg() {
-      this.svg
-        .attr('width', window.innerWidth)
-        .attr('height', window.innerHeight)
+
+      this.partyNodes = partyNodes
+
+      //return partyNodes
     }
   }, // end of methods
   computed: {
-    /* computedForceLayout: function() {
+    computedForceLayout: function() {
       if (this.simulation) {
         const viewport = getViewport(this.$store.state.map)
 
@@ -440,7 +486,17 @@ export default {
       }
 
       return this.simulation
-    }, */
+    },
+    computedSvg: function() {
+      if (this.svg) {
+        this.svg
+          .attr('width', window.innerWidth)
+          .attr('height', window.innerHeight)
+      }
+
+      return this.svg
+    },
+
     computedNodes: function() {
       if (this.nodes) {
         //const colorScale = d3.scaleOrdinal(d3.schemeDark2)
@@ -467,6 +523,17 @@ export default {
       }
 
       return this.nodes
+    },
+
+    computedFirstPartyData: function() {
+      this.firstParty = this.computeFirstPartyData()
+
+      return this.firstParty
+    },
+    computedPartyNodes: function() {
+      this.partyNodes = this.computePartyNodes()
+
+      return this.partyNodes
     }
   }
 }
