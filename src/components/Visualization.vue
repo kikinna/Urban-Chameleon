@@ -25,29 +25,10 @@ export default {
       aggregatedNodes: null,
       dataD3: [], //accident data
       cells: [], // barchart grid positions //TODO: temporary
-      firstParty: [], // accident data for first barchart // tmp
-      partyNodes: null, // nodes for first barchart // tmp
-      partySimulation: null, // barchart force simulation // tmp
       simulation: null, // accident data force simulation
       svg: null,
       nodes: null, //accident nodes
       nodeRadius: 5,
-      forceProperties: {
-        collide: {
-          enabled: true,
-          strength: 1,
-          iterations: 1,
-          radius: 10
-        },
-        forceX: {
-          enabled: true,
-          strength: 1
-        },
-        forceY: {
-          enabled: true,
-          strength: 1
-        }
-      },
       distanceLimit: 0.000001 //used in calculateDistanceDeviation to compare with the calculated distance between nodes
     }
   },
@@ -103,37 +84,12 @@ export default {
       this.simulation = d3
         .forceSimulation()
         .nodes(this.dataD3.accidents)
-        /* .force('collide',d3.forceCollide().radius(this.nodeRadius * 2).strength(this.forceProperties.collide.enabled * this.forceProperties.collide.strength)
-            .iterations(this.forceProperties.collide.iterations)) */
-        /* .force(
-          'forceX',
-          d3
-            .forceX(d => {
-              d.pos = viewport.project([d.X, d.Y])
-              return d.pos[0]
-            })
-            .strength(
-              this.forceProperties.forceX.enabled *
-                this.forceProperties.forceX.strength
-            )
-        )
-        .force(
-          'forceY',
-          d3
-            .forceY(d => {
-              return d.pos[1]
-            })
-            .strength(
-              this.forceProperties.forceY.enabled *
-                this.forceProperties.forceY.strength
-            )
-        ) */
+        /* .force('collide',d3.forceCollide().radius(this.nodeRadius * 2).strength(1).iterations(1)) */
         .on('tick', this.tick)
       //.on('end', this.end)
     },
     //force layout update, called on zoom and move
     updateD3() {
-      this.recomputeSvg()
       const viewport = getViewport(this.$store.state.map)
 
       this.nodes
@@ -154,38 +110,12 @@ export default {
 
       //this.calculateDistanceDeviation()
 
-      /* this.simulation
-        .force(
-          'forceX',
-          d3
-            .forceX(d => {
-              if (d.area) {
-                return null
-              }
-              d.pos = viewport.project([d.X, d.Y])
-              return d.pos[0]
-            })
-            .strength(1)
-        )
-        .force(
-          'forceY',
-          d3
-            .forceY(d => {
-              if (d.area) {
-                return null
-              }
-              return d.pos[1]
-            })
-            .strength(1)
-        ) */
-
       this.simulation.alpha(0.1).restart()
     },
     //accident's simulation tick
     tick() {
       // this.calculateDistanceDeviation()
       const viewport = getViewport(this.$store.state.map)
-      this.recomputeSvg()
 
       this.nodes
         .attr('cx', function(d) {
@@ -208,7 +138,7 @@ export default {
     },
     //initialisation of grid for aggregated visualization (house parties)
     initGrid(arrayLength) {
-      const CELL_SIZE = 10 
+      const CELL_SIZE = 10
       const GRID_COLS = 6
       const GRID_ROWS = Math.ceil(arrayLength / GRID_COLS)
 
@@ -243,11 +173,11 @@ export default {
 
       const shift = viewport.project([shiftX, shiftY])
 
-      //console.log(this.aggregatedData)
+      //console.log(viewport)
 
       this.aggregatedNodes
         .each(d => {
-          let gridpoint = occupyNearest(d, this.cells) //this.cells should change
+          let gridpoint = occupyNearest(d, this.cells) //TODO: this.cells should change
           if (gridpoint) {
             // ensures smooth movement towards final positoin
             //d.x += (gridpoint.x - d.x) * 0.05
@@ -261,11 +191,11 @@ export default {
         .attr('cx', d => {
           d.forceGPS = viewport.unproject([d.fx, d.fy])
           d.pos = viewport.project(d.forceGPS)
-          d.fx = d.pos[0]
+          //d.fx = d.pos[0]
           return d.pos[0]
         })
         .attr('cy', d => {
-          d.fy = d.pos[1]
+          //d.fy = d.pos[1]
           return d.pos[1]
         })
     },
@@ -295,10 +225,9 @@ export default {
         return 'black'
       })
     },
-    //do I get the nodes or just polygon from Megi?
-    //yeah the name sucks, it will get better
+    //should work with array of node indexes from convex hull; right now hardcoded neighbourhood
     // TO DO : Prep of ds + adding necessary attributes + rename, haha
-    copyDataFromNeighbourhoodNodes() {
+    initNeighbourData() {
       const latlon1 = [16.59512715090524, 49.20013082305056]
       const latlon3 = [16.605566189434686, 49.19358091860195]
 
@@ -335,7 +264,7 @@ export default {
       this.nodes
         .attr('class', d => {
           if (d.area) {
-            return 'houseParty'
+            return 'neighbourhood'
           } else {
             return 'nodes'
           }
@@ -350,38 +279,35 @@ export default {
       //this.aggregatedData.push(nodesInNeighbourhood)
     },
     initAggregatedVis() {
-      this.copyDataFromNeighbourhoodNodes()
+      this.initNeighbourData()
       this.initGrid(this.aggregatedData.length)
-      this.computeAggregatedNodes()
+      this.drawSingleAggregatedVis()
+      this.updateAggregatedVis()
+    },
+    overallUpdate() {
+      this.updateD3()
+      drawPolygon(this.svg, this.$store.state.map) //will be replaced by convex hull
+      this.initGrid(this.aggregatedData.length)
+      this.drawSingleAggregatedVis()
       this.updateAggregatedVis()
     },
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
-        this.updateD3()
-
-        drawPolygon(this.svg, this.$store.state.map) //will be replaced by convex hull
-        this.initGrid(this.aggregatedData.length)
-        this.updateAggregatedVis()
+        this.overallUpdate()
       })
       this.$root.$on('map-move', () => {
-        this.updateD3()
-
-        drawPolygon(this.svg, this.$store.state.map) //will be replaced by convex hull
-        this.initGrid(this.aggregatedData.length)
-        this.updateAggregatedVis()
+        this.overallUpdate()
       })
 
       this.$root.$on('map-click', () => {
         this.initAggregatedVis()
-        drawPolygon(this.svg, this.$store.state.map) //will be replaced by convex hull
-        this.initGrid(this.aggregatedData.length)
-        this.updateAggregatedVis()
+        this.overallUpdate()
       })
     },
     // TO DO: comment
     // "draw/setup single aggregated vis"
-    computeAggregatedNodes() {
+    drawSingleAggregatedVis() {
       //this.computeFirstPartyData()
       const viewport = getViewport(this.$store.state.map)
 
@@ -398,54 +324,23 @@ export default {
         .attr('r', 5)
         .attr('fill', 'blue')
         .attr('cx', d => {
-          if (d.fx != null) {
-            d.forceGPS = viewport.unproject([d.fx, d.fy])
-          } else {
+          //if (d.fx != null && d.fy != null) {
+          d.forceGPS = viewport.unproject([d.fx, d.fy])
+          /* } else {
             d.forceGPS = viewport.unproject([d.x, d.y])
-          }
+          } */
           d.pos = viewport.project(d.forceGPS)
           d.fx = d.pos[0]
-          console.log(d.fy)
+          //console.log(d.fy)
           return d.pos[0]
         })
         .attr('cy', d => {
           d.fy = d.pos[1]
           return d.pos[1]
         })
-    },
-    recomputeSvg() {
-      this.svg
-        .attr('width', window.innerWidth)
-        .attr('height', window.innerHeight)
     }
   }, // end of methods
   computed: {
-    /* computedForceLayout: function() {
-      if (this.simulation) {
-        const viewport = getViewport(this.$store.state.map)
-
-        this.simulation
-          .force(
-            'forceX',
-            d3
-              .forceX(d => {
-                d.pos = viewport.project([d.X, d.Y])
-                return d.pos[0]
-              })
-              .strength(1)
-          )
-          .force(
-            'forceY',
-            d3
-              .forceY(d => {
-                return d.pos[1]
-              })
-              .strength(1)
-          )
-      }
-
-      return this.simulation
-    }, */
     computedNodes: function() {
       if (this.nodes) {
         //const colorScale = d3.scaleOrdinal(d3.schemeDark2)
@@ -478,7 +373,7 @@ export default {
 </script>
 
 <style>
-.houseParty {
+.neighbourhood {
   visibility: hidden;
 }
 
