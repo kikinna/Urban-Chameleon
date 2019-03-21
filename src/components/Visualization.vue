@@ -31,12 +31,16 @@ export default {
       allData: [],
       testovacie: [4, 3, 2, 1],
       points: [],
-      points2: [],
-      hull: [],
-      hull2: [],
+      hulls: [],
+      neighbourhood: {
+        hull: [],
+        anchorPoint: null,
+        points: [],
+      },
+      neighbourhoods: [],
+      startingPoints: [],
       compute: 0,
       anchorPoint: null,
-      anchorPoint2: null,
       reverse: false,
       title: null,
       svg: null,
@@ -80,18 +84,10 @@ export default {
       }
     )
     accidentData.accidents[1199].theNeighbourhood = accidentData.accidents[1199].OBJECTID
-    accidentData.accidents[478].theNeighbourhood = accidentData.accidents[479].OBJECTID
-    // let projection = this.getProjection();
-    // let posi = [];
-    // accidentData.accidents.forEach(
-    // //posi = projection([o.X,o.Y]),
-    //   o => {
-    //     posi = projection([o.X,o.Y]);
-    //     if(posi[0] > 0 && posi[0]<window.innerWidth && posi[1]>0 && posi[1]<window.innerHeight){
-    //       this.detailAccidents.push(o);
-    //     }
-    //   }
-    // )
+    //accidentData.accidents[478].theNeighbourhood = accidentData.accidents[479].OBJECTID
+    this.startingPoints.push(1199);
+    //this.startingPoints.push(479);
+    
   },
   methods: {
     loadData() {
@@ -159,9 +155,9 @@ export default {
         .attr('r', this.nodeRadius)
         .attr('fill', d => {
           if (d.theNeighbourhood==3442 || d.theNeighbourhood==2111 ) {
-              return 'blue'
+              return '#487284d2'
           }else if(d.theNeighbourhood==2){
-            return 'yellow'
+            return 'black'
           }
           return 'black' //return colorScale(d.DruhNehody)
         })
@@ -315,53 +311,58 @@ export default {
 
       //this.simulation.alpha(1).restart()
       //console.log(this.simulation.alpha(), this.recompute);
+
+
       if(this.simulation.alpha() < 0.15 && this.recompute){
-        let neighbourHall = [];
-        this.points = [];
-        this.hull = [];
-        this.hull2 = []
+        this.makePolygons();
+      }
+    },
+    makePolygons(){
+      this.recompute = false;
         this.reverse = false;
         this.anchorPoint = null;
-        this.getNeighbours(accidentData.accidents[1199]);
-        //this.getNeighbours(accidentData.accidents[478]);
-        this.recompute = false;
-        console.log(this.points, this.anchorPoint, this.compute)
-        //console.log(this.anchorPoint)
-        this.hull.push(this.getHull())
-        this.hull[0].forEach(o => {
-          accidentData.accidents[o].theNeighbourhood = accidentData.accidents[this.anchorPoint].theNeighbourhood;
-          //console.log((accidentData.accidents[o].X).toString(10) + ',' + (accidentData.accidents[o].Y).toString(10))
-          //o = (accidentData.accidents[o].X).toString(10) + ',' + (accidentData.accidents[o].Y).toString(10)
+        this.points = [];
+        this.hulls = [];
+        //this.startingPoints = [];
+        //console.log(this.startingPoints)
+        this.startingPoints.forEach(o => {
+          console.log(o)
+          //console.log(accidentData.accidents[o]);
+          this.getNeighbours(accidentData.accidents[o]);
+          //console.log("haf")
+          console.log(this.hulls, this.anchorPoint, this.points)
+          if(this.points.length > 1){
+            console.log("haf")
+            this.hulls.push(this.getHull());
+          }
+          console.log(this.hulls)
+          //console.log("paf")
+          //console.log(this.hulls[0]);
+          this.points = [];
+          this.anchorPoint = null;
         })
-        console.log(this.hull)
+        console.log(this.hulls)
+        // this.hulls.forEach(o=>{
+        //   o.forEach(d=>{
+        //     console.log(accidentData.accidents[d].theNeighbourhood)
+        //   })
+        // })
+        
         this.svg
           //.append("polygon")
           .selectAll("polygon")
-            .data(this.hull)
+            .data(this.hulls)
           .enter().append("polygon")
             .attr("points", function(d) { 
-                //console.log(accidentData.accidents[d].x)
-                //console.log(Math.round(accidentData.accidents[d].x).toString(10) + ',' + Math.round(accidentData.accidents[d].y).toString(10) + ' ')
                 let str = ""
                 d.forEach( o => {
                   str += (accidentData.accidents[o].x).toString(10) + ',' + (accidentData.accidents[o].y).toString(10) + ' '
                 })
                 return str})
-                //return function(o){
-                ///  return [(accidentData.accidents[d].x).toString(10) + ',' + (accidentData.accidents[d].y).toString(10) + ' '];})
-                //})
-            .style("fill", "#60bac6bb")
-            .style("stroke", "black")
+            .style("fill", "#60bac668")
+            .style("stroke", "567985cc")
             .style("strokeWidth", "2px");
-
-
-        // this.hull2 = this.getHull();
-        // this.hull2.forEach(o => {
-        //   accidentData.accidents[o].theNeighbourhood = accidentData.accidents[this.anchorPoint2].theNeighbourhood;
-        // })
-        
-        //console.log(this.hull)
-      }
+    
     },
     dragStarted(d) {
       // this.simulation.alpha(0.3).restart()
@@ -461,9 +462,9 @@ export default {
           //console.log('blue2')
           //console.log(d.tooFar)
           //getNeighbours(d);
-          return 'blue'
+          return '#487284d2'
         }else if(d.theNeighbourhood==2){
-          return 'yellow'
+          return 'black'
         }
         return 'black'
       })
@@ -471,14 +472,12 @@ export default {
     },
     getNeighbours(obj) {
       //accidentData.accidents[1199].theNeighbourhood = accidentData.accidents[1199].OBJECTID
-      //console.log(obj.OBJECTID)
+      //console.log(obj.index)
       let projection = this.getProjection()
-      //let posiP1 = projection([obj.X, obj.Y])
       let posiP1 = [obj.x,obj.y]
       let posiP2 = []
       this.addPoint(obj.index);
       let r = 22 //TODO zistit ako dostat presne cisla a ako to menit podla zoomu
-      //console.log("hello")
       accidentData.accidents.forEach(
         o => {
           if(o.theNeighbourhood==null && o != obj){
@@ -492,17 +491,14 @@ export default {
             }
           }
         })
-        //console.log(this.anchorPoint)
         //console.log(this.points)
-        //let hull = this.getHull();
-        //console.log(hull)
         this.nodes.attr('fill', d => {
           if(d.theNeighbourhood==3442 ||  d.theNeighbourhood==2111){
             //console.log('blue1')
-            return 'blue'
+            return '#487284d2'
           }
           else if(d.theNeighbourhood==2){
-            return 'yellow'
+            return 'black'
           }
                 
           return 'black'
@@ -561,8 +557,8 @@ export default {
         let polarA = this.findPolarAngle(this.anchorPoint,a);
         let polarB = this.findPolarAngle(this.anchorPoint,b);
         //console.log(accidentData.accidents[a].theNeighbourhood)
-        accidentData.accidents[a].theNeighbourhood = 2;
-        accidentData.accidents[b].theNeighbourhood = 2;
+        //accidentData.accidents[a].theNeighbourhood = 2;
+        //accidentData.accidents[b].theNeighbourhood = 2;
         //console.log(this.anchorPoint,accidentData.accidents[this.anchorPoint].theNeighbourhood)
         //accidentData.accidents[this.anchorPoint].theNeighbourhood = 2;
         //console.log(polarA,polarB)
@@ -675,11 +671,15 @@ export default {
         //console.log('test distanceInMeters', distanceInMeters)
       })
       this.$root.$on('map-moveend', () => {
+        d3.selectAll("polygon").remove();
         accidentData.accidents.forEach(
           o => {
             o.theNeighbourhood = null;
           }
         )
+        this.startingPoints = []
+        this.startingPoints.push(1199);
+        this.startingPoints.push(478);
         accidentData.accidents[1199].theNeighbourhood = accidentData.accidents[1199].OBJECTID;
         accidentData.accidents[478].theNeighbourhood = accidentData.accidents[478].OBJECTID;
         this.recompute = true;
@@ -703,6 +703,7 @@ export default {
               counter+=1;
             }
           )
+
           //console.log(this.detailAccidents);
           //console.log(this.allData);
         
@@ -762,9 +763,9 @@ export default {
           .attr('r', this.nodeRadius)
           .attr('fill', d => {
             if (d.theNeighbourhood==3442 ||  d.theNeighbourhood==2111 ) {
-              return 'blue'
+              return '#487284d2'
             }else if(d.theNeighbourhood==2){
-              return 'yellow'
+              return 'black'
             }
             return 'black' //return colorScale(d.DruhNehody)
           })
@@ -788,7 +789,7 @@ export default {
 
 <style>
 .nodes {
-  stroke: #fff;
+  stroke: rgb(255, 255, 255);
   stroke-width: 2px;
 }
 
