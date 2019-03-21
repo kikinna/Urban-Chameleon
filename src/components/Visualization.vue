@@ -27,21 +27,15 @@ export default {
       dataD3: [],
       graph: null,
       simulation: null,
-      detailAccidents: [],
+      detailAccidents: [], //indices for detail card of accident 
       allData: [],
-      testovacie: [4, 3, 2, 1],
-      points: [],
-      hulls: [],
-      neighbourhood: {
-        hull: [],
-        anchorPoint: null,
-        points: [],
-      },
-      neighbourhoods: [],
-      startingPoints: [],
+      //testovacie: [4, 3, 2, 1],
+      points: [], //indices of points for countinginprogress neighbourhood
+      neighbour: [], //Array of neighbourhoods objects - hull:indices of convex hull points, hood:indices of all points, anchorpoint
+      startingPoints: [], //points for visualization of neighbourhoods - just prototype
       compute: 0,
-      anchorPoint: null,
-      reverse: false,
+      anchorPoint: null, //anchor point of counting in progress neighbourhood
+      reverse: false, //helper for angles in convexhull counting
       title: null,
       svg: null,
       nodes: null,
@@ -83,10 +77,6 @@ export default {
         
       }
     )
-    accidentData.accidents[1199].theNeighbourhood = accidentData.accidents[1199].OBJECTID
-    //accidentData.accidents[478].theNeighbourhood = accidentData.accidents[479].OBJECTID
-    this.startingPoints.push(1199);
-    //this.startingPoints.push(479);
     
   },
   methods: {
@@ -319,49 +309,36 @@ export default {
     },
     makePolygons(){
       this.recompute = false;
-        this.reverse = false;
-        this.anchorPoint = null;
+      this.reverse = false;
+      this.anchorPoint = null;
+      this.points = [];
+      this.neighbour = [];
+      this.startingPoints.forEach(o => {
+        this.getNeighbours(accidentData.accidents[o]);
+        if(this.points.length > 1){
+          let hull = this.getHull();
+          //this.hulls.push(hull)
+          let neigh = {hull:hull,hood:this.points,anchorPoint:this.anchorPoint}
+          this.neighbour.push(neigh)
+        }
         this.points = [];
-        this.hulls = [];
-        //this.startingPoints = [];
-        //console.log(this.startingPoints)
-        this.startingPoints.forEach(o => {
-          console.log(o)
-          //console.log(accidentData.accidents[o]);
-          this.getNeighbours(accidentData.accidents[o]);
-          //console.log("haf")
-          console.log(this.hulls, this.anchorPoint, this.points)
-          if(this.points.length > 1){
-            console.log("haf")
-            this.hulls.push(this.getHull());
-          }
-          console.log(this.hulls)
-          //console.log("paf")
-          //console.log(this.hulls[0]);
-          this.points = [];
-          this.anchorPoint = null;
-        })
-        console.log(this.hulls)
-        // this.hulls.forEach(o=>{
-        //   o.forEach(d=>{
-        //     console.log(accidentData.accidents[d].theNeighbourhood)
-        //   })
-        // })
+        this.anchorPoint = null;
+      })
+      console.log(this.neighbour)
         
-        this.svg
-          //.append("polygon")
-          .selectAll("polygon")
-            .data(this.hulls)
-          .enter().append("polygon")
-            .attr("points", function(d) { 
-                let str = ""
-                d.forEach( o => {
-                  str += (accidentData.accidents[o].x).toString(10) + ',' + (accidentData.accidents[o].y).toString(10) + ' '
-                })
-                return str})
-            .style("fill", "#60bac668")
-            .style("stroke", "567985cc")
-            .style("strokeWidth", "2px");
+      this.svg
+        .selectAll("polygon")
+          .data(this.neighbour)
+        .enter().append("polygon")
+          .attr("points", function(d) { 
+              let str = ""
+              d.hull.forEach( o => {
+                str += (accidentData.accidents[o].x).toString(10) + ',' + (accidentData.accidents[o].y).toString(10) + ' '
+              })
+              return str})
+          .style("fill", "#60bac668")
+          .style("stroke", "567985cc")
+          .style("strokeWidth", "2px");
     
     },
     dragStarted(d) {
@@ -473,7 +450,7 @@ export default {
     getNeighbours(obj) {
       //accidentData.accidents[1199].theNeighbourhood = accidentData.accidents[1199].OBJECTID
       //console.log(obj.index)
-      let projection = this.getProjection()
+      //let projection = this.getProjection()
       let posiP1 = [obj.x,obj.y]
       let posiP2 = []
       this.addPoint(obj.index);
@@ -678,12 +655,12 @@ export default {
         
         let projection = this.getProjection();
         let posi = [];
-        let counter = 0;
+        
         // console.log(accidentData.accidents[1000])
         // accidentData.accidents[1000].theNeighbour = true;
         // console.log(accidentData.accidents[100].hasOwnProperty("theNeighbour"))
         if(this.$store.state.map.getZoom()>17.8){
-          createAccidentDetail();
+          this.createAccidentDetail();
         }
       })
 
@@ -707,9 +684,10 @@ export default {
     },
     createAccidentDetail(){
       this.detailAccidents = [];
+      let counter = 0;
       accidentData.accidents.forEach( 
         o => {
-          posi = projection([o.X,o.Y]);
+          let posi = [o.x,o.y];
           if(posi[0] > 0 && posi[0]<window.innerWidth && posi[1]>0 && posi[1]<window.innerHeight){
           this.detailAccidents.push(counter);
         }
