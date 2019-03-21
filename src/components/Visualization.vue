@@ -208,7 +208,7 @@ export default {
     },
     //initialisation of grid for aggregated visualization (house parties)
     initGrid(arrayLength) {
-      const GRID_SIZE = 10
+      const CELL_SIZE = 10 
       const GRID_COLS = 6
       const GRID_ROWS = Math.ceil(arrayLength / GRID_COLS)
 
@@ -219,8 +219,8 @@ export default {
           if (arrayLength <= 0) break
           var cell
           cell = {
-            x: c * GRID_SIZE,
-            y: GRID_COLS - r * GRID_SIZE,
+            x: c * CELL_SIZE,
+            y: GRID_COLS - r * CELL_SIZE,
             occupied: false
           }
           cells.push(cell)
@@ -297,6 +297,7 @@ export default {
     },
     //do I get the nodes or just polygon from Megi?
     //yeah the name sucks, it will get better
+    // TO DO : Prep of ds + adding necessary attributes + rename, haha
     copyDataFromNeighbourhoodNodes() {
       const latlon1 = [16.59512715090524, 49.20013082305056]
       const latlon3 = [16.605566189434686, 49.19358091860195]
@@ -350,8 +351,9 @@ export default {
     },
     initAggregatedVis() {
       this.copyDataFromNeighbourhoodNodes()
-      this.computeAggregatedNodes()
       this.initGrid(this.aggregatedData.length)
+      this.computeAggregatedNodes()
+      this.updateAggregatedVis()
     },
     listeners() {
       //all events
@@ -377,6 +379,8 @@ export default {
         this.updateAggregatedVis()
       })
     },
+    // TO DO: comment
+    // "draw/setup single aggregated vis"
     computeAggregatedNodes() {
       //this.computeFirstPartyData()
       const viewport = getViewport(this.$store.state.map)
@@ -401,6 +405,7 @@ export default {
           }
           d.pos = viewport.project(d.forceGPS)
           d.fx = d.pos[0]
+          console.log(d.fy)
           return d.pos[0]
         })
         .attr('cy', d => {
