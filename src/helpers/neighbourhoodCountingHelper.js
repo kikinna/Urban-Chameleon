@@ -62,15 +62,9 @@
 
     let angle = Math.atan2(deltaY, deltaX) * ONE_RADIAN;
 
-    // if (this.reverse){ //this part is not working yet and im not sure if its needed
-    //     if (angle <= 0) {
-    //         angle += 360;
-    //     }
-    // }else{
-        if (angle >= 0) {
-            angle += 360;
-        }
-    //}
+    if (angle >= 0) {
+        angle += 360;
+    }
     return angle;
   }
 

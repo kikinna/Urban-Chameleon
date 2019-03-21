@@ -440,9 +440,6 @@ export default {
 
       this.nodes.attr('fill', d => {
         if (d.theNeighbourhood == 3442 ||  d.theNeighbourhood==2111 ) {
-          //console.log('blue2')
-          //console.log(d.tooFar)
-          //getNeighbours(d);
           return '#487284d2'
         }else if(d.theNeighbourhood==2){
           return 'black'
