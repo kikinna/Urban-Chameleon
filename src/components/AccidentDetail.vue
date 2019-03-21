@@ -76,7 +76,7 @@
     position: absolute;
     width: 800;
     border: 1px solid rgb(222, 219, 219);
-    background-color: #f2f3f099;
+    background-color: #fafafa99;
     border-radius: 30px;
     transform: translate(+225%, -60%);
     

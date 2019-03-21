@@ -671,18 +671,8 @@ export default {
         //console.log('test distanceInMeters', distanceInMeters)
       })
       this.$root.$on('map-moveend', () => {
-        d3.selectAll("polygon").remove();
-        accidentData.accidents.forEach(
-          o => {
-            o.theNeighbourhood = null;
-          }
-        )
-        this.startingPoints = []
-        this.startingPoints.push(1199);
-        this.startingPoints.push(478);
-        accidentData.accidents[1199].theNeighbourhood = accidentData.accidents[1199].OBJECTID;
-        accidentData.accidents[478].theNeighbourhood = accidentData.accidents[478].OBJECTID;
-        this.recompute = true;
+        this.removeNeighbours();
+        this.createNeighbours();
         //this.getNeighbours(accidentData.accidents[1199]);
         this.calculateDistanceDeviation();
         
@@ -693,24 +683,41 @@ export default {
         // accidentData.accidents[1000].theNeighbour = true;
         // console.log(accidentData.accidents[100].hasOwnProperty("theNeighbour"))
         if(this.$store.state.map.getZoom()>17.8){
-          this.detailAccidents = [];
-          accidentData.accidents.forEach( 
-            o => {
-              posi = projection([o.X,o.Y]);
-              if(posi[0] > 0 && posi[0]<window.innerWidth && posi[1]>0 && posi[1]<window.innerHeight){
-                this.detailAccidents.push(counter);
-              }
-              counter+=1;
-            }
-          )
-
-          //console.log(this.detailAccidents);
-          //console.log(this.allData);
-        
+          createAccidentDetail();
         }
       })
 
       //this.$root.$on('map-viewreset', d => { console.log("viewreset"); this.updateD3(); })
+    },
+    removeNeighbours(){
+      d3.selectAll("polygon").remove();
+        accidentData.accidents.forEach(
+          o => {
+            o.theNeighbourhood = null;
+          }
+        )
+        this.startingPoints = []
+    },
+    createNeighbours(){
+      this.startingPoints.push(1199);
+      this.startingPoints.push(478);
+      accidentData.accidents[1199].theNeighbourhood = accidentData.accidents[1199].OBJECTID;
+      accidentData.accidents[478].theNeighbourhood = accidentData.accidents[478].OBJECTID;
+      this.recompute = true;
+    },
+    createAccidentDetail(){
+      this.detailAccidents = [];
+      accidentData.accidents.forEach( 
+        o => {
+          posi = projection([o.X,o.Y]);
+          if(posi[0] > 0 && posi[0]<window.innerWidth && posi[1]>0 && posi[1]<window.innerHeight){
+          this.detailAccidents.push(counter);
+        }
+        counter+=1;
+      })
+
+      //console.log(this.detailAccidents);
+      //console.log(this.allData);
     }
   },
   computed: {
