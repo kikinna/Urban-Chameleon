@@ -42,6 +42,7 @@
 <script>
 import Mapbox from './components/Mapbox.vue'
 import Visualization from './components/Visualization.vue'
+//import VisualizationCircles from './components/VisualizationCircles.vue'
 import store from './store.js'
 
 export default {
