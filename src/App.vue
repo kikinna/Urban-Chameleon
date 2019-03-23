@@ -34,6 +34,7 @@
       @geolocate-geolocate="geolocate"
       @map-zoom="changeLevelOfDetail"
     ></Mapbox>
+    <GaussPreprocess></GaussPreprocess>
 
     <Visualization></Visualization>
   </div>
@@ -42,6 +43,7 @@
 <script>
 import Mapbox from './components/Mapbox.vue'
 import Visualization from './components/Visualization.vue'
+import GaussPreprocess from './components/GaussPreprocess.vue'
 //import VisualizationCircles from './components/VisualizationCircles.vue'
 import store from './store.js'
 
@@ -50,16 +52,19 @@ export default {
   data() {
     return {
       csv_data: null,
-      hello: 'hello'
+      hello: 'hello',
+      paper: null
     }
   },
   components: {
     Mapbox,
-    Visualization
+    Visualization,
+    GaussPreprocess
   },
   store,
   created() {
     // Try to load data here? Not. Somewhere else.
+    // this.paper = paper.setup(document.getElementById('gauss-preprocess'));
   },
   methods: {
     mapInit(map) {
@@ -103,7 +108,7 @@ export default {
   -moz-osx-font-smoothing: grayscale;
   /* text-align: center; */
   color: #2c3e50;
-  margin-top: 60px;
+  margin-top: 0px;
 }
 
 #map {

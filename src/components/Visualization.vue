@@ -62,6 +62,7 @@ export default {
   },
   store,
   mounted() {
+    console.log(getViewport(this.$store.state.map))
     //this.loadData()
     //NEFUNGUJE NA ZMENY
     this.dataD3 = accidentData
@@ -530,6 +531,8 @@ export default {
         this.updateVisualizations()
       })
       this.$root.$on('map-move', () => {
+        
+    console.log(getViewport(this.$store.state.map))
         this.updateVisualizations()
       })
       //just end events
