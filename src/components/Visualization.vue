@@ -16,10 +16,10 @@ import store from '../store.js'
 import accidentData from '../data/nehody2018.js'
 import AccidentDetail from './AccidentDetail.vue'
 import {
-  findPolarAngle,
   sortPoints,
   checkPoints,
-  getHull
+  addPoint,
+  getAngle
 } from '../helpers/neighbourhoodCountingHelper.js'
 
 import {
@@ -40,7 +40,6 @@ export default {
       simulation: null,
       detailAccidents: [], //indices for detail card of accident
       allData: [],
-      //testovacie: [4, 3, 2, 1],
       points: [], //indices of points for countinginprogress neighbourhood
       neighbour: [], //Array of neighbourhoods objects - hull:indices of convex hull points, hood:indices of all points, anchorpoint
       startingPoints: [], //points for visualization of neighbourhoods - just prototype
@@ -55,27 +54,26 @@ export default {
       simulation: null, // accident data force simulation
       svg: null,
       nodes: null, //accident nodes
+      polygons: null, 
       nodeRadius: 5,
-      recompute: false,
+      recompute: false, //variable for recomputing neighbourhoods after moved map
       distanceLimit: 0.000001 //used in calculateDistanceDeviation to compare with the calculated distance between nodes
     }
   },
   store,
   mounted() {
     //this.loadData()
-    //NEFUNGUJE NA ZMENY
     this.dataD3 = accidentData
     this.render()
     this.listeners()
 
-    //megi
+    //preseting attributes of accidents for easier manipulation
     this.allData = accidentData.accidents
-    let count = 0
-    accidentData.accidents.forEach(o => {
-      o.theNeighbourhood = null
-      o.index = count
-      count += 1
-    })
+    //let count = 0
+    for (var i = 0; i < accidentData.accidents.length; i++) {
+      accidentData.accidents[i].theNeighbourhood = null; 
+      accidentData.accidents[i].index = i;
+    }
   },
   methods: {
     //force layout initialisation (svg, nodes, simulation)
@@ -95,6 +93,11 @@ export default {
         .duration(750)
         .ease(d3.easeLinear)
 
+      this.polygons = this.svg
+          .append('g')
+
+      // this.calculateDistanceDeviation()
+
       this.nodes = this.svg
         .append('g')
         .attr('class', 'nodes')
@@ -106,8 +109,6 @@ export default {
         .attr('fill', d => {
           if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
             return '#487284d2'
-          } else if (d.theNeighbourhood == 2) {
-            return 'black'
           }
           return 'black' //return colorScale(d.DruhNehody)
         })
@@ -125,14 +126,15 @@ export default {
           // this.calculateDistanceDeviation()
         })
 
-      // this.calculateDistanceDeviation()
-
       this.simulation = d3
         .forceSimulation()
+        //.polygons(this.neighbour)
         .nodes(this.dataD3.accidents)
         /* .force('collide',d3.forceCollide().radius(this.nodeRadius * 2).strength(1).iterations(1)) */
+        //.polygons(this.neighbour)
         .on('tick', this.tick)
         .on('end', this.end)
+
     },
     //force layout update, called on zoom and move
     updateD3() {
@@ -186,35 +188,45 @@ export default {
         })
 
       //console.log(this.simulation.alpha(), this.recompute);
-      if (this.simulation.alpha() < 0.15 && this.recompute) {
-        this.makePolygons()
+      if ( this.recompute) {
+        this.makeNeighbourPolygons()
       }
     },
-    makePolygons() {
-      this.recompute = false
-      this.reverse = false
-      this.anchorPoint = null
-      this.points = []
-      this.neighbour = []
+    computeNeighbourhoods(){
       this.startingPoints.forEach(o => {
+        //mark all points which belonge to neighbouhood (attribute theNeighbourhood) and add to point array
         this.getNeighbours(accidentData.accidents[o])
-        if (this.points.length > 1) {
+        if (this.points.length > 1) { //neighbourhood of one point is not neighbouhood 
           let hull = this.getHull(this.anchorPoint)
+          //add neighbourhood object to array of neighbouhoods 
           let neigh = {
-            hull: hull,
-            hood: this.points,
-            anchorPoint: this.anchorPoint
+            hull: hull, //convexhull points
+            hood: [...this.points], //all neighbourhood points
+            anchorPoint: this.anchorPoint 
           }
           this.neighbour.push(neigh)
         }
         this.points = []
         this.anchorPoint = null
       })
-      console.log(this.neighbour)
-
-      this.svg
+    },
+    makeNeighbourPolygons() {
+      this.recompute = false
+      this.reverse = false
+      this.anchorPoint = null
+      this.points = []
+      this.neighbour = []
+      this.computeNeighbourhoods()
+      this.drawPolygon()
+    },
+    //create polygon from convex hull array
+    drawPolygon(){
+      d3.selectAll('polygon').remove()
+      //this.polygons = 
+      this.polygons
         .selectAll('polygon')
         .data(this.neighbour)
+        .attr('class','polygons')
         .enter()
         .append('polygon')
         .attr('points', function(d) {
@@ -273,6 +285,7 @@ export default {
 
       const shift = viewport.project([shiftX, shiftY])
 
+      
       this.aggregatedData.forEach(d => {
         let gridpoint = occupyNearest(d, this.cells) //TODO: this.cells should change
         if (gridpoint) {
@@ -280,7 +293,8 @@ export default {
           d.fy = gridpoint.y + shift[1]
         }
       })
-
+      d3.selectAll('polygon').remove()
+      this.drawPolygon() //thanks to this, polygon is moving with points
       this.initGrid(this.aggregatedData.length)
 
       this.aggregatedNodes
@@ -329,9 +343,7 @@ export default {
       this.nodes.attr('fill', d => {
         if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
           return '#487284d2'
-        } else if (d.theNeighbourhood == 2) {
-          return 'black'
-        }
+        } 
         return 'black'
       })
     },
@@ -376,7 +388,6 @@ export default {
       })
     },
     getNeighbours(obj) {
-      let posiP1 = [obj.x, obj.y]
       let posiP2 = []
       this.addPoint(obj.index)
       let r = 22 //TODO zistit ako dostat presne cisla a ako to menit podla zoomu
@@ -384,10 +395,9 @@ export default {
       //looking through all points in data if its in close neighbourhood, if yes counting close neighbourhood also for them...
       accidentData.accidents.forEach(o => {
         if (o.theNeighbourhood == null && o != obj) {
-          posiP2 = [o.x, o.y]
           let inNeighbour = Math.sqrt(
-            Math.pow(posiP1[0] - posiP2[0], 2) +
-              Math.pow(posiP1[1] - posiP2[1], 2)
+            Math.pow(obj.x - o.x, 2) +
+              Math.pow(obj.y - o.y, 2)
           )
           if (inNeighbour <= r) {
             o.theNeighbourhood = obj.theNeighbourhood
@@ -395,20 +405,20 @@ export default {
           }
         }
       })
+      this.colorNeighbourPoints()
+    },
+    colorNeighbourPoints(){
       this.nodes.attr('fill', d => {
         if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
           return '#487284d2'
-        } else if (d.theNeighbourhood == 2) {
-          return 'black'
         }
-
         return 'black'
       })
     },
     addPoint(index) {
       let point = accidentData.accidents[index]
       let anchorP = accidentData.accidents[this.anchorPoint]
-      //check if this point will be anchor point
+      //check if this point will be new anchor point
       if (
         this.anchorPoint === null ||
         point.Y < anchorP.Y ||
@@ -422,8 +432,8 @@ export default {
         this.points.push(index)
       }
     },
+
     findPolarAngle(anchor, p) {
-      let ONE_RADIAN = 57.295779513082
       let deltaX = null
       let deltaY = null
 
@@ -435,67 +445,34 @@ export default {
       if (deltaX == 0 && deltaY == 0) {
         return 0
       }
-
-      let angle = Math.atan2(deltaY, deltaX) * ONE_RADIAN
-
-      if (this.reverse) {
-        //this part is not working yet and im not sure if its needed
-        if (angle <= 0) {
-          angle += 360
-        }
-      } else {
-        if (angle >= 0) {
-          angle += 360
-        }
-      }
-      return angle
+      return getAngle(deltaX, deltaY,this)
     },
-
-    //found some implementations where something like this was used, but was not needed now, but maybe will be ¯\_(ツ)_/¯
-    // checkIfPositive(points){
-    //   //console.log(points)
-    //   points.forEach(
-    //     o => {
-    //       //console.log(accidentData.accidents[o].X)
-    //       if(!(accidentData.accidents[o].X < 0 && accidentData.accidents[o].Y < 0)){ //(point.x < 0 && point.y < 0)
-    //         return false;
-    //       }
-    //     })
-    //   return true;
-    // },
 
     getHull() {
       let hullPoints = []
       let pointis = []
       let pointsLength = null
-
-      pointis = sortPoints(this.anchorPoint, this.points, this)
+      pointis = [...sortPoints(this.anchorPoint, this.points, this)]
       pointsLength = pointis.length
-
       //if there is less than 3 points, joining these is correct hull
       if (pointsLength < 3) {
         pointis.unshift(this.anchorPoint)
         return points
       }
-
       //move first two points to output
       hullPoints.push(pointis.shift(), pointis.shift())
-
       //this looks like a really bad loop, but acctually it is repeated until no concave points are present
       while (true) {
         let p0 = null
         let p1 = null
         let p2 = null
-
         hullPoints.push(pointis.shift())
         p0 = hullPoints[hullPoints.length - 3]
         p1 = hullPoints[hullPoints.length - 2]
         p2 = hullPoints[hullPoints.length - 1]
-
         if (checkPoints(p0, p1, p2, this)) {
           hullPoints.splice(hullPoints.length - 2, 1)
         }
-
         if (pointis.length == 0) {
           if (pointsLength == hullPoints.length) {
             //check for duplicate anchorPoint edge-case, if not found, add the anchorpoint as the first item.
@@ -523,11 +500,11 @@ export default {
         }
       }
     },
-
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
-        this.updateVisualizations()
+        this.updateVisualizations()  
+        //d3.selectAll('polygon').remove()
       })
       this.$root.$on('map-move', () => {
         this.updateVisualizations()
@@ -535,11 +512,11 @@ export default {
       //just end events
       this.$root.$on('map-zoomend', () => {
         this.calculateDistanceDeviation()
-      })
-      this.$root.$on('map-moveend', () => {
+        //d3.selectAll('polygon').remove()
         this.removeNeighbours()
         this.createNeighbours()
-
+      })
+      this.$root.$on('map-moveend', () => {
         this.calculateDistanceDeviation()
 
         //when zoom is big enough (https://www.youtube.com/watch?v=CCVdQ8xXBfk) , cards about accident detail are shown
@@ -561,13 +538,11 @@ export default {
             return 'black'
           }) */
       })
-
       this.$root.$on('map-click', () => {
         this.drawSingleAggregatedVis()
         //this.initAggregatedVis()
         //this.overallUpdate()
       })
-
       //this.aggregatedData.push(nodesInNeighbourhood)
     },
     updateVisualizations() {
@@ -576,7 +551,6 @@ export default {
     },
     //Prepareing things for new neighbourhood computing
     removeNeighbours() {
-      d3.selectAll('polygon').remove()
       accidentData.accidents.forEach(o => {
         o.theNeighbourhood = null
       })
@@ -597,7 +571,6 @@ export default {
     //when proper zoom, find indicies of accidents which detail should be visualised
     createAccidentDetail() {
       this.detailAccidents = []
-      let counter = 0
       accidentData.accidents.forEach(o => {
         let posi = [o.x, o.y]
         if (
@@ -606,9 +579,8 @@ export default {
           posi[1] > 0 &&
           posi[1] < window.innerHeight
         ) {
-          this.detailAccidents.push(counter)
+          this.detailAccidents.push(o.index)
         }
-        counter += 1
       })
     },
     drawSingleAggregatedVis() {
@@ -683,8 +655,6 @@ export default {
           .attr('fill', d => {
             if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
               return '#487284d2'
-            } else if (d.theNeighbourhood == 2) {
-              return 'black'
             }
             return 'black' //return colorScale(d.DruhNehody)
           })
@@ -708,6 +678,12 @@ export default {
 <style>
 .neighbourhood {
   visibility: hidden;
+}
+
+.polygons{
+  fill: #60bac668;
+  stroke : #567985cc;
+  stroke-width: 2px
 }
 
 .nodes {
