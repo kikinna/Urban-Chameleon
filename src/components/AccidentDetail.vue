@@ -1,5 +1,8 @@
+
 <template>
     <div v-if="this.$store.state.map.getZoom() > 18.5" class='accidentDetail' v-bind:style="{left: left_top[0] + 'px', top: left_top[1] + 'px'}">
+        <!-- 412x294 -->
+            <!-- <circle cx=280 cy=70 r=60 style="fill:#5490b0cd"></circle> -->
             <circle cx=280 cy=70 r=60 v-bind:style="{fill:color}"></circle>
             <svg  width="325" height="65">
                 <circle cx=32 cy=28 r=5 v-bind:style="{fill:color}"></circle>
@@ -57,16 +60,10 @@
             }
         },
         mounted(){
-            //this.loadData();
-            console.log(accident.X,accident.Y)
             this.init();
             this.num = Math.random()*50;
         },
         methods: {
-            /* async loadData() {
-                const data = await d3.csv("./data/Nehody2018.csv");
-                this._data = data; 
-            }, */
             init(){
                 this.render();
             },
@@ -82,6 +79,7 @@
                 return this.accident.color
             }
             
+
         }
 
     }
