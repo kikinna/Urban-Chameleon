@@ -73,6 +73,7 @@ export default {
     for (var i = 0; i < accidentData.accidents.length; i++) {
       accidentData.accidents[i].theNeighbourhood = null; 
       accidentData.accidents[i].index = i;
+      
     }
   },
   methods: {
@@ -293,7 +294,6 @@ export default {
           d.fy = gridpoint.y + shift[1]
         }
       })
-      d3.selectAll('polygon').remove()
       this.drawPolygon() //thanks to this, polygon is moving with points
       this.initGrid(this.aggregatedData.length)
 
@@ -503,11 +503,14 @@ export default {
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
+        //this.drawPolygon()
         this.updateVisualizations()  
-        //d3.selectAll('polygon').remove()
+        //this.drawPolygon()
       })
       this.$root.$on('map-move', () => {
+        //this.drawPolygon()
         this.updateVisualizations()
+        //this.drawPolygon()
       })
       //just end events
       this.$root.$on('map-zoomend', () => {
@@ -520,7 +523,7 @@ export default {
         this.calculateDistanceDeviation()
 
         //when zoom is big enough (https://www.youtube.com/watch?v=CCVdQ8xXBfk) , cards about accident detail are shown
-        if (this.$store.state.map.getZoom() > 17.8) {
+        if (this.$store.state.map.getZoom() > 18.5) {
           this.createAccidentDetail()
         }
         /* this.nodes
@@ -571,6 +574,7 @@ export default {
     //when proper zoom, find indicies of accidents which detail should be visualised
     createAccidentDetail() {
       this.detailAccidents = []
+      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
       accidentData.accidents.forEach(o => {
         let posi = [o.x, o.y]
         if (
@@ -579,6 +583,7 @@ export default {
           posi[1] > 0 &&
           posi[1] < window.innerHeight
         ) {
+          o.color = colorScale(o.DruhNehody)
           this.detailAccidents.push(o.index)
         }
       })
