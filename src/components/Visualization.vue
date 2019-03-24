@@ -24,8 +24,7 @@ import {
 
 import {
   getViewport,
-  measureGeoDistance,
-  drawPolygon
+  measureGeoDistance
 } from '../helpers/geoProjectionHelper.js'
 import { occupyNearest } from '../helpers/mathHelper.js'
 
@@ -36,8 +35,6 @@ export default {
   },
   data() {
     return {
-      dataD3: [],
-      simulation: null,
       detailAccidents: [], //indices for detail card of accident
       allData: [],
       points: [], //indices of points for countinginprogress neighbourhood
@@ -48,13 +45,13 @@ export default {
       reverse: false, //helper for angles in convexhull counting
       title: null,
       aggregatedData: [],
-      aggregatedNodes: null,
+      aggregatedNodes: [],
       dataD3: [], //accident data
       cells: [], // barchart grid positions //TODO: temporary
       simulation: null, // accident data force simulation
       svg: null,
       nodes: null, //accident nodes
-      polygons: null, 
+      polygons: null,
       nodeRadius: 5,
       recompute: false, //variable for recomputing neighbourhoods after moved map
       distanceLimit: 0.000001 //used in calculateDistanceDeviation to compare with the calculated distance between nodes
@@ -71,8 +68,8 @@ export default {
     this.allData = accidentData.accidents
     //let count = 0
     for (var i = 0; i < accidentData.accidents.length; i++) {
-      accidentData.accidents[i].theNeighbourhood = null; 
-      accidentData.accidents[i].index = i;
+      accidentData.accidents[i].theNeighbourhood = null
+      accidentData.accidents[i].index = i
     }
   },
   methods: {
@@ -93,8 +90,7 @@ export default {
         .duration(750)
         .ease(d3.easeLinear)
 
-      this.polygons = this.svg
-          .append('g')
+      this.polygons = this.svg.append('g')
 
       // this.calculateDistanceDeviation()
 
@@ -134,7 +130,6 @@ export default {
         //.polygons(this.neighbour)
         .on('tick', this.tick)
         .on('end', this.end)
-
     },
     //force layout update, called on zoom and move
     updateD3() {
@@ -188,21 +183,22 @@ export default {
         })
 
       //console.log(this.simulation.alpha(), this.recompute);
-      if ( this.recompute) {
+      if (this.recompute) {
         this.makeNeighbourPolygons()
       }
     },
-    computeNeighbourhoods(){
+    computeNeighbourhoods() {
       this.startingPoints.forEach(o => {
         //mark all points which belonge to neighbouhood (attribute theNeighbourhood) and add to point array
         this.getNeighbours(accidentData.accidents[o])
-        if (this.points.length > 1) { //neighbourhood of one point is not neighbouhood 
+        if (this.points.length > 1) {
+          //neighbourhood of one point is not neighbouhood
           let hull = this.getHull(this.anchorPoint)
-          //add neighbourhood object to array of neighbouhoods 
+          //add neighbourhood object to array of neighbouhoods
           let neigh = {
             hull: hull, //convexhull points
             hood: [...this.points], //all neighbourhood points
-            anchorPoint: this.anchorPoint 
+            anchorPoint: this.anchorPoint
           }
           this.neighbour.push(neigh)
         }
@@ -220,13 +216,13 @@ export default {
       this.drawPolygon()
     },
     //create polygon from convex hull array
-    drawPolygon(){
+    drawPolygon() {
       d3.selectAll('polygon').remove()
-      //this.polygons = 
+      //this.polygons =
       this.polygons
         .selectAll('polygon')
         .data(this.neighbour)
-        .attr('class','polygons')
+        .attr('class', 'polygons')
         .enter()
         .append('polygon')
         .attr('points', function(d) {
@@ -249,77 +245,106 @@ export default {
       this.calculateDistanceDeviation()
     },
     //initialisation of grid for aggregated visualization (house parties)
-    initGrid(arrayLength) {
+    initGrid(arrayLength, shift) {
       const CELL_SIZE = 10
       const GRID_COLS = 6
       const GRID_ROWS = Math.ceil(arrayLength / GRID_COLS)
 
-      const cells = []
+      const currentCells = []
 
       for (var r = 0; r < GRID_ROWS; r++) {
         for (var c = 0; c < GRID_COLS; c++) {
           if (arrayLength <= 0) break
           var cell
           cell = {
-            x: c * CELL_SIZE,
-            y: GRID_COLS - r * CELL_SIZE,
+            x: shift[0] - c * CELL_SIZE,
+            y: GRID_COLS + shift[1] - r * CELL_SIZE,
             occupied: false
           }
-          cells.push(cell)
+          currentCells.push(cell)
           arrayLength--
         }
       }
 
-      this.cells = cells
+      this.cells.push(currentCells)
     },
     //updating aggregated vis. (house parties); called on zoom and move
-    //updatePartyNodes() { // in memoriam of party names
     updateAggregatedVis() {
+      //d3.selectAll('polygon').remove()
+      //this.drawPolygon() //thanks to this, polygon is moving with points
+
       const viewport = getViewport(this.$store.state.map)
+      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
-      const latlon1 = [16.59512715090524, 49.20013082305056]
-      const latlon3 = [16.605566189434686, 49.19358091860195]
+      this.initNeighbourData()
 
-      const shiftX = (latlon1[0] + latlon3[0]) / 2
-      const shiftY = (latlon1[1] + latlon3[1]) / 2
+      //TODO: tmp calculation of center
+      let minX = 0
+      let minY = 0
+      let maxX = 0
+      let maxY = 0
 
-      const shift = viewport.project([shiftX, shiftY])
+      for (var i = 0; i < this.aggregatedData.length; i++) {
+        ////////////////////////////////////////////////////////
+        //
+        //
+        // tmp calc of center
 
-      
-      this.aggregatedData.forEach(d => {
-        let gridpoint = occupyNearest(d, this.cells) //TODO: this.cells should change
-        if (gridpoint) {
-          d.fx = gridpoint.x + shift[0]
-          d.fy = gridpoint.y + shift[1]
-        }
-      })
-      d3.selectAll('polygon').remove()
-      this.drawPolygon() //thanks to this, polygon is moving with points
-      this.initGrid(this.aggregatedData.length)
-
-      this.aggregatedNodes
-        /* .each(d => {
-          let gridpoint = occupyNearest(d, this.cells) //TODO: this.cells should change
-          if (gridpoint) {
-            // ensures smooth movement towards final positoin
-            //d.x += (gridpoint.x - d.x) * 0.05
-            //d.y += (gridpoint.y - d.y) * 0.05
-
-            // jumps directly into final position
-            d.fx = gridpoint.x + shift[0]
-            d.fy = gridpoint.y + shift[1]
+        this.aggregatedData[i].forEach(d => {
+          //console.log('d', d)
+          if (d.X > minX) {
+            minX = d.X
           }
-        }) */
-        .attr('cx', d => {
-          d.forceGPS = viewport.unproject([d.fx, d.fy])
-          d.pos = viewport.project(d.forceGPS)
-          //d.fx = d.pos[0]
-          return d.pos[0]
+          if (d.X > maxX) {
+            maxX = d.X
+          }
+          if (d.Y > minY) {
+            minY = d.Y
+          }
+          if (d.Y > maxY) {
+            maxY = d.Y
+          }
         })
-        .attr('cy', d => {
-          //d.fy = d.pos[1]
-          return d.pos[1]
-        })
+
+        //const shiftX = (minX + maxX) / 2
+        //const shiftY = (minY + maxY) / 2
+
+        const shift = viewport.project([maxX, maxY])
+
+        //const shift = viewport.project([shiftX, shiftY])
+
+        this.initGrid(this.aggregatedData[i].length, shift)
+
+        //
+        //
+        //
+        ///////////////////////
+
+        console.log('--are we gooood?', this.aggregatedNodes[1])
+
+        this.aggregatedNodes[i]
+          .each(d => {
+            let gridpoint = occupyNearest(d, this.cells[i])
+            console.log('still gooood?', d)
+            if (gridpoint) {
+              d.x = gridpoint.x + shift[0]
+              d.y = gridpoint.y + shift[1]
+              d.forceGPS = viewport.unproject([d.x, d.y])
+              let pos = viewport.project(d.forceGPS)
+              d.x = pos[0]
+              d.y = pos[1]
+              Vue.set(this.aggregatedNodes[i], 'd.x', d.x)
+              Vue.set(this.aggregatedNodes[i], 'd.y', d.y)
+            }
+          })
+          .attr('cx', d => d.x)
+          .attr('cy', d => d.y)
+          .attr('fill', d => {
+            return colorScale(d.DruhNehody)
+          })
+
+        console.log('--still gooood?', this.aggregatedNodes[1])
+      }
     },
     //calculates distance for all accidents, between the point A (where they are right now)
     //and point B (where they were supposed to be according to their geo data)
@@ -343,7 +368,7 @@ export default {
       this.nodes.attr('fill', d => {
         if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
           return '#487284d2'
-        } 
+        }
         return 'black'
       })
     },
@@ -353,19 +378,16 @@ export default {
       const latlon1 = [16.59512715090524, 49.20013082305056]
       const latlon3 = [16.605566189434686, 49.19358091860195]
 
-      //let nodesInNeighbourhood = []
+      let nodesInNeighbourhood = []
       this.aggregatedData = []
 
-      this.dataD3.accidents.forEach(d => {
-        if (
-          //TODO: should be d.x,y
-          d.forceGPS[0] > latlon1[0] &&
-          d.forceGPS[0] < latlon3[0] &&
-          d.forceGPS[1] < latlon1[1] &&
-          d.forceGPS[1] > latlon3[1]
-        ) {
-          d.area = true
-          let currentNode = {
+      //neighbour data from convex hull
+      for (var i = 0; i < this.neighbour.length; i++) {
+        nodesInNeighbourhood = []
+        this.neighbour[i].hood.forEach(n => {
+          let d = this.dataD3.accidents[n]
+
+          let newNode = {
             id: d.OBJECTID,
             x: d.x,
             y: d.y,
@@ -380,12 +402,12 @@ export default {
               (latlon1[1] + latlon3[1]) / 2
             ]
           }
-          //nodesInNeighbourhood.push(currentNode)
-          this.aggregatedData.push(currentNode)
-        } else {
-          d.area = false
-        }
-      })
+
+          nodesInNeighbourhood.push(newNode)
+          //console.log('am i doin dis right', this.dataD3.accidents[d])
+        })
+        this.aggregatedData.push(nodesInNeighbourhood)
+      }
     },
     getNeighbours(obj) {
       let posiP2 = []
@@ -396,8 +418,7 @@ export default {
       accidentData.accidents.forEach(o => {
         if (o.theNeighbourhood == null && o != obj) {
           let inNeighbour = Math.sqrt(
-            Math.pow(obj.x - o.x, 2) +
-              Math.pow(obj.y - o.y, 2)
+            Math.pow(obj.x - o.x, 2) + Math.pow(obj.y - o.y, 2)
           )
           if (inNeighbour <= r) {
             o.theNeighbourhood = obj.theNeighbourhood
@@ -407,7 +428,7 @@ export default {
       })
       this.colorNeighbourPoints()
     },
-    colorNeighbourPoints(){
+    colorNeighbourPoints() {
       this.nodes.attr('fill', d => {
         if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
           return '#487284d2'
@@ -445,7 +466,7 @@ export default {
       if (deltaX == 0 && deltaY == 0) {
         return 0
       }
-      return getAngle(deltaX, deltaY,this)
+      return getAngle(deltaX, deltaY, this)
     },
 
     getHull() {
@@ -503,7 +524,7 @@ export default {
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
-        this.updateVisualizations()  
+        this.updateVisualizations()
         //d3.selectAll('polygon').remove()
       })
       this.$root.$on('map-move', () => {
@@ -539,14 +560,12 @@ export default {
           }) */
       })
       this.$root.$on('map-click', () => {
-        this.drawSingleAggregatedVis()
-        //this.initAggregatedVis()
-        //this.overallUpdate()
+        this.drawAggregatedVis()
       })
-      //this.aggregatedData.push(nodesInNeighbourhood)
     },
     updateVisualizations() {
       this.updateD3()
+      this.drawPolygon()
       this.updateAggregatedVis()
     },
     //Prepareing things for new neighbourhood computing
@@ -583,19 +602,25 @@ export default {
         }
       })
     },
-    drawSingleAggregatedVis() {
-      //hardcoded neighbourhood
-      const latlon1 = [16.59512715090524, 49.20013082305056]
-      const latlon3 = [16.605566189434686, 49.19358091860195]
+    drawAggregatedVis() {
       const viewport = getViewport(this.$store.state.map)
-      const shiftX = (latlon1[0] + latlon3[0]) / 2
-      const shiftY = (latlon1[1] + latlon3[1]) / 2
-      const shift = viewport.project([shiftX, shiftY])
+      //TODO: tmp calculation of center
+      let minX = 0
+      let minY = 0
+      let maxX = 0
+      let maxY = 0
+
+      //
+      //
+      //
+
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
       this.initNeighbourData()
+      this.aggregatedNodes = []
+      this.cells = []
 
-      /* this.nodes.attr('class', d => {
+      /* this.nodes.attr('class', d => { //making them invisible
         if (d.area) {
           return 'neighbourhood'
         } else {
@@ -603,45 +628,95 @@ export default {
         }
       }) */
 
-      this.initGrid(this.aggregatedData.length)
+      const t = d3
+        .transition()
+        .duration(2000)
+        .ease(d3.easeLinear)
 
       d3.selectAll('.partyCircles').remove()
 
-      this.aggregatedNodes = this.svg
-        .append('g')
-        .attr('stroke', '#fff')
-        .attr('stroke-width', 1.5)
-        .selectAll('circle')
-        .data(this.aggregatedData)
-        .join('circle')
-        .attr('class', 'partyCircles')
-        .attr('r', 5)
-        .attr('fill', d => {
-          return colorScale(d.DruhNehody)
-        })
+      for (var i = 0; i < this.aggregatedData.length; i++) {
+        let currentAggregatedNodes = this.svg
+          .append('g')
+          .attr('stroke', '#fff')
+          .attr('stroke-width', 1.5)
+          .selectAll('circle')
+          .data(this.aggregatedData[i])
+          .join('circle')
+          .attr('class', 'partyCircles')
+          .attr('r', 5)
+          .attr('fill', d => {
+            return colorScale(d.DruhNehody)
+          })
+          .attr('cx', d => {
+            d.pos = viewport.project([d.X, d.Y])
+            d.x = d.pos[0]
+            return d.pos[0]
+          })
+          .attr('cy', d => {
+            d.y = d.pos[1]
+            return d.pos[1]
+          })
 
-      this.aggregatedData.forEach(d => {
-        let gridpoint = occupyNearest(d, this.cells) //TODO: this.cells should change
-        if (gridpoint) {
-          d.fx = gridpoint.x + shift[0]
-          d.fy = gridpoint.y + shift[1]
-        }
-      })
+        ////////////////////////////////////////////////////////
+        //
+        //
+        // tmp calc of center
 
-      this.aggregatedNodes
-        .attr('cx', d => {
-          if (!d.fx || !d.fy) {
-            console.log(d, 'why')
+        this.aggregatedData[i].forEach(d => {
+          if (d.X > minX) {
+            minX = d.X
           }
-          d.forceGPS = viewport.unproject([d.fx, d.fy])
-          d.pos = viewport.project(d.forceGPS)
-          //d.fx = d.pos[0]
-          return d.pos[0]
+          if (d.X > maxX) {
+            maxX = d.X
+          }
+          if (d.Y > minY) {
+            minY = d.Y
+          }
+          if (d.Y > maxY) {
+            maxY = d.Y
+          }
         })
-        .attr('cy', d => {
-          //d.fy = d.pos[1]
-          return d.pos[1]
-        })
+
+        const shiftX = (minX + maxX) / 2
+        const shiftY = minY //(minY + maxY) / 2
+
+        // const shift = viewport.project([shiftX, shiftY])
+
+        // console.log('shift', shift)
+
+        const shift = viewport.project([maxX, maxY])
+
+        this.initGrid(this.aggregatedData[i].length, shift)
+
+        //
+        //
+        //
+        ///////////////////////
+
+        currentAggregatedNodes
+          .transition(t)
+          .each(d => {
+            let gridpoint = occupyNearest(d, this.cells[i])
+            if (gridpoint) {
+              d.x = gridpoint.x //+ shift[0]
+              d.y = gridpoint.y //+ shift[1]
+              d.forceGPS = viewport.unproject([d.x, d.y])
+              let pos = viewport.project(d.forceGPS)
+              d.x = pos[0]
+              d.y = pos[1]
+            }
+          })
+          .attr('cx', d => d.x)
+          .attr('cy', d => d.y)
+
+        this.aggregatedNodes.push(currentAggregatedNodes)
+      } // end of that huge for cycle
+
+      //console.log('cells', this.cells[0])
+      console.log('this.aggregatedNodes', this.aggregatedNodes)
+      console.log('this.aggregatedData', this.aggregatedData)
+      console.log('this.cells', this.cells)
     }
   }, // end of methods
   computed: {
@@ -680,10 +755,10 @@ export default {
   visibility: hidden;
 }
 
-.polygons{
+.polygons {
   fill: #60bac668;
-  stroke : #567985cc;
-  stroke-width: 2px
+  stroke: #567985cc;
+  stroke-width: 2px;
 }
 
 .nodes {
