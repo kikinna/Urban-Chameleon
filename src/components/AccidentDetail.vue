@@ -1,6 +1,7 @@
 <template  lang="html">
     
-    <div v-if="this.$store.state.map.getZoom() > 17.8" class = 'accidentDetail'>
+    <!-- <div v-if="this.$store.state.map.getZoom() > 17.8" class = 'accidentDetail'> -->
+    <div v-if="this.$store.state.map.getZoom() > 17.8" class='accidentDetail' v-bind:style="{left: left_top[0] + 'px', top: left_top[1] + 'px'}">
             <circle cx=280 cy=70 r=60 style="fill:#5490b0cd"></circle>
             <svg  width="410" height="73">
                 <text class="text_style2" x="270" y="30" >{{accident.Datum }} </text>
@@ -34,6 +35,7 @@
 <script>
     import * as d3 from "d3";
     import store from "../store.js";
+    import { getViewport } from '../helpers/geoProjectionHelper.js'
 
     export default {
         name: 'AccidentDetail',
@@ -51,20 +53,21 @@
             }
         },
         mounted(){
-            //this.loadData();
             this.init();
             this.num = Math.random()*50;
         },
         methods: {
-            /* async loadData() {
-                const data = await d3.csv("./data/Nehody2018.csv");
-                this._data = data; 
-            }, */
             init(){
                 this.render();
             },
             render(){
             },
+        },
+        computed: {
+            left_top: function() {
+                let viewport = getViewport(this.$store.state.map);
+                return viewport.project([this.accident.X, this.accident.Y])                
+            }
         }
     }
    
@@ -77,7 +80,8 @@
     border: 1px solid rgb(222, 219, 219);
     background-color: #fafafa99;
     border-radius: 30px;
-    transform: translate(+225%, -60%);
+    /* transform: translate(+225%, -60%); */
+    transform: translate(-8%, -10%)
     
 
 }
