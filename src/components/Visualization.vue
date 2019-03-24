@@ -294,7 +294,6 @@ export default {
           d.fy = gridpoint.y + shift[1]
         }
       })
-      this.drawPolygon() //thanks to this, polygon is moving with points
       this.initGrid(this.aggregatedData.length)
 
       this.aggregatedNodes
@@ -503,14 +502,10 @@ export default {
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
-        //this.drawPolygon()
         this.updateVisualizations()  
-        //this.drawPolygon()
       })
       this.$root.$on('map-move', () => {
-        //this.drawPolygon()
         this.updateVisualizations()
-        //this.drawPolygon()
       })
       //just end events
       this.$root.$on('map-zoomend', () => {
@@ -550,6 +545,7 @@ export default {
     },
     updateVisualizations() {
       this.updateD3()
+      this.drawPolygon() //thanks to this, polygon is moving with points
       this.updateAggregatedVis()
     },
     //Prepareing things for new neighbourhood computing
