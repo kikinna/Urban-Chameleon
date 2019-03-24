@@ -2,8 +2,10 @@
     
     <!-- <div v-if="this.$store.state.map.getZoom() > 17.8" class = 'accidentDetail'> -->
     <div v-if="this.$store.state.map.getZoom() > 17.8" class='accidentDetail' v-bind:style="{left: left_top[0] + 'px', top: left_top[1] + 'px'}">
-            <circle cx=280 cy=70 r=60 style="fill:#5490b0cd"></circle>
+        <!-- 412x294 -->
+            <!-- <circle cx=280 cy=70 r=60 style="fill:#5490b0cd"></circle> -->
             <svg  width="410" height="73">
+                <circle cx=32 cy=28 r=5 style="fill:#0010ff"></circle>
                 <text class="text_style2" x="270" y="30" >{{accident.Datum }} </text>
                 <text class="text_style2" x="270" y="50" >{{accident.Den }} </text>
                 <image v-if="accident.DenNoc == 'Den'" xlink:href= "../assets/Den.png"  x="340" y="20" width="25" height="25"></image>
