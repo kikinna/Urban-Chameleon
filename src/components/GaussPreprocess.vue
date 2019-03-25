@@ -24,7 +24,8 @@ import {
                 canvas: null,
                 devicePixelRatio: 1,
                 canvas_context: null,
-                dot_intensity: 20/255
+                dot_intensity: 40/255,
+                glur_module: null
             }
         }, 
         created() {
@@ -33,6 +34,8 @@ import {
             
         },
         mounted() {
+            this.glur_module = require('glur')
+            console.log(this.glur_module)
             window.addEventListener('mousedown', this.mouseMoved)
             const viewport = getViewport(this.$store.state.map);
 
@@ -57,8 +60,8 @@ import {
                 this.accident_dots.push(accident_dot.blendMode)
             })
             
-            // var myCircle = new Paper.Path.Circle(new Paper.Point(100, 70), 50);
-            // myCircle.fillColor = 'black';
+            var myCircle = new Paper.Path.Circle(new Paper.Point(51, 0), 50);
+            myCircle.fillColor = new Paper.Color(0.5, 0, 0);
             Paper.view.draw();
 
 
@@ -70,6 +73,20 @@ import {
                 var g = canvasColor[1];
                 var b = canvasColor[2];
                 console.log(event.clientX, event.clientY, '-',  r, g, b)
+
+                this.glur();
+            },
+            glur() {
+                let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                console.log('before')
+                console.log(imageData)
+                this.glur_module(imageData.data, this.canvas.width, this.canvas.height, 5)
+                // console.log(res)
+                
+                console.log('after')
+                console.log(imageData)
+                this.canvas_context.putImageData(imageData, 0, 0)
+                // console.log(imageData)
             }
         }
 
@@ -82,6 +99,7 @@ import {
 
 #gauss {
   position: absolute;
+  z-index: 0;
   /* opacity: 0.7;  */
   /* width: 1903px;
   height: 960px; */
