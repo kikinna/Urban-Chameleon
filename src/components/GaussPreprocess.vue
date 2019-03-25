@@ -99,7 +99,7 @@ import {
                 console.log(this.threshold_module)
                 let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
                 let that = this;
-                this.threshold_module(imageData, { threshold : 10}, 4)
+                this.threshold_module(imageData, { threshold : 60}, 4)
                     .then(function(result) {
                         // console.log(result)
                         that.canvas_context.putImageData(result, 0, 0)
