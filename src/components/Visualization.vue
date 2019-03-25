@@ -298,12 +298,17 @@ export default {
             y: d.y,
             X: d.X,
             Y: d.Y,
+            indexInAccidentData: n,
             fx: null,
             fy: null,
             inNeighbourhood: true,
+            neighbourhoodPosition: null,
             DruhNehody: d.DruhNehody,
             neighbourhoodID: 1, //idk
             center: [0, 0]
+          }
+          if (accidentData.accidents[n].hasOwnProperty('neighbourhoodPosition')) {
+            newNode.neighbourhoodPosition = accidentData.accidents[n].neighbourhoodPosition;
           }
 
           d.isInNeighbourhood = true;
@@ -487,7 +492,9 @@ export default {
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
+        // d3.selectAll('.neighbourhood').classed('neighbourhood', false)
         this.updateVisualizations()
+        
         //d3.selectAll('polygon').remove()
       })
       this.$root.$on('map-move', () => {
@@ -636,7 +643,6 @@ export default {
       for (var i = 0; i < this.aggregatedData.length; i++) {
 
         // Setup neighbourhood in DOM (g/circles) in their GPS positions
-        let id_str = "#" + this.aggregatedData[i].id
         let currentNeighbourhoodSVGNodes = d3.select('#neighbourhood-' + this.aggregatedData[i].id)
           .selectAll('circle.partyCircles')
           .data(this.aggregatedData[i].nodesInNeighbourhood)
@@ -666,6 +672,8 @@ export default {
             if (gridpoint) {
               d.x = gridpoint.x
               d.y = gridpoint.y
+              accidentData.accidents[d.indexInAccidentData].neighbourhoodPosition = [d.x, d.y];
+              d.neighbourhoodPosition = [d.x, d.y]
               d.forceGPS = viewport.unproject([d.x, d.y])
             }
           })
@@ -699,6 +707,12 @@ export default {
       // NO -> update neighbourhood center
       // YES -> neco vic
 
+      const t = d3
+        .transition()
+        .duration(2000)
+        .ease(d3.easeLinear)
+
+      
 
       
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
@@ -711,16 +725,67 @@ export default {
         this.grid_cells.pop()
       }
 
+      this.svg
+          .selectAll('g.neighbourhood-g')
+          .data(this.aggregatedData)
+          .join('g')
+          .attr('id', d => { return "neighbourhood-" + d.id })
+          .attr('class','neighbourhood-g')
+          .attr('transform', d => {
+            return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
+          })
+
       for(var i = 0; i < this.aggregatedData.length; i++) {
+
+      d3.select('#neighbourhood-' + this.aggregatedData[i].id)
+          .selectAll('circle.partyCircles')
+          .data(this.aggregatedData[i].nodesInNeighbourhood)
+          .join('circle')
+          .attr('class', 'partyCircles')
+          .attr('r', 5)
+          .attr('fill', d => {
+            return colorScale(d.DruhNehody)
+          })
+          .attr('cx', d => {
+            if (d.neighbourhoodPosition) {
+              console.log('already in')
+              d.x = d.neighbourhoodPosition[0]
+              return d.x
+            } else {
+              console.log('newbie')
+              d.pos = viewport.project([d.X, d.Y])
+              d.x = d.pos[0]
+              return d.pos[0] - this.aggregatedData[i].centerInPx[0]
+            }
+          })
+          .attr('cy', d => {
+            if (d.neighbourhoodPosition) {
+              d.y = d.neighbourhoodPosition[1]
+              return d.y
+            } else {
+            d.y = d.pos[1]
+            return d.pos[1] - this.aggregatedData[i].centerInPx[1]
+            }
+          })
+          .exit()
+          .each(d => {
+            console.log('exit', d);
+          })
+
       this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
 
         this.neighbourhoodNodesInSVG[i]
+          .transition(t)
           .each(d => {
             let gridpoint = occupyNearest(d, this.grid_cells[i])
             if (gridpoint) {
               //console.log('d before', d)
               let newX = gridpoint.x // + shift[0]
               let newY = gridpoint.y // + shift[1]
+              
+              d.x = gridpoint.x
+              d.y = gridpoint.y
+              // console.log(d.x, d.y)
               let newForceGPS = viewport.unproject([newX, newY])
               let pos = viewport.project(newForceGPS)
               // Vue.set(d, 'cx', pos[0])
@@ -728,6 +793,7 @@ export default {
               //Vue.set(d, 'cx', pos[0])
               // Vue.set(d, 'cy', pos[1])
               Vue.set(d, 'cy', pos[1])
+              d.neighbourhoodPosition = [d.x, d.y]
               //Vue.set(d, 'cy', pos[1])
               //console.log('d after', d)
               //d.setAttribute('cx', pos[0])
@@ -741,11 +807,11 @@ export default {
               //Vue.set(this.neighbourhoodNodesInSVG[i], 'd.y', d.y)
             }
           })
-          .attr('cx', d => d.cx)
-          .attr('cy', d => d.cy)
-          .attr('fill', d => {
-            return colorScale(d.DruhNehody)
-          })
+          .attr('cx', d => d.x)
+          .attr('cy', d => d.y)
+          // .attr('fill', d => {
+          //   return colorScale(d.DruhNehody)
+          // })
 
         console.log('nodes after', this.neighbourhoodNodesInSVG)
       }
