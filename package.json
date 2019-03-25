@@ -12,6 +12,7 @@
     "bulma": "^0.7.4",
     "d3": "^5.9.1",
     "eslint-config-prettier": "^4.1.0",
+    "glur": "^1.1.2",
     "mapbox-gl": "^0.53.0",
     "mapbox-gl-vue": "^1.9.0",
     "paper": "^0.12.0",
