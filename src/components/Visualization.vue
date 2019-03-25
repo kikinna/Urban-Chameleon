@@ -21,12 +21,12 @@ import {
   addPoint,
   getAngle
 } from '../helpers/neighbourhoodCountingHelper.js'
-
 import {
   getViewport,
   measureGeoDistance
 } from '../helpers/geoProjectionHelper.js'
 import { occupyNearest } from '../helpers/mathHelper.js'
+import Vue from 'vue'
 
 export default {
   name: 'Visualization',
@@ -106,7 +106,7 @@ export default {
           if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
             return '#487284d2'
           }
-          return 'black' //return colorScale(d.DruhNehody)
+          return colorScale(d.DruhNehody) //'black'
         })
         .attr('cx', d => {
           d.pos = viewport.project([d.X, d.Y])
@@ -245,7 +245,7 @@ export default {
       this.calculateDistanceDeviation()
     },
     //initialisation of grid for aggregated visualization (house parties)
-    initGrid(arrayLength, shift) {
+    initGrid(arrayLength, shift, i) {
       const CELL_SIZE = 10
       const GRID_COLS = 6
       const GRID_ROWS = Math.ceil(arrayLength / GRID_COLS)
@@ -276,6 +276,12 @@ export default {
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
+      /* for (var i = 0; i < this.neighbour.length; i++) {
+        this.aggregatedData[i].forEach(d => {
+          d.inNeighbourhood = false
+        })
+      } */
+
       this.initNeighbourData()
 
       //TODO: tmp calculation of center
@@ -283,6 +289,10 @@ export default {
       let minY = 0
       let maxX = 0
       let maxY = 0
+
+      while (this.cells.length > 0) {
+        this.cells.pop()
+      }
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
         ////////////////////////////////////////////////////////
@@ -313,37 +323,58 @@ export default {
 
         //const shift = viewport.project([shiftX, shiftY])
 
-        this.initGrid(this.aggregatedData[i].length, shift)
+        this.initGrid(this.aggregatedData[i].length, shift, i)
 
         //
         //
         //
         ///////////////////////
+        //d3.selectAll('.partyCircles').remove()
 
-        console.log('--are we gooood?', this.aggregatedNodes[1])
+        console.log('nodes', this.aggregatedNodes)
+
+        this.aggregatedNodes[i].attr('class', d => {
+          if (!d.inNeighbourhood) {
+            return 'toDelete'
+          }
+        })
+
+        d3.selectAll('.toDelete').remove()
 
         this.aggregatedNodes[i]
           .each(d => {
             let gridpoint = occupyNearest(d, this.cells[i])
-            console.log('still gooood?', d)
             if (gridpoint) {
-              d.x = gridpoint.x + shift[0]
-              d.y = gridpoint.y + shift[1]
-              d.forceGPS = viewport.unproject([d.x, d.y])
-              let pos = viewport.project(d.forceGPS)
-              d.x = pos[0]
-              d.y = pos[1]
-              Vue.set(this.aggregatedNodes[i], 'd.x', d.x)
-              Vue.set(this.aggregatedNodes[i], 'd.y', d.y)
+              //console.log('d before', d)
+              let newX = gridpoint.x // + shift[0]
+              let newY = gridpoint.y // + shift[1]
+              let newForceGPS = viewport.unproject([newX, newY])
+              let pos = viewport.project(newForceGPS)
+              // Vue.set(d, 'cx', pos[0])
+              Vue.set(d, 'cx', pos[0])
+              //Vue.set(d, 'cx', pos[0])
+              // Vue.set(d, 'cy', pos[1])
+              Vue.set(d, 'cy', pos[1])
+              //Vue.set(d, 'cy', pos[1])
+              //console.log('d after', d)
+              //d.setAttribute('cx', pos[0])
+              //d.setAttribute('cy', pos[1])
+              // this.aggregatedNodes[i].setAttribute('cx', 100)
+              //console.log('d are we doion anything', d)
+              //console.log('cx', this.aggregatedNodes[i].getAttribute('cx'))
+              //this.aggregatedNodes[i].setAttribute('cx', 100)
+              //this.aggregatedNodes[i].setAttribute('cy', 100)
+              //Vue.set(this.aggregatedNodes[i], 'd.x', d.x)
+              //Vue.set(this.aggregatedNodes[i], 'd.y', d.y)
             }
           })
-          .attr('cx', d => d.x)
-          .attr('cy', d => d.y)
+          .attr('cx', d => d.cx)
+          .attr('cy', d => d.cy)
           .attr('fill', d => {
             return colorScale(d.DruhNehody)
           })
 
-        console.log('--still gooood?', this.aggregatedNodes[1])
+        console.log('nodes after', this.aggregatedNodes)
       }
     },
     //calculates distance for all accidents, between the point A (where they are right now)
@@ -372,15 +403,17 @@ export default {
         return 'black'
       })
     },
-    //should work with array of node indexes from convex hull; right now hardcoded neighbourhood
+    //should work with array of node indexes from convex hull
     // TO DO : Prep of ds + adding necessary attributes + rename, haha
     initNeighbourData() {
-      const latlon1 = [16.59512715090524, 49.20013082305056]
-      const latlon3 = [16.605566189434686, 49.19358091860195]
-
       let nodesInNeighbourhood = []
-      this.aggregatedData = []
+      //console.log('aggrData bef bef', this.aggregatedData)
 
+      while (this.aggregatedData.length > 0) {
+        this.aggregatedData.pop()
+      } //empty the array
+
+      //console.log('aggrData bef', this.aggregatedData)
       //neighbour data from convex hull
       for (var i = 0; i < this.neighbour.length; i++) {
         nodesInNeighbourhood = []
@@ -395,12 +428,10 @@ export default {
             Y: d.Y,
             fx: null,
             fy: null,
+            inNeighbourhood: true,
             DruhNehody: d.DruhNehody,
             neighbourhoodID: 1, //idk
-            center: [
-              (latlon1[0] + latlon3[0]) / 2,
-              (latlon1[1] + latlon3[1]) / 2
-            ]
+            center: [0, 0]
           }
 
           nodesInNeighbourhood.push(newNode)
@@ -408,6 +439,7 @@ export default {
         })
         this.aggregatedData.push(nodesInNeighbourhood)
       }
+      //console.log('aggrData af', this.aggregatedData)
     },
     getNeighbours(obj) {
       let posiP2 = []
@@ -536,6 +568,8 @@ export default {
         //d3.selectAll('polygon').remove()
         this.removeNeighbours()
         this.createNeighbours()
+
+        //this.updateVisualizations()
       })
       this.$root.$on('map-moveend', () => {
         this.calculateDistanceDeviation()
@@ -566,7 +600,9 @@ export default {
     updateVisualizations() {
       this.updateD3()
       this.drawPolygon()
-      this.updateAggregatedVis()
+      //this.redrawAggregatedVis() //works... not much fluid when changing the amount of nodes in the neighbourhood
+      this.updateAggregatedVis() //problem somewhere... definitely not me, blame it on the observers
+      //this.$forceUpdate() //attempt to force vue to update DOM
     },
     //Prepareing things for new neighbourhood computing
     removeNeighbours() {
@@ -687,7 +723,7 @@ export default {
 
         const shift = viewport.project([maxX, maxY])
 
-        this.initGrid(this.aggregatedData[i].length, shift)
+        this.initGrid(this.aggregatedData[i].length, shift, i)
 
         //
         //
@@ -717,12 +753,123 @@ export default {
       console.log('this.aggregatedNodes', this.aggregatedNodes)
       console.log('this.aggregatedData', this.aggregatedData)
       console.log('this.cells', this.cells)
+    },
+    redrawAggregatedVis() {
+      const viewport = getViewport(this.$store.state.map)
+      //TODO: tmp calculation of center
+      let minX = 0
+      let minY = 0
+      let maxX = 0
+      let maxY = 0
+
+      //
+      //
+      //
+
+      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+
+      this.initNeighbourData()
+      this.aggregatedNodes = []
+      this.cells = []
+
+      /* this.nodes.attr('class', d => { //making them invisible
+        if (d.area) {
+          return 'neighbourhood'
+        } else {
+          return 'nodes'
+        }
+      }) */
+
+      const t = d3
+        .transition()
+        .duration(2000)
+        .ease(d3.easeLinear)
+
+      d3.selectAll('.partyCircles').remove()
+
+      for (var i = 0; i < this.aggregatedData.length; i++) {
+        let currentAggregatedNodes = this.svg
+          .append('g')
+          .attr('stroke', '#fff')
+          .attr('stroke-width', 1.5)
+          .selectAll('circle')
+          .data(this.aggregatedData[i])
+          .join('circle')
+          .attr('class', 'partyCircles')
+          .attr('r', 5)
+          .attr('fill', d => {
+            return colorScale(d.DruhNehody)
+          })
+        /* .attr('cx', d => {
+            d.pos = viewport.project([d.X, d.Y])
+            d.x = d.pos[0]
+            return d.pos[0]
+          })
+          .attr('cy', d => {
+            d.y = d.pos[1]
+            return d.pos[1]
+          }) */
+
+        ////////////////////////////////////////////////////////
+        //
+        //
+        // tmp calc of center
+
+        this.aggregatedData[i].forEach(d => {
+          if (d.X > minX) {
+            minX = d.X
+          }
+          if (d.X > maxX) {
+            maxX = d.X
+          }
+          if (d.Y > minY) {
+            minY = d.Y
+          }
+          if (d.Y > maxY) {
+            maxY = d.Y
+          }
+        })
+
+        const shiftX = (minX + maxX) / 2
+        const shiftY = minY //(minY + maxY) / 2
+
+        // const shift = viewport.project([shiftX, shiftY])
+
+        // console.log('shift', shift)
+
+        const shift = viewport.project([maxX, maxY])
+
+        this.initGrid(this.aggregatedData[i].length, shift, i)
+
+        //
+        //
+        //
+        ///////////////////////
+
+        currentAggregatedNodes
+          //.transition(t)
+          .each(d => {
+            let gridpoint = occupyNearest(d, this.cells[i])
+            if (gridpoint) {
+              d.x = gridpoint.x //+ shift[0]
+              d.y = gridpoint.y //+ shift[1]
+              d.forceGPS = viewport.unproject([d.x, d.y])
+              let pos = viewport.project(d.forceGPS)
+              d.x = pos[0]
+              d.y = pos[1]
+            }
+          })
+          .attr('cx', d => d.x)
+          .attr('cy', d => d.y)
+
+        this.aggregatedNodes.push(currentAggregatedNodes)
+      } // end of that huge for cycle
     }
   }, // end of methods
   computed: {
     computedNodes: function() {
       if (this.nodes) {
-        //const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+        const colorScale = d3.scaleOrdinal(d3.schemeDark2)
         const viewport = getViewport(this.$store.state.map)
 
         this.nodes
@@ -731,7 +878,7 @@ export default {
             if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
               return '#487284d2'
             }
-            return 'black' //return colorScale(d.DruhNehody)
+            return colorScale(d.DruhNehody) //'black'
           })
           .attr('cx', d => {
             d.pos = viewport.project([d.X, d.Y])
