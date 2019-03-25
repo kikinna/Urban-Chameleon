@@ -740,37 +740,42 @@ export default {
       d3.select('#neighbourhood-' + this.aggregatedData[i].id)
           .selectAll('circle.partyCircles')
           .data(this.aggregatedData[i].nodesInNeighbourhood)
-          .join('circle')
-          .attr('class', 'partyCircles')
-          .attr('r', 5)
-          .attr('fill', d => {
-            return colorScale(d.DruhNehody)
-          })
-          .attr('cx', d => {
-            if (d.neighbourhoodPosition) {
-              console.log('already in')
-              d.x = d.neighbourhoodPosition[0]
-              return d.x
-            } else {
-              console.log('newbie')
-              d.pos = viewport.project([d.X, d.Y])
-              d.x = d.pos[0]
-              return d.pos[0] - this.aggregatedData[i].centerInPx[0]
-            }
-          })
-          .attr('cy', d => {
-            if (d.neighbourhoodPosition) {
-              d.y = d.neighbourhoodPosition[1]
-              return d.y
-            } else {
-            d.y = d.pos[1]
-            return d.pos[1] - this.aggregatedData[i].centerInPx[1]
-            }
-          })
-          .exit()
-          .each(d => {
-            console.log('exit', d);
-          })
+          .join(
+            enter => enter.append('circle').attr('class', 'partyCircles')
+              .attr('r', 5)
+              .attr('fill', d => {
+                return colorScale(d.DruhNehody)
+              })
+              .attr('cx', d => {
+                if (d.neighbourhoodPosition) {
+                  console.log('already in')
+                  d.x = d.neighbourhoodPosition[0]
+                  return d.x
+                } else {
+                  console.log('newbie')
+                  d.pos = viewport.project([d.X, d.Y])
+                  d.x = d.pos[0]
+                  return d.pos[0] - this.aggregatedData[i].centerInPx[0]
+                }
+              })
+              .attr('cy', d => {
+                if (d.neighbourhoodPosition) {
+                  d.y = d.neighbourhoodPosition[1]
+                  return d.y
+                } else {
+                d.y = d.pos[1]
+                return d.pos[1] - this.aggregatedData[i].centerInPx[1]
+                }
+              }),
+            update => update.each( d => { console.log('update', d)} ),
+            exit => exit.each(d => { 
+              console.log('exit', d)
+              delete accidentData.accidents[d.indexInAccidentData].neighbourhoodPosition;
+
+
+            })
+          )
+          
 
       this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
 
