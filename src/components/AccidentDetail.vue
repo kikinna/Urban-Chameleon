@@ -4,31 +4,31 @@
         <!-- 412x294 -->
             <!-- <circle cx=280 cy=70 r=60 style="fill:#5490b0cd"></circle> -->
             <circle cx=280 cy=70 r=60 v-bind:style="{fill:color}"></circle>
-            <svg  width="325" height="65">
+            <svg  width="325" height="70">
                 <circle cx=32 cy=28 r=5 v-bind:style="{fill:color}"></circle>
-                <text class="text_style2" x="225" y="27" >{{accident.Datum }} </text>
-                <text class="text_style2" x="225" y="47" >{{accident.Den }} </text>
-                <image v-if="accident.DenNoc == 'Den'" xlink:href= "../assets/Den.png"  x="290" y="20" width="25" height="25"></image>
-                <image v-if="accident.DenNoc == 'Noc'" xlink:href= "../assets/Noc.png"  x="290" y="20" width="25" height="25"></image>
-                <rect x="100" y="60" width="224" height="3" v-bind:style="{fill:color}"/>
+                <text class="text_style2" x="185" y="52" >{{accident.Datum }} </text>
+                <text class="text_style2" x="186" y="30" >{{accident.Day }} </text>
+                <image v-if="accident.DayNight == 'Day'" xlink:href= "../assets/Den.png"  x="290" y="12" width="25" height="25"></image>
+                <image v-if="accident.DayNight == 'Night'" xlink:href= "../assets/Noc.png"  x="290" y="12" width="25" height="25"></image>
+                <rect x="100" y="65" width="224" height="3" v-bind:style="{fill:color}"/>
             </svg>
-            <p class='title_style'> {{accident.DruhNehody}} </p>
-            <p class='text_style'>  Hlavní příčina: &ensp; <em>{{accident.HlavniPricina}} </em> <br> 
-                                 Zavineni: &ensp; <em>{{accident.Zavineni}} </em><br> 
-                                 Stav povrchu: &ensp; <em>{{accident.StavPovrchu}} </em> <br> 
-                                 Počasí: &ensp; <em>{{accident.Pocasi}}</em> <br> 
-                                Alkohol: &ensp; <em>{{accident.Alkohol}}</em> </p>
+            <p class='title_style'> {{accident.Type}} </p>
+            <p class='text_style'>  Main cause: &ensp; {{accident.MainCause}} <br> 
+                                 Caused by: &ensp; {{accident.CausedBy}} <br> 
+                                 Road condition: &ensp; {{accident.RoadCondition}} <br> 
+                                 Weather: &ensp; {{accident.Weather}}<br> 
+                                Alcohol: &ensp; {{accident.Alcohol}} </p>
             <svg width="325" height="60">
-                <text class="text_style2" x="18" y="30" >{{"Usmrceno: "}} </text>
-                <text class="text_style2" x="83" y="30" >{{accident.Usmrceno + " x"}} </text>
+                <text class="text_style2" x="18" y="30" >{{"Death toll: "}} </text>
+                <text class="text_style2" x="83" y="30" >{{accident.DeathToll + " x"}} </text>
                 <image  xlink:href="../assets/body.png"  x="98" y="17" width="18" height="18"></image>
 
-                <text class="text_style2" x="18" y="48" >{{"Těžce zranení: "}} </text>
-                <text class="text_style2" x="105" y="48" >{{accident.Tezce + " x"}} </text>
+                <text class="text_style2" x="18" y="48" >{{"Heavy injuries: "}} </text>
+                <text class="text_style2" x="105" y="48" >{{accident.HeavyInjuries + " x"}} </text>
                 <image  xlink:href="../assets/body.png"  x="120" y="35" width="18" height="18"></image>
 
-                <text class="text_style2" x="185" y="48" >{{"Lehce zranení: "}} </text>
-                <text class="text_style2" x="273" y="48" >{{accident.Lehce + " x"}} </text>
+                <text class="text_style2" x="188" y="48" >{{"Light injuries: "}} </text>
+                <text class="text_style2" x="273" y="48" >{{accident.LightInjuries + " x"}} </text>
                 <image  xlink:href="../assets/body.png"  x="288" y="35" width="18" height="18"></image>
             </svg>
     </div>

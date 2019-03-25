@@ -13,7 +13,7 @@
 <script>
 import * as d3 from 'd3'
 import store from '../store.js'
-import accidentData from '../data/nehody2018.js'
+import accidentData from '../data/accidents2018.js'
 import AccidentDetail from './AccidentDetail.vue'
 import {
   sortPoints,
@@ -41,7 +41,7 @@ export default {
       detailAccidents: [], //indices for detail card of accident
       allData: [],
       points: [], //indices of points for countinginprogress neighbourhood
-      neighbour: [], //Array of neighbourhoods objects - hull:indices of convex hull points, hood:indices of all points, anchorpoint
+      neighbourhood: [], //Array of neighbourhoods objects - hullPoints:indices of convex hull points, points:indices of all points, anchorpoint
       startingPoints: [], //points for visualization of neighbourhoods - just prototype
       compute: 0,
       anchorPoint: null, //anchor point of counting in progress neighbourhood
@@ -55,6 +55,7 @@ export default {
       svg: null,
       nodes: null, //accident nodes
       polygons: null, 
+      tooltip: null,
       nodeRadius: 5,
       recompute: false, //variable for recomputing neighbourhoods after moved map
       distanceLimit: 0.000001 //used in calculateDistanceDeviation to compare with the calculated distance between nodes
@@ -63,6 +64,7 @@ export default {
   store,
   mounted() {
     //this.loadData()
+    this.$store.state.map.getCanvasContainer().style.cursor = 'default'
     this.dataD3 = accidentData
     this.render()
     this.listeners()
@@ -75,6 +77,8 @@ export default {
       accidentData.accidents[i].index = i;
       
     }
+    this.createNeighbours()
+    
   },
   methods: {
     //force layout initialisation (svg, nodes, simulation)
@@ -126,6 +130,11 @@ export default {
           /* console.log( 'deviation', d.deviation, ' but is it too far? ', d.tooFar ) */
           // this.calculateDistanceDeviation()
         })
+      
+      // this.tooltip = this.svg
+      //   .append('g')	
+      //   .attr("class", "tooltip")				
+      //   .style("opacity", 0)
 
       this.simulation = d3
         .forceSimulation()
@@ -171,6 +180,11 @@ export default {
         //.duration(0)
         .ease(d3.easeLinear) */
 
+      let tooltip = this.svg
+        .append('div')	
+        .attr("class", "tooltip")				
+        .style("opacity", 0)
+
       this.nodes
         //.transition(t)
         //d3.selectAll('.nodes')
@@ -187,6 +201,19 @@ export default {
           } */
           return d.y
         })
+        .on("mouseover", function(d) {		
+            tooltip.transition()		
+                .duration(200)		
+                .style("opacity", .9);		
+            tooltip.html(d.Datum + "<br/>"  + d.Type)	
+                .style("left", (d3.event.pageX) + "px")		
+                .style("top", (d3.event.pageY - 28) + "px");	
+            })					
+        .on("mouseout", function(d) {		
+            tooltip.transition()		
+                .duration(500)		
+                .style("opacity", 0);	
+        })
 
       //console.log(this.simulation.alpha(), this.recompute);
       if ( this.recompute) {
@@ -201,11 +228,11 @@ export default {
           let hull = this.getHull(this.anchorPoint)
           //add neighbourhood object to array of neighbouhoods 
           let neigh = {
-            hull: hull, //convexhull points
-            hood: [...this.points], //all neighbourhood points
+            hullPoints: hull, //convexhull points
+            points: [...this.points], //all neighbourhood points
             anchorPoint: this.anchorPoint 
           }
-          this.neighbour.push(neigh)
+          this.neighbourhood.push(neigh)
         }
         this.points = []
         this.anchorPoint = null
@@ -216,7 +243,7 @@ export default {
       this.reverse = false
       this.anchorPoint = null
       this.points = []
-      this.neighbour = []
+      this.neighbourhood = []
       this.computeNeighbourhoods()
       this.drawPolygon()
     },
@@ -226,13 +253,13 @@ export default {
       //this.polygons = 
       this.polygons
         .selectAll('polygon')
-        .data(this.neighbour)
+        .data(this.neighbourhood)
         .attr('class','polygons')
         .enter()
         .append('polygon')
         .attr('points', function(d) {
           let str = ''
-          d.hull.forEach(o => {
+          d.hullPoints.forEach(o => {
             str +=
               accidentData.accidents[o].x.toString(10) +
               ',' +
@@ -372,7 +399,8 @@ export default {
             Y: d.Y,
             fx: null,
             fy: null,
-            DruhNehody: d.DruhNehody,
+            //DruhNehody: d.DruhNehody,
+            DruhNehody: d.Type,
             neighbourhoodID: 1, //idk
             center: [
               (latlon1[0] + latlon3[0]) / 2,
@@ -579,7 +607,7 @@ export default {
           posi[1] > 0 &&
           posi[1] < window.innerHeight
         ) {
-          o.color = colorScale(o.DruhNehody)
+          o.color = colorScale(o.Type)
           this.detailAccidents.push(o.index)
         }
       })
@@ -690,6 +718,19 @@ export default {
 .nodes {
   stroke: rgb(255, 255, 255);
   stroke-width: 2px;
+}
+
+.tooltip {	
+  position: absolute;			
+  text-align: center;			
+  width: 60px;					
+  height: 28px;					
+  padding: 2px;				
+  font: 12px sans-serif;		
+  background: lightsteelblue;	
+  border: 0px;		
+  border-radius: 8px;			
+  pointer-events: none;			
 }
 
 #test_svg {
