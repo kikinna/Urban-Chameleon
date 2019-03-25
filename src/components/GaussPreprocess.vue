@@ -25,7 +25,8 @@ import {
                 devicePixelRatio: 1,
                 canvas_context: null,
                 dot_intensity: 40/255,
-                glur_module: null
+                glur_module: null,
+                threshold_module: null
             }
         }, 
         created() {
@@ -35,7 +36,12 @@ import {
         },
         mounted() {
             this.glur_module = require('glur')
-            console.log(this.glur_module)
+            this.threshold_module = require('image-filter-threshold')
+
+            // console.log(this.threshold_module)
+
+
+
             window.addEventListener('mousedown', this.mouseMoved)
             const viewport = getViewport(this.$store.state.map);
 
@@ -75,6 +81,7 @@ import {
                 console.log(event.clientX, event.clientY, '-',  r, g, b)
 
                 this.glur();
+                this.threshold();
             },
             glur() {
                 let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
@@ -87,6 +94,17 @@ import {
                 console.log(imageData)
                 this.canvas_context.putImageData(imageData, 0, 0)
                 // console.log(imageData)
+            },
+            threshold() {
+                console.log(this.threshold_module)
+                let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                let that = this;
+                this.threshold_module(imageData, { threshold : 10}, 4)
+                    .then(function(result) {
+                        // console.log(result)
+                        that.canvas_context.putImageData(result, 0, 0)
+                    })
+                    
             }
         }
 
