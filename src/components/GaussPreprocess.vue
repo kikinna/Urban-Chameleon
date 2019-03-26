@@ -28,11 +28,11 @@ import {
                 canvas: null,
                 devicePixelRatio: 1,
                 canvas_context: null,
-                dot_intensity: 60/255,
+                dot_intensity: 100/255,
                 glur_module: null,
                 threshold_module: null,
-                unit_threshold: 60,
-                area_threshold: 120,
+                unit_threshold: 51,
+                area_threshold: 41,
                 gauss_radius: 9
             }
         }, 
@@ -125,7 +125,19 @@ import {
                     
             },
             theWholeProcessing() {
-                this.thresholdUnit();
+                this.glur()
+                this.thresholdUnit()
+                this.glur()
+                this.thresholdArea()
+                    //.then(function(result) {
+                    //    this.thresholdUnit()
+                    // })
+                    //.then(this.thresholdUnit())
+                    //.then(this.glur())
+                    //.then(this.thresholdArea())
+                    
+                    
+    
 
             
             }
