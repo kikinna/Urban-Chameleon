@@ -4,9 +4,11 @@
 
         </canvas>
         <a class="button test" @click="glur" style="left: 142px;">Blur</a>
-        <a class="button" @click="theWholeProcessing" style="left: 142px; top: 100px; position: absolute">The whole</a>
         <a class="button test" @click="thresholdUnit" style="left: 200px;">Unit Threshold</a>
         <a class="button test" @click="thresholdArea" style="left: 350px;">Area Threshold</a>
+
+        <a class="button" @click="theWholeProcessing" style="left: 142px; top: 100px; position: absolute">The whole</a>
+        <a class="button" @click="blobDetection" style="left: 242px; top: 100px; position: absolute">Blob Detection</a>
     </div>
 </template>
 
@@ -19,6 +21,7 @@ import {
   measureGeoDistance,
   drawPolygon
 } from '../helpers/geoProjectionHelper.js'
+import { findBlobs } from '../helpers/FindBlobs.js'
 
     export default {
         data() {
@@ -31,8 +34,8 @@ import {
                 dot_intensity: 40/255,
                 glur_module: null,
                 threshold_module: null,
-                unit_threshold: 13, // 67 is the highest possible threshold to detect small overlaps. Making this value smaller loosens the 
-                area_threshold: 23, // this value controlls how generous the final areas will be drawn. Smaller values means larger areas for the clusters
+                unit_threshold: 17, // 67 is the highest possible threshold to detect small overlaps. Making this value smaller loosens the 
+                area_threshold: 31, // this value controlls how generous the final areas will be drawn. Smaller values means larger areas for the clusters
                 gauss_radius: 9
             }
         }, 
@@ -44,6 +47,7 @@ import {
         mounted() {
             this.glur_module = require('glur')
             this.threshold_module = require('image-filter-threshold')
+            console.log(findBlobs)
 
             // console.log(this.threshold_module)
 
@@ -124,9 +128,44 @@ import {
                     })
                     
             },
+            blobDetection() {
+                // console.log(this.threshold_module)
+                let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                let that = this;
+                let res = findBlobs(imageData)
+                console.log('res', res)
+                console.log(res.length, imageData.data.length, imageData)
+
+                let myClamped = new Uint8ClampedArray(imageData.data.length)
+                console.log('myClamped length: ', myClamped)
+
+                let row_width = res[0].length;
+                let col_height = res.length;
+                for (let r = 0; r < res.length; r++) {
+                    for (let c = 0; c < res[r].length; c++) {
+                        if (res[r][c] > 0) {
+                            let index = ((r * row_width + c) * 4) + 1 // GREEN channel
+                            imageData.data[index] = res[r][c] * 10
+                            imageData.data[index + 2] = 255;
+                            myClamped[index] = 255
+                            // console.log(res[r][c])
+                        }
+                    }
+                }
+                console.log(myClamped)
+
+                let clamped = Uint8ClampedArray.from(res);
+                console.log(clamped)
+                let newImageData = new ImageData(imageData.data, imageData.width, imageData.height)
+                this.canvas_context.putImageData(newImageData, 0, 0)
+                    // .then(function(result) {
+                    //     that.canvas_context.putImageData(result)
+                    // })
+                console.log(res)
+            },
             theWholeProcessing() {
-                this.glur()
-                this.thresholdUnit()
+                this.glur().then(d => { this.thresholdUnit()})
+                // this.thresholdUnit()
                 this.glur()
                 this.thresholdArea()
                     //.then(function(result) {
