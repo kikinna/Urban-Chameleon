@@ -4,6 +4,7 @@
 
         </canvas>
         <a class="button test" @click="glur" style="left: 142px;">Blur</a>
+        <a class="button" @click="theWholeProcessing" style="left: 142px; top: 100px; position: absolute">The whole</a>
         <a class="button test" @click="thresholdUnit" style="left: 200px;">Unit Threshold</a>
         <a class="button test" @click="thresholdArea" style="left: 350px;">Area Threshold</a>
     </div>
@@ -122,6 +123,11 @@ import {
                         that.canvas_context.putImageData(result, 0, 0)
                     })
                     
+            },
+            theWholeProcessing() {
+                this.thresholdUnit();
+
+            
             }
         }
 
