@@ -3,6 +3,9 @@
         <canvas id='paper-canvas' resize>
 
         </canvas>
+        <a class="button test" @click="glur" style="left: 142px;">Blur</a>
+        <a class="button test" @click="thresholdUnit" style="left: 200px;">Unit Threshold</a>
+        <a class="button test" @click="thresholdArea" style="left: 350px;">Area Threshold</a>
     </div>
 </template>
 
@@ -24,9 +27,12 @@ import {
                 canvas: null,
                 devicePixelRatio: 1,
                 canvas_context: null,
-                dot_intensity: 40/255,
+                dot_intensity: 60/255,
                 glur_module: null,
-                threshold_module: null
+                threshold_module: null,
+                unit_threshold: 60,
+                area_threshold: 120,
+                gauss_radius: 9
             }
         }, 
         created() {
@@ -80,14 +86,14 @@ import {
                 var b = canvasColor[2];
                 console.log(event.clientX, event.clientY, '-',  r, g, b)
 
-                this.glur();
-                this.threshold();
+                // this.glur();
+                // this.threshold();
             },
             glur() {
                 let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
                 console.log('before')
                 console.log(imageData)
-                this.glur_module(imageData.data, this.canvas.width, this.canvas.height, 5)
+                this.glur_module(imageData.data, this.canvas.width, this.canvas.height, this.gauss_radius)
                 // console.log(res)
                 
                 console.log('after')
@@ -95,11 +101,22 @@ import {
                 this.canvas_context.putImageData(imageData, 0, 0)
                 // console.log(imageData)
             },
-            threshold() {
-                console.log(this.threshold_module)
+            thresholdUnit() {
+                // console.log(this.threshold_module)
                 let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
                 let that = this;
-                this.threshold_module(imageData, { threshold : 60}, 4)
+                this.threshold_module(imageData, { threshold : this.unit_threshold}, 4)
+                    .then(function(result) {
+                        // console.log(result)
+                        that.canvas_context.putImageData(result, 0, 0)
+                    })
+                    
+            },
+            thresholdArea() {
+                // console.log(this.threshold_module)
+                let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                let that = this;
+                this.threshold_module(imageData, { threshold : this.area_threshold}, 4)
                     .then(function(result) {
                         // console.log(result)
                         that.canvas_context.putImageData(result, 0, 0)
@@ -121,5 +138,10 @@ import {
   /* opacity: 0.7;  */
   /* width: 1903px;
   height: 960px; */
+}
+
+.test{
+    position: absolute;
+    top: 50px;
 }
 </style>
