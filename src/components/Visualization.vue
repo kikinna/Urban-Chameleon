@@ -82,7 +82,7 @@ export default {
       this.svg = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
         .append('svg')
-        .attr('id', 'test_svg')
+        .attr('id', 'main_svg')
         .attr('width', window.innerWidth)
         .attr('height', window.innerHeight)
 
@@ -631,7 +631,7 @@ export default {
         .duration(2000)
         .ease(d3.easeLinear)
 
-      d3.selectAll('.partyCircles').remove()
+      d3.selectAll('.circlesInAggregatedVis').remove()
 
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
@@ -660,10 +660,10 @@ export default {
         // Setup neighbourhood in DOM (g/circles) in their GPS positions
         let currentNeighbourhoodSVGNodes = d3
           .select('#neighbourhood-' + this.aggregatedData[i].id)
-          .selectAll('circle.partyCircles')
+          .selectAll('circle.circlesInAggregatedVis')
           .data(this.aggregatedData[i].nodesInNeighbourhood)
           .join('circle')
-          .attr('class', 'partyCircles')
+          .attr('class', 'circlesInAggregatedVis')
           .attr('r', 5)
           .attr('fill', d => {
             return colorScale(d.DruhNehody)
@@ -758,13 +758,13 @@ export default {
           this.aggregatedData[i].nodesInNeighbourhood.length
         )
         d3.select('#neighbourhood-' + this.aggregatedData[i].id)
-          .selectAll('circle.partyCircles')
+          .selectAll('circle.circlesInAggregatedVis')
           .data(this.aggregatedData[i].nodesInNeighbourhood)
           .join(
             enter =>
               enter
                 .append('circle')
-                .attr('class', 'partyCircles')
+                .attr('class', 'circlesInAggregatedVis')
                 .attr('r', 5)
                 .attr('fill', d => {
                   return colorScale(d.DruhNehody)
@@ -818,12 +818,19 @@ export default {
               exit
                 .each(d => {
                   d.isInNeighbourhood = false
+                  let accidentNode =
+                    accidentData.accidents[d.indexInAccidentData]
+                  accidentNode.isInNeighbourhood = false
                   console.log('exit', d)
+                  console.log(
+                    'exit',
+                    accidentData.accidents[d.indexInAccidentData]
+                  )
                   delete accidentData.accidents[d.indexInAccidentData]
                     .neighbourhoodPosition
                 })
                 .classed('neighbourhood', false)
-                .classed('partyCircles', false)
+                .classed('circlesInAggregatedVis', false)
                 .classed('nodes', true)
                 .remove()
           )
@@ -837,7 +844,7 @@ export default {
 
         //this.neighbourhoodNodesInSVG[i]
         d3.select('#neighbourhood-' + this.aggregatedData[i].id)
-          .selectAll('circle.partyCircles')
+          .selectAll('circle.circlesInAggregatedVis')
           .transition(t)
           .each(d => {
             let gridpoint = occupyNearest(d, this.grid_cells[i])
@@ -933,11 +940,11 @@ export default {
   stroke-width: 2px;
 }
 
-#test_svg {
+#main_svg {
   position: relative;
 }
 
-.partyCircles {
+.circlesInAggregatedVis {
   stroke: rgb(255, 255, 255);
   stroke-width: 2px;
 }
