@@ -45,7 +45,6 @@ export default {
       reverse: false, //helper for angles in convexhull counting
       title: null,
       aggregatedData: [],
-      //transition: null, //animated transition for all, uhuh, not working as intended
       neighbourhoodNodesInSVG: [],
       dataD3: [], //accident data
       grid_cells: [], // barchart grid positions {x, y, occupied} //TODO: temporary
@@ -107,7 +106,7 @@ export default {
           if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
             return '#487284d2'
           }
-          return colorScale(d.DruhNehody) //'black'
+          return colorScale(d.DruhNehody)
         })
         .attr('cx', d => {
           d.pos = viewport.project([d.X, d.Y])
@@ -123,38 +122,47 @@ export default {
           // this.calculateDistanceDeviation()
         })
 
-      this.simulation = d3
-        .forceSimulation()
-        //.polygons(this.neighbour)
-        .nodes(this.dataD3.accidents)
-        /* .force('collide',d3.forceCollide().radius(this.nodeRadius * 2).strength(1).iterations(1)) */
-        //.polygons(this.neighbour)
-        .on('tick', this.tick)
-        .on('end', this.end)
+      // this.simulation = d3
+      //   .forceSimulation()
+      //   //.polygons(this.neighbour)
+      //   .nodes(this.dataD3.accidents)
+      //   /* .force('collide',d3.forceCollide().radius(this.nodeRadius * 2).strength(1).iterations(1)) */
+      //   //.polygons(this.neighbour)
+      //   .on('tick', this.tick)
+      //   .on('end', this.end)
+
+      this.makeNeighbourPolygons()
     },
     //force layout update, called on zoom and move
     updateD3() {
       const viewport = getViewport(this.$store.state.map)
 
+      /* this.nodes.each(d => {
+        //console.log('pls bef', d.x)
+        d.forceGPS = viewport.unproject([d.x, d.y])
+        d.x = viewport.project(d.forceGPS)[0]
+        //console.log('pls af', d.x)
+        //let x = viewport.project(d.forceGPS)[0]
+        Vue.set(d, 'forceGPS', viewport.unproject([d.x, d.y]))
+        Vue.set(d, 'cx', d.x)
+        //console.log('pls af af', d.x)
+        d.y = viewport.project(d.forceGPS)[1]
+        Vue.set(d, 'cy', d.y)
+      }) */
+
       this.nodes
-        .attr('cx', function(d) {
-          /* if (d.area) {
-            return
-          } */
-          d.x = viewport.project(d.forceGPS)[0]
-          return d.x
+        .attr('cx', d => {
+          d.pos = viewport.project([d.X, d.Y])
+          return d.pos[0] //d.x
         })
-        .attr('cy', function(d) {
-          /* if (d.area) {
-            return
-          } */
-          d.y = viewport.project(d.forceGPS)[1]
-          return d.y
+        .attr('cy', d => {
+          return d.pos[1] //d.y
         })
 
       //this.calculateDistanceDeviation()
 
-      this.simulation.alpha(0.1).restart()
+      // this.simulation.alpha(0.1).restart()
+      this.makeNeighbourPolygons()
     },
     //accident's simulation tick
     tick() {
@@ -203,11 +211,7 @@ export default {
           }
           this.neighbour.push(neigh)
         }
-        //this.points = []
-        while (this.points.length > 0) {
-          //TODO???
-          this.points.pop()
-        } //empty the array
+        this.points = []
         this.anchorPoint = null
       })
     },
@@ -215,16 +219,8 @@ export default {
       this.recompute = false
       this.reverse = false
       this.anchorPoint = null
-      //this.points = []
-      //this.neighbour = []
-      while (this.neighbour.length > 0) {
-        //TODO???
-        this.points.pop()
-        this.neighbour.pop()
-      } //empty the array
-      while (this.points.length > 0) {
-        this.points.pop()
-      } //empty the array
+      this.points = []
+      this.neighbour = []
       this.computeNeighbourhoods()
       this.drawPolygon()
     },
@@ -715,7 +711,7 @@ export default {
       const viewport = getViewport(this.$store.state.map)
 
       d3.selectAll('g.neighbourhood-g').attr('transform', d => {
-        //console.log(d)
+        console.log(d)
         let pos = viewport.project(d.centerInGPS)
         return 'translate(' + pos[0] + ', ' + pos[1] + ')'
       })
@@ -752,11 +748,6 @@ export default {
         })
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
-        console.log(
-          'len bef',
-          i,
-          this.aggregatedData[i].nodesInNeighbourhood.length
-        )
         d3.select('#neighbourhood-' + this.aggregatedData[i].id)
           .selectAll('circle.partyCircles')
           .data(this.aggregatedData[i].nodesInNeighbourhood)
@@ -771,14 +762,13 @@ export default {
                 })
                 .attr('cx', d => {
                   if (d.neighbourhoodPosition) {
-                    //console.log('already in', d)
+                    console.log('already in')
                     d.x = d.neighbourhoodPosition[0]
                     return d.x
                   } else {
-                    //console.log('newbie', d.x, d.pos)
+                    console.log('newbie')
                     d.pos = viewport.project([d.X, d.Y])
                     d.x = d.pos[0]
-                    //console.log(d.x, d.pos)
                     return d.pos[0] - this.aggregatedData[i].centerInPx[0]
                   }
                 })
@@ -793,13 +783,17 @@ export default {
                 }),
             update =>
               update
+                .attr('fill', d => {
+                  if (d.neighbourhoodPosition) {
+                    return colorScale(d.DruhNehody)
+                  }
+                  return 'green'
+                })
                 .attr('cx', d => {
                   if (d.neighbourhoodPosition) {
-                    //console.log('already in', d)
                     d.x = d.neighbourhoodPosition[0]
                     return d.x
                   } else {
-                    //console.log('newbie')
                     d.pos = viewport.project([d.X, d.Y])
                     d.x = d.pos[0]
                     return d.pos[0] - this.aggregatedData[i].centerInPx[0]
@@ -814,30 +808,26 @@ export default {
                     return d.pos[1] - this.aggregatedData[i].centerInPx[1]
                   }
                 }),
+            /* .each(d => {
+                console.log('update', d)
+              }) */
             exit =>
               exit
                 .each(d => {
-                  d.isInNeighbourhood = false
                   console.log('exit', d)
                   delete accidentData.accidents[d.indexInAccidentData]
                     .neighbourhoodPosition
+                  //d.classed('neighbourhood', false)
+                  //d.classed('partyCircles', false)
                 })
                 .classed('neighbourhood', false)
                 .classed('partyCircles', false)
-                .classed('nodes', true)
                 .remove()
           )
 
         this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
-        console.log(
-          'len af',
-          i,
-          this.aggregatedData[i].nodesInNeighbourhood.length
-        )
 
-        //this.neighbourhoodNodesInSVG[i]
-        d3.select('#neighbourhood-' + this.aggregatedData[i].id)
-          .selectAll('circle.partyCircles')
+        this.neighbourhoodNodesInSVG[i]
           .transition(t)
           .each(d => {
             let gridpoint = occupyNearest(d, this.grid_cells[i])
@@ -872,18 +862,123 @@ export default {
           })
           .attr('cx', d => d.x)
           .attr('cy', d => d.y)
+        // .attr('fill', d => {
+        //   return colorScale(d.DruhNehody)
+        // })
 
-        //console.log('nodes after', this.neighbourhoodNodesInSVG)
-      } //end of the extra big for cycle
+        console.log('nodes after', this.neighbourhoodNodesInSVG)
+      }
+    },
+    redrawAggregatedVis() {
+      const viewport = getViewport(this.$store.state.map)
+      //TODO: tmp calculation of center
+      let minX = 0
+      let minY = 0
+      let maxX = 0
+      let maxY = 0
 
-      //making nodes included in aggregated vis invisible in map
-      this.nodes.attr('class', d => {
-        if (d.isInNeighbourhood) {
+      //
+      //
+      //
+
+      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+
+      this.initAggregatedVisData()
+      this.neighbourhoodNodesInSVG = []
+      this.grid_cells = []
+
+      /* this.nodes.attr('class', d => { //making them invisible
+        if (d.area) {
           return 'neighbourhood'
         } else {
           return 'nodes'
         }
-      })
+      }) */
+
+      const t = d3
+        .transition()
+        .duration(2000)
+        .ease(d3.easeLinear)
+
+      d3.selectAll('.partyCircles').remove()
+
+      for (var i = 0; i < this.aggregatedData.length; i++) {
+        let currentneighbourhoodNodesInSVG = this.svg
+          .append('g')
+          .attr('stroke', '#fff')
+          .attr('stroke-width', 1.5)
+          .selectAll('circle')
+          .data(this.aggregatedData[i].nodesInNeighbourhood)
+          .join('circle')
+          .attr('class', 'partyCircles')
+          .attr('r', 5)
+          .attr('fill', d => {
+            return colorScale(d.DruhNehody)
+          })
+        /* .attr('cx', d => {
+            d.pos = viewport.project([d.X, d.Y])
+            d.x = d.pos[0]
+            return d.pos[0]
+          })
+          .attr('cy', d => {
+            d.y = d.pos[1]
+            return d.pos[1]
+          }) */
+
+        ////////////////////////////////////////////////////////
+        //
+        //
+        // tmp calc of center
+
+        this.aggregatedData[i].nodesInNeighbourhood.forEach(d => {
+          if (d.X > minX) {
+            minX = d.X
+          }
+          if (d.X > maxX) {
+            maxX = d.X
+          }
+          if (d.Y > minY) {
+            minY = d.Y
+          }
+          if (d.Y > maxY) {
+            maxY = d.Y
+          }
+        })
+
+        const shiftX = (minX + maxX) / 2
+        const shiftY = minY //(minY + maxY) / 2
+
+        // const shift = viewport.project([shiftX, shiftY])
+
+        // console.log('shift', shift)
+
+        const shift = viewport.project([maxX, maxY])
+
+        this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
+
+        //
+        //
+        //
+        ///////////////////////
+
+        currentAggregatedNodes
+          //.transition(t)
+          .each(d => {
+            let gridpoint = occupyNearest(d, this.grid_cells[i])
+            if (gridpoint) {
+              d.x = gridpoint.x //+ shift[0]
+              d.y = gridpoint.y //+ shift[1]
+              d.forceGPS = viewport.unproject([d.x, d.y])
+              let pos = viewport.project(d.forceGPS)
+              d.x = pos[0]
+              d.y = pos[1]
+            }
+          })
+          .attr('cx', d => d.x)
+          .attr('cy', d => d.y)
+
+        this.neighbourhoodNodesInSVG.push(currentAggregatedNodes)
+      } // end of that huge for cycle
     }
   }, // end of methods
   computed: {
