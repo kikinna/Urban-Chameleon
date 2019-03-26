@@ -28,11 +28,11 @@ import {
                 canvas: null,
                 devicePixelRatio: 1,
                 canvas_context: null,
-                dot_intensity: 100/255,
+                dot_intensity: 40/255,
                 glur_module: null,
                 threshold_module: null,
-                unit_threshold: 51,
-                area_threshold: 41,
+                unit_threshold: 13, // 67 is the highest possible threshold to detect small overlaps. Making this value smaller loosens the 
+                area_threshold: 23, // this value controlls how generous the final areas will be drawn. Smaller values means larger areas for the clusters
                 gauss_radius: 9
             }
         }, 
@@ -66,7 +66,7 @@ import {
             accidentData.accidents.map(d => {
                 let accident_screen_pos = viewport.project([d.X, d.Y])
                 
-                let accident_dot = new Paper.Path.Circle(new Paper.Point(accident_screen_pos[0] / this.devicePixelRatio, accident_screen_pos[1] / this.devicePixelRatio), 8 / this.devicePixelRatio)
+                let accident_dot = new Paper.Path.Circle(new Paper.Point(accident_screen_pos[0] / this.devicePixelRatio, accident_screen_pos[1] / this.devicePixelRatio), 5)//8 / this.devicePixelRatio)
                 accident_dot.fillColor = new Paper.Color(this.dot_intensity, 0, 0)
                 accident_dot.blendMode = 'add'
 
