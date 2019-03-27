@@ -3,12 +3,15 @@
         <canvas id='paper-canvas' resize>
 
         </canvas>
-        <a class="button test" @click="glur" style="left: 142px;">Blur</a>
-        <a class="button test" @click="thresholdUnit" style="left: 200px;">Unit Threshold</a>
-        <a class="button test" @click="thresholdArea" style="left: 334px;">Area Threshold</a>
-        <a class="button test" @click="blobDetection" style="left: 473px; ">Blob Detection</a>
+        <a class="button test" @click="glur" style="left: 10px;">Blur</a>
+        <a class="button test" @click="thresholdUnit" style="left: 68px;">Unit Threshold</a>
+        <a class="button test" @click="thresholdArea" style="left: 202px;">Area Threshold</a>
+        <a class="button test" @click="blobDetection" style="left: 341px; ">Blob Detection</a>
         
-        <a class="button is-dark" @click="pipeline" style="left: 142px; top: 100px; position: absolute">IP Pipeline</a>
+        <a class="button is-dark" @click="pipeline" style="left: 10px; top: 100px; position: absolute">IP Pipeline</a>
+
+        <a class="button test" @click="clearCanvas" style="left: 150px; top: 500px ">Clear Canvas</a>
+        <a class="button test" @click="drawAccidents" style="left: 10px; top: 500px ">Draw Accidents</a>
     </div>
 </template>
 
@@ -29,6 +32,7 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                 paper: null,
                 accident_dots: [],
                 canvas: null,
+                viewport: null,
                 devicePixelRatio: 1,
                 canvas_context: null,
                 dot_intensity: 40/255,
@@ -53,26 +57,29 @@ import { findBlobs } from '../helpers/FindBlobs.js'
             this.threshold_module = require('image-filter-threshold')
 
             window.addEventListener('mousedown', this.mouseMoved)
-            const viewport = getViewport(this.$store.state.map);
+            this.viewport = getViewport(this.$store.state.map);
 
             
 
             this.paper = Paper.setup(this.canvas);
-            
-            accidentData.accidents.map(d => {
-                let accident_screen_pos = viewport.project([d.X, d.Y])
-                
-                let accident_dot = new Paper.Path.Circle(
-                    new Paper.Point(
-                        (accident_screen_pos[0] / this.devicePixelRatio) * this.canvas_to_screen_ratio, 
-                        (accident_screen_pos[1] / this.devicePixelRatio) * this.canvas_to_screen_ratio
-                        ), 
-                    5 * this.canvas_to_screen_ratio)//8 / this.devicePixelRatio)
-                accident_dot.fillColor = new Paper.Color(this.dot_intensity, 0, 0)
-                accident_dot.blendMode = 'add'
 
-                this.accident_dots.push(accident_dot.blendMode)
-            })
+            this.drawAccidents();
+            this.listeners();
+            
+            // accidentData.accidents.map(d => {
+            //     let accident_screen_pos = viewport.project([d.X, d.Y])
+                
+            //     let accident_dot = new Paper.Path.Circle(
+            //         new Paper.Point(
+            //             (accident_screen_pos[0] / this.devicePixelRatio) * this.canvas_to_screen_ratio, 
+            //             (accident_screen_pos[1] / this.devicePixelRatio) * this.canvas_to_screen_ratio
+            //             ), 
+            //         5 * this.canvas_to_screen_ratio)//8 / this.devicePixelRatio)
+            //     accident_dot.fillColor = new Paper.Color(this.dot_intensity, 0, 0)
+            //     accident_dot.blendMode = 'add'
+
+            //     this.accident_dots.push(accident_dot.blendMode)
+            // })
             
             // var myCircle = new Paper.Path.Circle(new Paper.Point(51, 0), 50);
             // myCircle.fillColor = new Paper.Color(0.5, 0, 0);
@@ -81,6 +88,43 @@ import { findBlobs } from '../helpers/FindBlobs.js'
 
         },
         methods: {
+            drawAccidents() {
+                console.log('redrawing')
+                this.clearCanvas();
+
+                let screen_top_left = this.viewport.unproject([0, 0])
+                let screen_bottom_right = this.viewport.unproject([window.innerWidth, window.innerHeight])
+
+                accidentData.accidents.map(d => {
+                    if (d.X > screen_top_left[0] && d.X < screen_bottom_right[0] && d.Y < screen_top_left[1] && d.Y > screen_bottom_right[1]) {
+
+                        let accident_screen_pos = this.viewport.project([d.X, d.Y])
+                    
+                    let accident_dot = new Paper.Path.Circle(
+                        new Paper.Point(
+                            (accident_screen_pos[0] / this.devicePixelRatio) * this.canvas_to_screen_ratio, 
+                            (accident_screen_pos[1] / this.devicePixelRatio) * this.canvas_to_screen_ratio
+                            ), 
+                        5 * this.canvas_to_screen_ratio)//8 / this.devicePixelRatio)
+                    accident_dot.fillColor = new Paper.Color(this.dot_intensity, 0, 0)
+                    accident_dot.blendMode = 'add'
+
+                    this.accident_dots.push(accident_dot.blendMode)
+                    }
+                    
+                })
+            },
+            clearCanvas() {
+                if(Paper.project.activeLayer.hasChildren()) {
+                    Paper.project.activeLayer.removeChildren();
+                }   
+            },
+            listeners() {
+                this.$root.$on('map-zoomend', () => {
+                    this.viewport = getViewport(this.$store.state.map);
+                    this.drawAccidents()
+                })
+            },
             initCanvas() {
                 let w = window.innerWidth;
                 let h = window.innerHeight;
@@ -191,11 +235,14 @@ import { findBlobs } from '../helpers/FindBlobs.js'
 
 
 <style scoped>
+#paper-canvas {
+
+  opacity: 0.65;
+}
 
 #gauss {
   position: absolute;
   z-index: 0;
-  opacity: 0.65;
   /* opacity: 0.7;  */
   /* width: 1903px;
   height: 960px; */
@@ -203,6 +250,6 @@ import { findBlobs } from '../helpers/FindBlobs.js'
 
 .test{
     position: absolute;
-    top: 50px;
+    top: 550px;
 }
 </style>
