@@ -54,6 +54,7 @@ export default {
       nodes: null, //accident nodes
       polygons: null,
       nodeRadius: 5,
+      isAggrVisActive: false,
       recompute: false, //variable for recomputing neighbourhoods after moved map
       distanceLimit: 0.000001 //used in calculateDistanceDeviation to compare with the calculated distance between nodes
     }
@@ -293,28 +294,12 @@ export default {
       //console.log('aggrData bef bef', this.aggregatedData)
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
-        /* while (this.aggregatedData[i].nodesInNeighbourhood.length > 0) {
-          this.aggregatedData[i].nodesInNeighbourhood.pop()
-          console.log(
-            'cmon now',
-            this.aggregatedData[i].nodesInNeighbourhood.length
-          )
-        } //empty the array */
-
-        //console.log('am i empty', this.aggregatedData[i].nodesInNeighbourhood)
-
         this.aggregatedData[i].nodesInNeighbourhood = []
-        //Vue.set(this.aggregatedData[i], 'nodesInNeighbourhood', [])
-      } //empty the array //empty the array
+      } //empty the array
+      this.aggregatedData = []
 
-      /* while (this.aggregatedData.length > 0) {
-        this.aggregatedData.pop()
-      } */ this.aggregatedData = []
-      console.log('am i empty', this.aggregatedData)
-
-      //console.log('aggrData bef', this.aggregatedData)
       //neighbour data from convex hull
-      for (var i = 0; i < this.neighbour.length; i++) {
+      for (i = 0; i < this.neighbour.length; i++) {
         let neighbourhood = {
           nodesInNeighbourhood: [],
           centerInGPS: null,
@@ -348,41 +333,12 @@ export default {
           }
 
           d.isInNeighbourhood = true
-
           neighbourhood.nodesInNeighbourhood.push(newNode)
-
-          //console.log('am i doin dis right', this.dataD3.accidents[d])
         })
         this.getNeighbourhoodCenter(neighbourhood)
         this.aggregatedData.push(neighbourhood)
       }
       //console.log('aggrData af', this.aggregatedData)
-    },
-    getNeighbourhoodGPSCenter(neighbourhood) {
-      let minX = Infinity
-      let minY = Infinity
-      let maxX = 0
-      let maxY = 0
-
-      neighbourhood.nodesInNeighbourhood.forEach(d => {
-        if (d.X < minX) {
-          minX = d.X
-        }
-        if (d.X > maxX) {
-          maxX = d.X
-        }
-        if (d.Y < minY) {
-          minY = d.Y
-        }
-        if (d.Y > maxY) {
-          maxY = d.Y
-        }
-      })
-
-      const shiftX = (minX + maxX) / 2
-      const shiftY = (minY + maxY) / 2
-
-      neighbourhood.centerGPS = [shiftX, shiftY]
     },
     getNeighbourhoodCenter(neighbourhood) {
       let viewport = getViewport(this.$store.state.map)
@@ -528,11 +484,11 @@ export default {
       //all events
       this.$root.$on('map-zoom', () => {
         // d3.selectAll('.neighbourhood').classed('neighbourhood', false)
-        this.updateVisualizations()
+        this.updateD3() //this.updateVisualizations()
         //d3.selectAll('polygon').remove()
       })
       this.$root.$on('map-move', () => {
-        this.updateVisualizations()
+        this.updateD3() //this.updateVisualizations()
       })
       //just end events
       this.$root.$on('map-zoomend', () => {
@@ -550,20 +506,6 @@ export default {
         if (this.$store.state.map.getZoom() > 17.8) {
           this.createAccidentDetail()
         }
-        /* this.nodes
-          .attr('class', d => {
-            if (d.area) {
-              return 'neighbourhood'
-            } else {
-              return 'nodes'
-            }
-          })
-          .attr('fill', d => {
-            if (d.area) {
-              return 'green'
-            }
-            return 'black'
-          }) */
       })
       this.$root.$on('map-click', () => {
         this.drawAggregatedVis()
@@ -573,9 +515,22 @@ export default {
       this.updateD3()
       // this.drawPolygon()
       this.makeNeighbourPolygons()
-      // this.redrawAggregatedVis() //works... not much fluid when changing the amount of nodes in the neighbourhood
-      this.updateAggregatedVis() //problem somewhere... definitely not me, blame it on the observers
-      //this.$forceUpdate() //attempt to force vue to update DOM
+      //this.updateAggregatedVis()
+      if (!this.isAggrVisActive) {
+        this.drawAggregatedVis()
+        this.isAggrVisActive = true
+      } else {
+        this.updateAggregatedVis()
+      }
+      //TODO: remove visualisations and set this.isAggrVisActive to false on some zoom level
+
+      //making nodes included in aggregated vis invisible in map
+      this.nodes.attr('class', d => {
+        if (d.isInNeighbourhood) {
+          return 'neighbourhood'
+        }
+        return 'nodes'
+      })
     },
     //Prepareing things for new neighbourhood computing
     removeNeighbours() {
@@ -720,25 +675,18 @@ export default {
 
         this.neighbourhoodNodesInSVG.push(currentNeighbourhoodSVGNodes)
       } // end of that huge for cycle
-
-      //making nodes included in aggregated vis invisible in map
-      /* this.nodes.attr('class', d => {
-        if (d.isInNeighbourhood) {
-          return 'neighbourhood'
-        } else {
-          return 'nodes'
-        }
-      }) */
     },
     //updating aggregated vis. (house parties); called on zoom and move
     updateAggregatedVis() {
       const viewport = getViewport(this.$store.state.map)
 
-      d3.selectAll('g.neighbourhood-g').attr('transform', d => {
-        //console.log(d)
-        let pos = viewport.project(d.centerInGPS)
-        return 'translate(' + pos[0] + ', ' + pos[1] + ')'
-      })
+      d3.selectAll('g.neighbourhood-g')
+        .transition(t)
+        .attr('transform', d => {
+          //console.log(d)
+          let pos = viewport.project(d.centerInGPS)
+          return 'translate(' + pos[0] + ', ' + pos[1] + ')'
+        })
 
       // has neighbourhood changed?
       // NO -> update neighbourhood center
@@ -753,11 +701,6 @@ export default {
 
       // init DS for individual aggregated vis
       this.initAggregatedVisData()
-      if (this.aggregatedData)
-        console.log(
-          'aggr data bef',
-          this.aggregatedData[1].nodesInNeighbourhood
-        )
 
       // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
       while (this.grid_cells.length > 0) {
@@ -772,21 +715,15 @@ export default {
           return 'neighbourhood-' + d.id
         })
         .attr('class', 'neighbourhood-g')
+        .transition(t)
         .attr('transform', d => {
           return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
         })
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
-        /* console.log(
-          'len bef',
-          i,
-          this.aggregatedData[i].nodesInNeighbourhood.length
-        ) */
         d3.select('#neighbourhood-' + this.aggregatedData[i].id)
           .selectAll('circle.circlesInAggregatedVis')
           .data(this.aggregatedData[i].nodesInNeighbourhood)
-          //.enter()
-          //.append('circle')
           .join('circle')
           .attr('class', 'circlesInAggregatedVis')
           .attr('r', 5)
@@ -820,8 +757,6 @@ export default {
             d.isInNeighbourhood = false
             let accidentNode = accidentData.accidents[d.indexInAccidentData]
             accidentNode.isInNeighbourhood = false
-            /* console.log('exit', d)
-            console.log('exit', accidentData.accidents[d.indexInAccidentData]) */
             delete accidentData.accidents[d.indexInAccidentData]
               .neighbourhoodPosition
           })
@@ -831,11 +766,6 @@ export default {
           .remove()
 
         this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
-        /* console.log(
-          'len af',
-          i,
-          this.aggregatedData[i].nodesInNeighbourhood.length
-        ) */
 
         //this.neighbourhoodNodesInSVG[i]
         d3.select('#neighbourhood-' + this.aggregatedData[i].id)
@@ -845,15 +775,13 @@ export default {
             let gridpoint = occupyNearest(d, this.grid_cells[i])
             if (gridpoint) {
               //console.log('d before', d)
-              let newX = gridpoint.x // + shift[0]
-              let newY = gridpoint.y // + shift[1]
+              let newX = gridpoint.x
+              let newY = gridpoint.y
 
               d.x = gridpoint.x
               d.y = gridpoint.y
-              // console.log(d.x, d.y)
               let newForceGPS = viewport.unproject([newX, newY])
               let pos = viewport.project(newForceGPS)
-              // Vue.set(d, 'cx', pos[0])
               Vue.set(d, 'cx', pos[0])
               Vue.set(d, 'cy', pos[1])
               d.neighbourhoodPosition = [d.x, d.y]
@@ -864,19 +792,6 @@ export default {
 
         //console.log('nodes after', this.neighbourhoodNodesInSVG)
       } //end of the extra big for cycle
-      this.initAggregatedVisData()
-
-      if (this.aggregatedData)
-        console.log('aggr data af', this.aggregatedData[1].nodesInNeighbourhood)
-      //TODO
-      //making nodes included in aggregated vis invisible in map
-      /* this.nodes.attr('class', d => {
-        if (d.isInNeighbourhood) {
-          return 'neighbourhood'
-        } else {
-          return 'nodes'
-        }
-      }) */
     }
   }, // end of methods
   computed: {
