@@ -9,7 +9,6 @@
     ></AccidentDetail>
   </div>
 </template>
-
 <script>
 import * as d3 from 'd3'
 import store from '../store.js'
@@ -56,6 +55,7 @@ export default {
       nodes: null, //accident nodes
       polygons: null, 
       tooltip: null,
+      tree: [],
       nodeRadius: 5,
       recompute: false, //variable for recomputing neighbourhoods after moved map
       distanceLimit: 0.000001 //used in calculateDistanceDeviation to compare with the calculated distance between nodes
@@ -131,10 +131,12 @@ export default {
           // this.calculateDistanceDeviation()
         })
       
-      // this.tooltip = this.svg
-      //   .append('g')	
-      //   .attr("class", "tooltip")				
-      //   .style("opacity", 0)
+      this.tooltip = d3
+        .select(this.$store.state.map.getCanvasContainer()) //'map'
+        .append('div')	
+        .attr('class', 'tooltip')				
+        .style('opacity', 0)
+
 
       this.simulation = d3
         .forceSimulation()
@@ -180,11 +182,8 @@ export default {
         //.duration(0)
         .ease(d3.easeLinear) */
 
-      let tooltip = this.svg
-        .append('div')	
-        .attr("class", "tooltip")				
-        .style("opacity", 0)
-
+      let that = this
+      //let timeout = null
       this.nodes
         //.transition(t)
         //d3.selectAll('.nodes')
@@ -201,21 +200,19 @@ export default {
           } */
           return d.y
         })
-        .on("mouseover", function(d) {		
-            tooltip.transition()		
-                .duration(200)		
-                .style("opacity", .9);		
-            tooltip.html(d.Datum + "<br/>"  + d.Type)	
-                .style("left", (d3.event.pageX) + "px")		
-                .style("top", (d3.event.pageY - 28) + "px");	
-            })					
-        .on("mouseout", function(d) {		
-            tooltip.transition()		
-                .duration(500)		
-                .style("opacity", 0);	
+        .on('click', d=> {	
+          that.tooltip	
+            .style('opacity', 1.0)		
+            .html(d.Type)	
+            .style('left', (d3.event.pageX) + 'px')		
+            .style('top', (d3.event.pageY - 28) + 'px');
+          })					
+        .on('mouseout', d=> {	
+          //this.tooltip.hide)
+          this.tooltip
+            .style('opacity',0)
         })
 
-      //console.log(this.simulation.alpha(), this.recompute);
       if ( this.recompute) {
         this.makeNeighbourPolygons()
       }
@@ -249,6 +246,8 @@ export default {
     },
     //create polygon from convex hull array
     drawPolygon(){
+      let that = this
+      let timeout = null
       d3.selectAll('polygon').remove()
       //this.polygons = 
       this.polygons
@@ -271,6 +270,17 @@ export default {
         .style('fill', '#60bac668')
         .style('stroke', '567985cc')
         .style('strokeWidth', '2px')
+        .on('click', d => {	
+          that.tooltip
+            .style('opacity', 1.0)		
+            .html('Number of accidents in this area: ' + d.points.length)	
+            .style('left', (d3.event.pageX) + 'px')		
+            .style('top', (d3.event.pageY - 28) + 'px');
+        })					
+        .on('mouseout', d=> {	
+          this.tooltip
+            .style('opacity',0)
+        })
     },
     //accident's simulation end
     end() {
@@ -648,6 +658,17 @@ export default {
         .attr('fill', d => {
           return colorScale(d.DruhNehody)
         })
+        .on('click', d=> {	
+            this.tooltip	
+              .style('opacity', 1.0)		
+              .html(d.DruhNehody)	
+              .style('left', (d3.event.pageX) + 'px')		
+              .style('top', (d3.event.pageY - 28) + 'px');
+          })					
+        .on('mouseout', d=> {	
+          this.tooltip
+            .style('opacity',0)
+        })
 
       this.aggregatedData.forEach(d => {
         let gridpoint = occupyNearest(d, this.cells) //TODO: this.cells should change
@@ -721,16 +742,18 @@ export default {
 }
 
 .tooltip {	
-  position: absolute;			
+  position: absolute;	
   text-align: center;			
-  width: 60px;					
-  height: 28px;					
+  width: 90px;					
+  height: 50px;					
   padding: 2px;				
-  font: 12px sans-serif;		
-  background: lightsteelblue;	
+  font: 12px 'Avenir';
+  font-weight: 470;		
+  background: #f4f5f4ee;	
   border: 0px;		
   border-radius: 8px;			
-  pointer-events: none;			
+  pointer-events: none;	
+  transform: translate(4px, -25px);	
 }
 
 #test_svg {

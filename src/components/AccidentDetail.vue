@@ -17,7 +17,7 @@
                                  Caused by: &ensp; {{accident.CausedBy}} <br> 
                                  Road condition: &ensp; {{accident.RoadCondition}} <br> 
                                  Weather: &ensp; {{accident.Weather}}<br> 
-                                Alcohol: &ensp; {{accident.Alcohol}} </p>
+                                 Alcohol: &ensp; {{accident.Alcohol}} </p>
             <svg width="325" height="60">
                 <text class="text_style2" x="18" y="30" >{{"Death toll: "}} </text>
                 <text class="text_style2" x="83" y="30" >{{accident.DeathToll + " x"}} </text>
