@@ -571,7 +571,8 @@ export default {
     },
     updateVisualizations() {
       this.updateD3()
-      this.drawPolygon()
+      // this.drawPolygon()
+      this.makeNeighbourPolygons()
       // this.redrawAggregatedVis() //works... not much fluid when changing the amount of nodes in the neighbourhood
       this.updateAggregatedVis() //problem somewhere... definitely not me, blame it on the observers
       //this.$forceUpdate() //attempt to force vue to update DOM
