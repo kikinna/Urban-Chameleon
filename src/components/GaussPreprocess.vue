@@ -9,6 +9,8 @@
 
         <a class="button" @click="theWholeProcessing" style="left: 142px; top: 100px; position: absolute">The whole</a>
         <a class="button" @click="blobDetection" style="left: 242px; top: 100px; position: absolute">Blob Detection</a>
+        
+        <a class="button" @click="test" style="left: 242px; top: 150px; position: absolute">Test</a>
     </div>
 </template>
 
@@ -77,9 +79,9 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                 this.accident_dots.push(accident_dot.blendMode)
             })
             
-            var myCircle = new Paper.Path.Circle(new Paper.Point(51, 0), 50);
-            myCircle.fillColor = new Paper.Color(0.5, 0, 0);
-            Paper.view.draw();
+            // var myCircle = new Paper.Path.Circle(new Paper.Point(51, 0), 50);
+            // myCircle.fillColor = new Paper.Color(0.5, 0, 0);
+            // Paper.view.draw();
 
 
         },
@@ -90,54 +92,81 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                 var g = canvasColor[1];
                 var b = canvasColor[2];
                 console.log(event.clientX, event.clientY, '-',  r, g, b)
-
-                // this.glur();
-                // this.threshold();
             },
-            glur() {
+            test() {
+                console.log('Glur')
                 let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                console.log('before')
-                console.log(imageData)
                 this.glur_module(imageData.data, this.canvas.width, this.canvas.height, this.gauss_radius)
-                // console.log(res)
-                
-                console.log('after')
-                console.log(imageData)
                 this.canvas_context.putImageData(imageData, 0, 0)
-                // console.log(imageData)
+                console.log('glur done')
+
+                console.log('threshold UNIT')
+                // imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                let that = this;
+                this.threshold_module(imageData, { threshold : this.unit_threshold}, 4)
+                    .then(function(result) {
+                        // imageData = result;
+                        // that.canvas_context.putImageData(imageData, 0, 0)
+                        that.canvas_context.putImageData(result, 0, 0)
+
+                    })
+                // console.log(res)
+
+                console.log('Glur')
+                imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                this.glur_module(imageData.data, this.canvas.width, this.canvas.height, this.gauss_radius)
+                this.canvas_context.putImageData(imageData, 0, 0)
+
+                console.log('threshold AREA')
+                 imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                // let that = this;
+                this.threshold_module(imageData, { threshold : this.area_threshold}, 4)
+                    .then(function(result) {
+                        that.canvas_context.putImageData(result, 0, 0)
+                    })
             },
-            thresholdUnit() {
-                // console.log(this.threshold_module)
+            async glur(callbackList) {
+                console.log('Glur')
+                let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+                this.glur_module(imageData.data, this.canvas.width, this.canvas.height, this.gauss_radius)
+                this.canvas_context.putImageData(imageData, 0, 0)
+                // if (callbackList.length > 0) {
+                //     let newCallback = callbackList.shift();
+                //     newCallback(callbackList)
+                // }
+            },
+            async thresholdUnit(callbackList) {
+                console.log('threshold UNIT')
                 let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
                 let that = this;
                 this.threshold_module(imageData, { threshold : this.unit_threshold}, 4)
                     .then(function(result) {
-                        // console.log(result)
                         that.canvas_context.putImageData(result, 0, 0)
                     })
-                    
+                // if (callbackList.length > 0) {
+                //     let newCallback = callbackList.shift();
+                //     newCallback(callbackList)
+                // }
+                
             },
-            thresholdArea() {
-                // console.log(this.threshold_module)
+            async thresholdArea(callback, ...theArgs) {
+                console.log('threshold AREA')
                 let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
                 let that = this;
                 this.threshold_module(imageData, { threshold : this.area_threshold}, 4)
                     .then(function(result) {
-                        // console.log(result)
                         that.canvas_context.putImageData(result, 0, 0)
                     })
+                // if (callback.length > 0) {
+                //     console.log(callback, theArgs)
+                //     callback(theArgs.shift(), theArgs)
+                // }
                     
             },
             blobDetection() {
-                // console.log(this.threshold_module)
                 let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                let that = this;
+                // let that = this;
                 let res = findBlobs(imageData)
-                console.log('res', res)
-                console.log(res.length, imageData.data.length, imageData)
-
-                let myClamped = new Uint8ClampedArray(imageData.data.length)
-                console.log('myClamped length: ', myClamped)
 
                 let row_width = res[0].length;
                 let col_height = res.length;
@@ -146,28 +175,34 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                         if (res[r][c] > 0) {
                             let index = ((r * row_width + c) * 4) + 1 // GREEN channel
                             imageData.data[index] = res[r][c] * 10
-                            imageData.data[index + 2] = 255;
-                            myClamped[index] = 255
-                            // console.log(res[r][c])
                         }
                     }
                 }
-                console.log(myClamped)
-
-                let clamped = Uint8ClampedArray.from(res);
-                console.log(clamped)
-                let newImageData = new ImageData(imageData.data, imageData.width, imageData.height)
-                this.canvas_context.putImageData(newImageData, 0, 0)
-                    // .then(function(result) {
-                    //     that.canvas_context.putImageData(result)
-                    // })
-                console.log(res)
+                this.canvas_context.putImageData(imageData, 0, 0)
             },
             theWholeProcessing() {
-                this.glur().then(d => { this.thresholdUnit()})
-                // this.thresholdUnit()
+                // this.glur();
+                // this.glur([this.thresholdUnit, this.glur, this.thresholdArea])
+                // let that = this;
+                let that = this;
+                // this.glur().then(function(value) { console.log(value)})
                 this.glur()
-                this.thresholdArea()
+                    .then(that.thresholdUnit()
+                        .then(that.glur()
+                            .then(that.thresholdArea())
+                        ))
+                // this.glur()
+                //     .then(d => { that.thresholdUnit()
+                //         .then(e => { that.glur() 
+                //             .then(f => { that.thresholdArea() 
+                //                 .then(g => {that.glur()})
+                //             })
+                //         })
+                //     })
+                // // this.glur()
+                // this.thresholdUnit()
+                // this.glur()
+                // this.thresholdArea()
                     //.then(function(result) {
                     //    this.thresholdUnit()
                     // })
