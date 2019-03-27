@@ -195,6 +195,7 @@ import { findBlobs } from '../helpers/FindBlobs.js'
 #gauss {
   position: absolute;
   z-index: 0;
+  opacity: 0.65;
   /* opacity: 0.7;  */
   /* width: 1903px;
   height: 960px; */
