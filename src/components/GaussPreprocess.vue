@@ -52,6 +52,7 @@ import { findBlobs } from '../helpers/FindBlobs.js'
             
         },
         mounted() {
+            this.listeners();
             this.initCanvas();
             this.glur_module = require('glur')
             this.threshold_module = require('image-filter-threshold')
@@ -64,7 +65,9 @@ import { findBlobs } from '../helpers/FindBlobs.js'
             this.paper = Paper.setup(this.canvas);
 
             this.drawAccidents();
-            this.listeners();
+
+            // this.pipeline(completed)
+            
             
             // accidentData.accidents.map(d => {
             //     let accident_screen_pos = viewport.project([d.X, d.Y])
@@ -95,7 +98,7 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                 let screen_top_left = this.viewport.unproject([0, 0])
                 let screen_bottom_right = this.viewport.unproject([window.innerWidth, window.innerHeight])
 
-                accidentData.accidents.map(d => {
+                let results = accidentData.accidents.map(d => {
                     if (d.X > screen_top_left[0] && d.X < screen_bottom_right[0] && d.Y < screen_top_left[1] && d.Y > screen_bottom_right[1]) {
 
                         let accident_screen_pos = this.viewport.project([d.X, d.Y])
@@ -111,7 +114,14 @@ import { findBlobs } from '../helpers/FindBlobs.js'
 
                     this.accident_dots.push(accident_dot.blendMode)
                     }
+
                     
+                })
+                Promise.all(results).then((completed) => {
+                    setTimeout(() => {
+                        console.log('finished drawing')
+                        this.pipeline()
+                    }, 1)
                 })
             },
             clearCanvas() {
