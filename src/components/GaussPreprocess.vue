@@ -38,8 +38,8 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                 dot_intensity: 40/255,
                 glur_module: null,
                 threshold_module: null,
-                unit_threshold: 11, // 67 is the highest possible threshold to detect small overlaps. Making this value smaller loosens the 
-                area_threshold: 47, // this value controlls how generous the final areas will be drawn. Smaller values means larger areas for the clusters
+                unit_threshold: 12, // 67 is the highest possible threshold to detect small overlaps. Making this value smaller loosens the 
+                area_threshold: 43, // this value controlls how generous the final areas will be drawn. Smaller values means larger areas for the clusters
                 gauss_radius: 7,
                 canvas_height: 900, 
                 canvas_width: 888,
@@ -221,7 +221,7 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                     for (let c = 0; c < res[r].length; c++) {
                         if (res[r][c] > 0) {
                             let index = ((r * row_width + c) * 4) + 1 // GREEN channel
-                            imageData.data[index] = res[r][c] * 200
+                            imageData.data[index] = res[r][c] * 5
                         }
                     }
                 }
