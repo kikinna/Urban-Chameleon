@@ -285,14 +285,14 @@ export default {
       //console.log('aggrData bef bef', this.aggregatedData)
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
-        /* this.aggregatedData[i].nodesInNeighbourhood.forEach(n => {
+        this.aggregatedData[i].nodesInNeighbourhood.forEach(n => {
           let d = this.dataD3.accidents[n.indexInAccidentData]
           d.isInNeighbourhood = false
-          console.log('lkadflak', n)
+          /* console.log('lkadflak', n)
           d.x = n.x
-          d.y = n.y
+          d.y = n.y */
           // somehow set d.x to nodes actual position in the
-        }) */
+        })
         this.aggregatedData[i].nodesInNeighbourhood = []
       } //empty the array
       this.aggregatedData = []
