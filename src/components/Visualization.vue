@@ -145,17 +145,11 @@ export default {
       const viewport = getViewport(this.$store.state.map)
 
       this.nodes
-        .attr('cx', function(d) {
-          /* if (d.area) {
-            return
-          } */
+        .attr('cx', d => {
           d.x = viewport.project(d.forceGPS)[0]
           return d.x
         })
-        .attr('cy', function(d) {
-          /* if (d.area) {
-            return
-          } */
+        .attr('cy', d => {
           d.y = viewport.project(d.forceGPS)[1]
           return d.y
         })
@@ -177,17 +171,11 @@ export default {
       this.nodes
         //.transition(t)
         //d3.selectAll('.nodes')
-        .attr('cx', function(d) {
-          /* if (d.area) {
-            return
-          } */
+        .attr('cx', d => {
           d.forceGPS = viewport.unproject([d.x, d.y])
           return d.x
         })
-        .attr('cy', function(d) {
-          /* if (d.area) {
-            return
-          } */
+        .attr('cy', d => {
           return d.y
         })
 
@@ -297,10 +285,14 @@ export default {
       //console.log('aggrData bef bef', this.aggregatedData)
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
-        this.aggregatedData[i].nodesInNeighbourhood.forEach(n => {
+        /* this.aggregatedData[i].nodesInNeighbourhood.forEach(n => {
           let d = this.dataD3.accidents[n.indexInAccidentData]
           d.isInNeighbourhood = false
-        })
+          console.log('lkadflak', n)
+          d.x = n.x
+          d.y = n.y
+          // somehow set d.x to nodes actual position in the
+        }) */
         this.aggregatedData[i].nodesInNeighbourhood = []
       } //empty the array
       this.aggregatedData = []
@@ -514,12 +506,12 @@ export default {
           this.createAccidentDetail()
         }
 
-        this.calculateDistanceDeviation()
+        /* this.calculateDistanceDeviation()
         //d3.selectAll('polygon').remove()
         this.removeNeighbours()
         this.createNeighbours()
 
-        this.updateVisualizations()
+        this.updateVisualizations() */
       })
       this.$root.$on('map-click', () => {
         this.drawAggregatedVis()
@@ -545,6 +537,34 @@ export default {
         }
         return 'nodes'
       })
+
+      // animated transition of nodes in aggregated vis
+      // Possible shift to mounted? Maybe?
+      /* const t = d3
+        .transition()
+        .duration(2000)
+        .ease(d3.easeLinear)
+
+      const viewport = getViewport(this.$store.state.map)
+
+      this.nodes
+        .attr('cx', d => {
+          d.forceGPS = viewport.unproject([d.x, d.y])
+          return d.x
+        })
+        .attr('cy', d => d.y)
+
+      this.nodes
+
+        .transition(t)
+        .attr('cx', function(d) {
+          d.x = viewport.project(d.forceGPS)[0]
+          return d.x
+        })
+        .attr('cy', function(d) {
+          d.y = viewport.project(d.forceGPS)[1]
+          return d.y
+        }) */
     },
     //Prepareing things for new neighbourhood computing
     removeNeighbours() {
