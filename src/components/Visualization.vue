@@ -107,6 +107,9 @@ export default {
         .data(this.dataD3.accidents)
         .enter()
         .append('circle')
+        .each(d => {
+          d.isInNeighbourhood = false
+        })
         .attr('r', this.nodeRadius)
         .attr('fill', d => {
           if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
@@ -294,6 +297,10 @@ export default {
       //console.log('aggrData bef bef', this.aggregatedData)
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
+        this.aggregatedData[i].nodesInNeighbourhood.forEach(n => {
+          let d = this.dataD3.accidents[n.indexInAccidentData]
+          d.isInNeighbourhood = false
+        })
         this.aggregatedData[i].nodesInNeighbourhood = []
       } //empty the array
       this.aggregatedData = []
@@ -506,6 +513,13 @@ export default {
         if (this.$store.state.map.getZoom() > 17.8) {
           this.createAccidentDetail()
         }
+
+        this.calculateDistanceDeviation()
+        //d3.selectAll('polygon').remove()
+        this.removeNeighbours()
+        this.createNeighbours()
+
+        this.updateVisualizations()
       })
       this.$root.$on('map-click', () => {
         this.drawAggregatedVis()
@@ -752,18 +766,24 @@ export default {
               return d.pos[1] - this.aggregatedData[i].centerInPx[1]
             }
           })
-          .exit()
+
+        /* .exit()
           .each(d => {
             d.isInNeighbourhood = false
             let accidentNode = accidentData.accidents[d.indexInAccidentData]
             accidentNode.isInNeighbourhood = false
             delete accidentData.accidents[d.indexInAccidentData]
               .neighbourhoodPosition
+
+            console.log('exit d', d)
+            console.log('exit n', accidentNode)
           })
           .classed('neighbourhood', false)
           .classed('circlesInAggregatedVis', false)
           .classed('nodes', true)
-          .remove()
+          .attr('fill', 'black')
+          .attr('r', 50)
+          .remove() */
 
         this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
 
