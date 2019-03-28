@@ -105,7 +105,7 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                             (accident_screen_pos[0] / this.devicePixelRatio) * this.canvas_to_screen_ratio, 
                             (accident_screen_pos[1] / this.devicePixelRatio) * this.canvas_to_screen_ratio
                             ), 
-                        5  * this.canvas_to_screen_ratio)//8 / this.devicePixelRatio)
+                        5 )// * this.canvas_to_screen_ratio)//8 / this.devicePixelRatio)
                     accident_dot.fillColor = new Paper.Color(this.dot_intensity, 0, 0)
                     accident_dot.blendMode = 'add'
 
