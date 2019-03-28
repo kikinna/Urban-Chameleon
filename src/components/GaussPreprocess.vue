@@ -166,10 +166,11 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                         // --- 4. AREA THRESHOLD ---
                         that.threshold_module(glurred2_image, { threshold : that.area_threshold}, 4)
                             .then(function(result) {
-                                that.canvas_context.putImageData(result, 0, 0)
+                                // that.canvas_context.putImageData(result, 0, 0)
 
                                 // --- 5. BLOB DETECTION ---
-                                that.blobDetection();
+                                that.blobDetection(result);
+                                that.canvas_context.putImageData(that.$store.state.neighbourhoodImage, 0, 0)
                             })
                     })
             },
@@ -201,8 +202,8 @@ import { findBlobs } from '../helpers/FindBlobs.js'
             
             },
             
-            blobDetection() {
-                let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+            blobDetection(imageData) {
+                // let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
                 // let that = this;
                 let res = findBlobs(imageData)
 
@@ -216,7 +217,8 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                         }
                     }
                 }
-                this.canvas_context.putImageData(imageData, 0, 0)
+                // this.canvas_context.putImageData(imageData, 0, 0)
+                this.$store.commit('storeNeighbourhoodImage', imageData)
             }
         }
 

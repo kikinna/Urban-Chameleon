@@ -140,9 +140,9 @@ export function findBlobs(src) {
   }
   // The blobs may have unusual labels: [1,38,205,316,etc..]
   // Let's rename them: [1,2,3,4,etc..]
-  console.log('labelTable', labelTable)
+//   console.log('labelTable', labelTable)
   var uniqueLabels = unique(labelTable)
-  console.log('uniqueLabels', uniqueLabels)
+//   console.log('uniqueLabels', uniqueLabels)
   var i = 0
   for (label in uniqueLabels) {
     labelTable[label] = i++
