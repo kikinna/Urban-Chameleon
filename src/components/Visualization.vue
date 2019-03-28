@@ -222,6 +222,7 @@ export default {
             points: [...this.points], //all neighbourhood points
             anchorPoint: this.anchorPoint 
           }
+          neigh.points.push(this.anchorPoint)
           this.neighbourhood.push(neigh)
         }
         //this.points = []
