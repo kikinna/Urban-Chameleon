@@ -124,6 +124,10 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                     this.viewport = getViewport(this.$store.state.map);
                     this.drawAccidents()
                 })
+                this.$root.$on('map-moveend', () => {
+                    this.viewport = getViewport(this.$store.state.map);
+                    this.drawAccidents()
+                })
             },
             initCanvas() {
                 let w = window.innerWidth;
@@ -221,7 +225,7 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                     for (let c = 0; c < res[r].length; c++) {
                         if (res[r][c] > 0) {
                             let index = ((r * row_width + c) * 4) + 1 // GREEN channel
-                            imageData.data[index] = res[r][c] * 5
+                            imageData.data[index] = res[r][c] // * 5
                         }
                     }
                 }
