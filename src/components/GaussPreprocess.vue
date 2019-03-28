@@ -3,15 +3,15 @@
         <canvas id='paper-canvas' resize>
 
         </canvas>
-        <a class="button test" @click="glur" style="left: 10px;">Blur</a>
+        <!-- <a class="button test" @click="glur" style="left: 10px;">Blur</a>
         <a class="button test" @click="thresholdUnit" style="left: 68px;">Unit Threshold</a>
         <a class="button test" @click="thresholdArea" style="left: 202px;">Area Threshold</a>
         <a class="button test" @click="blobDetection" style="left: 341px; ">Blob Detection</a>
         
-        <a class="button is-dark" @click="pipeline" style="left: 10px; top: 100px; position: absolute">IP Pipeline</a>
+        <a class="button is-dark" @click="neighbourhoodProcessingPipeline" style="left: 10px; top: 100px; position: absolute">IP Pipeline</a>
 
         <a class="button test" @click="clearCanvas" style="left: 150px; top: 500px ">Clear Canvas</a>
-        <a class="button test" @click="drawAccidents" style="left: 10px; top: 500px ">Draw Accidents</a>
+        <a class="button test" @click="drawNeighbourhoodAdepts" style="left: 10px; top: 500px ">Draw Accidents</a> -->
     </div>
 </template>
 
@@ -60,44 +60,20 @@ import { findBlobs } from '../helpers/FindBlobs.js'
             window.addEventListener('mousedown', this.mouseMoved)
             this.viewport = getViewport(this.$store.state.map);
 
-            
-
             this.paper = Paper.setup(this.canvas);
 
-            this.drawAccidents();
-
-            // this.pipeline(completed)
-            
-            
-            // accidentData.accidents.map(d => {
-            //     let accident_screen_pos = viewport.project([d.X, d.Y])
-                
-            //     let accident_dot = new Paper.Path.Circle(
-            //         new Paper.Point(
-            //             (accident_screen_pos[0] / this.devicePixelRatio) * this.canvas_to_screen_ratio, 
-            //             (accident_screen_pos[1] / this.devicePixelRatio) * this.canvas_to_screen_ratio
-            //             ), 
-            //         5 * this.canvas_to_screen_ratio)//8 / this.devicePixelRatio)
-            //     accident_dot.fillColor = new Paper.Color(this.dot_intensity, 0, 0)
-            //     accident_dot.blendMode = 'add'
-
-            //     this.accident_dots.push(accident_dot.blendMode)
-            // })
-            
-            // var myCircle = new Paper.Path.Circle(new Paper.Point(51, 0), 50);
-            // myCircle.fillColor = new Paper.Color(0.5, 0, 0);
-            // Paper.view.draw();
-
+            this.drawNeighbourhoodAdepts();
 
         },
         methods: {
-            drawAccidents() {
-                console.log('redrawing')
+            drawNeighbourhoodAdepts() {
+                // console.log('redrawing')
                 this.clearCanvas();
 
                 let screen_top_left = this.viewport.unproject([0, 0])
                 let screen_bottom_right = this.viewport.unproject([window.innerWidth, window.innerHeight])
 
+                // Draw accidents (dots) into canvas
                 let results = accidentData.accidents.map(d => {
                     if (d.X > screen_top_left[0] && d.X < screen_bottom_right[0] && d.Y < screen_top_left[1] && d.Y > screen_bottom_right[1]) {
 
@@ -117,10 +93,11 @@ import { findBlobs } from '../helpers/FindBlobs.js'
 
                     
                 })
+                // 
                 Promise.all(results).then((completed) => {
                     setTimeout(() => {
-                        console.log('finished drawing')
-                        this.pipeline()
+                        // console.log('finished drawing')
+                        this.neighbourhoodProcessingPipeline()
                     }, 1)
                 })
             },
@@ -132,11 +109,11 @@ import { findBlobs } from '../helpers/FindBlobs.js'
             listeners() {
                 this.$root.$on('map-zoomend', () => {
                     this.viewport = getViewport(this.$store.state.map);
-                    this.drawAccidents()
+                    this.drawNeighbourhoodAdepts()
                 })
                 this.$root.$on('map-moveend', () => {
                     this.viewport = getViewport(this.$store.state.map);
-                    this.drawAccidents()
+                    this.drawNeighbourhoodAdepts()
                 })
             },
             initCanvas() {
@@ -164,7 +141,7 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                 var b = canvasColor[2];
                 console.log(event.clientX, event.clientY, '-',  r, g, b)
             },
-            pipeline() {
+            neighbourhoodProcessingPipeline() {
                 let that = this;
                 let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
 
