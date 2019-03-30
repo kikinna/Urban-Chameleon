@@ -51,10 +51,9 @@ export default {
       simulation: null, // accident data force simulation
       svg: null,
       nodes: null, //accident nodes
-      polygons: null, 
+      polygons: null,
       tooltip: null,
       tree: [],
-
       nodeRadius: 5,
       isAggrVisActive: false,
       recompute: false, //variable for recomputing neighbourhoods after moved map
@@ -73,12 +72,10 @@ export default {
     this.allData = accidentData.accidents
     //let count = 0
     for (var i = 0; i < accidentData.accidents.length; i++) {
-      accidentData.accidents[i].theNeighbourhood = null; 
-      accidentData.accidents[i].index = i;
-      
+      accidentData.accidents[i].theNeighbourhood = null
+      accidentData.accidents[i].index = i
     }
     this.createNeighbours()
-    
   },
   methods: {
     //force layout initialisation (svg, nodes, simulation)
@@ -135,79 +132,48 @@ export default {
           /* console.log( 'deviation', d.deviation, ' but is it too far? ', d.tooFar ) */
           // this.calculateDistanceDeviation()
         })
-      
+
       this.tooltip = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
-        .append('div')	
-        .attr('class', 'tooltip')				
+        .append('div')
+        .attr('class', 'tooltip')
         .style('opacity', 0)
 
-
-      this.simulation = d3
-        .forceSimulation()
-        //.polygons(this.neighbour)
-        .nodes(this.dataD3.accidents)
-        /* .force('collide',d3.forceCollide().radius(this.nodeRadius * 2).strength(1).iterations(1)) */
-        //.polygons(this.neighbour)
-        .on('tick', this.tick)
-        .on('end', this.end)
+      // this.simulation = d3
+      //   .forceSimulation()
+      //   //.polygons(this.neighbour)
+      //   .nodes(this.dataD3.accidents)
+      //   /* .force('collide',d3.forceCollide().radius(this.nodeRadius * 2).strength(1).iterations(1)) */
+      //   //.polygons(this.neighbour)
+      //   .on('tick', this.tick)
+      //   .on('end', this.end)
     },
-    //force layout update, called on zoom and move
+    //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateD3() {
       const viewport = getViewport(this.$store.state.map)
 
       this.nodes
         .attr('cx', d => {
-          d.x = viewport.project(d.forceGPS)[0]
-          return d.x
-        })
-        .attr('cy', d => {
-          d.y = viewport.project(d.forceGPS)[1]
-          return d.y
-        })
-
-      //this.calculateDistanceDeviation()
-
-      this.simulation.alpha(0.1).restart()
-    },
-    //accident's simulation tick
-    tick() {
-      // this.calculateDistanceDeviation()
-      const viewport = getViewport(this.$store.state.map)
-
-      /* const t = d3
-        .transition()
-        //.duration(0)
-        .ease(d3.easeLinear) */
-
-      let that = this
-      //let timeout = null
-      this.nodes
-        //.transition(t)
-        //d3.selectAll('.nodes')
-        .attr('cx', d => {
-          d.forceGPS = viewport.unproject([d.x, d.y])
+          d.forceGPS = viewport.unproject([d.x, d.y]) //probably not needed
+          d.pos = viewport.project([d.X, d.Y])
+          d.x = d.pos[0]
+          d.y = d.pos[1]
           return d.x
         })
         .attr('cy', d => {
           return d.y
         })
-        .on('click', d=> {	
-          that.tooltip	
-            .style('opacity', 1.0)		
-            .html(d.Type)	
-            .style('left', (d3.event.pageX) + 'px')		
-            .style('top', (d3.event.pageY - 28) + 'px');
-          })					
-        .on('mouseout', d=> {	
-          //this.tooltip.hide)
+        .on('click', d => {
           this.tooltip
-            .style('opacity',0)
+            .style('opacity', 1.0)
+            .html(d.Type)
+            .style('left', d3.event.pageX + 'px')
+            .style('top', d3.event.pageY - 28 + 'px')
         })
-
-      if ( this.recompute) {
-        this.makeNeighbourPolygons()
-      }
+        .on('mouseout', d => {
+          //this.tooltip.hide)
+          this.tooltip.style('opacity', 0)
+        })
     },
     computeNeighbourhoods() {
       this.startingPoints.forEach(o => {
@@ -220,7 +186,7 @@ export default {
           let neigh = {
             hullPoints: hull, //convexhull points
             points: [...this.points], //all neighbourhood points
-            anchorPoint: this.anchorPoint 
+            anchorPoint: this.anchorPoint
           }
           neigh.points.push(this.anchorPoint)
           this.neighbourhood.push(neigh)
@@ -274,16 +240,15 @@ export default {
         .style('fill', '#60bac668')
         .style('stroke', '567985cc')
         .style('strokeWidth', '2px')
-        .on('click', d => {	
+        .on('click', d => {
           this.tooltip
-            .style('opacity', 1.0)		
-            .html('Number of accidents in this area: ' + d.points.length)	
-            .style('left', (d3.event.pageX) + 'px')		
-            .style('top', (d3.event.pageY - 28) + 'px');
-        })					
-        .on('mouseout', d=> {	
-          this.tooltip
-            .style('opacity',0)
+            .style('opacity', 1.0)
+            .html('Number of accidents in this area: ' + d.points.length)
+            .style('left', d3.event.pageX + 'px')
+            .style('top', d3.event.pageY - 28 + 'px')
+        })
+        .on('mouseout', d => {
+          this.tooltip.style('opacity', 0)
         })
     },
     //accident's simulation end
@@ -519,11 +484,12 @@ export default {
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
-        // d3.selectAll('.neighbourhood').classed('neighbourhood', false)
+        //this.moveVisualizations()
         this.updateD3() //this.updateVisualizations()
         //d3.selectAll('polygon').remove()
       })
       this.$root.$on('map-move', () => {
+        //this.moveVisualizations()
         this.updateD3() //this.updateVisualizations()
       })
       //just end events
@@ -553,6 +519,11 @@ export default {
       this.$root.$on('map-click', () => {
         this.drawAggregatedVis()
       })
+    },
+    moveVisualizations() {
+      this.updateD3()
+      //this.drawPolygon()
+      this.makeNeighbourPolygons()
     },
     updateVisualizations() {
       this.updateD3()
@@ -695,16 +666,15 @@ export default {
         .attr('transform', d => {
           return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
         })
-        .on('click', d=> {	
-            this.tooltip	
-              .style('opacity', 1.0)		
-              .html(d.Type)	
-              .style('left', (d3.event.pageX) + 'px')		
-              .style('top', (d3.event.pageY - 28) + 'px');
-          })					
-        .on('mouseout', d=> {	
+        .on('click', d => {
           this.tooltip
-            .style('opacity',0)
+            .style('opacity', 1.0)
+            .html(d.Type)
+            .style('left', d3.event.pageX + 'px')
+            .style('top', d3.event.pageY - 28 + 'px')
+        })
+        .on('mouseout', d => {
+          this.tooltip.style('opacity', 0)
         })
 
       // For testing of neighbourhood group elements
@@ -857,14 +827,12 @@ export default {
 
         this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
 
-        //this.neighbourhoodNodesInSVG[i]
         d3.select('#neighbourhood-' + this.aggregatedData[i].id)
           .selectAll('circle.circlesInAggregatedVis')
           .transition(t)
           .each(d => {
             let gridpoint = occupyNearest(d, this.grid_cells[i])
             if (gridpoint) {
-              //console.log('d before', d)
               let newX = gridpoint.x
               let newY = gridpoint.y
 
@@ -879,8 +847,6 @@ export default {
           })
           .attr('cx', d => d.x)
           .attr('cy', d => d.y)
-
-        //console.log('nodes after', this.neighbourhoodNodesInSVG)
       } //end of the extra big for cycle
     }
   }, // end of methods
@@ -913,83 +879,6 @@ export default {
     }
   }
 }
-
-/*
-.join(
-            enter =>
-              enter
-                .append('circle')
-                .attr('class', 'circlesInAggregatedVis')
-                .attr('r', 5)
-                .attr('fill', d => {
-                  return colorScale(d.DruhNehody)
-                })
-                .attr('cx', d => {
-                  if (d.neighbourhoodPosition) {
-                    //console.log('already in', d)
-                    d.x = d.neighbourhoodPosition[0]
-                    return d.x
-                  } else {
-                    //console.log('newbie', d.x, d.pos)
-                    d.pos = viewport.project([d.X, d.Y])
-                    d.x = d.pos[0]
-                    //console.log(d.x, d.pos)
-                    return d.pos[0] - this.aggregatedData[i].centerInPx[0]
-                  }
-                })
-                .attr('cy', d => {
-                  if (d.neighbourhoodPosition) {
-                    d.y = d.neighbourhoodPosition[1]
-                    return d.y
-                  } else {
-                    d.y = d.pos[1]
-                    return d.pos[1] - this.aggregatedData[i].centerInPx[1]
-                  }
-                }),
-            update =>
-              update
-                .attr('cx', d => {
-                  if (d.neighbourhoodPosition) {
-                    //console.log('already in', d)
-                    d.x = d.neighbourhoodPosition[0]
-                    return d.x
-                  } else {
-                    //console.log('newbie')
-                    d.pos = viewport.project([d.X, d.Y])
-                    d.x = d.pos[0]
-                    return d.pos[0] - this.aggregatedData[i].centerInPx[0]
-                  }
-                })
-                .attr('cy', d => {
-                  if (d.neighbourhoodPosition) {
-                    d.y = d.neighbourhoodPosition[1]
-                    return d.y
-                  } else {
-                    d.y = d.pos[1]
-                    return d.pos[1] - this.aggregatedData[i].centerInPx[1]
-                  }
-                }),
-            exit =>
-              exit
-                .each(d => {
-                  d.isInNeighbourhood = false
-                  let accidentNode =
-                    accidentData.accidents[d.indexInAccidentData]
-                  accidentNode.isInNeighbourhood = false
-                  console.log('exit', d)
-                  console.log(
-                    'exit',
-                    accidentData.accidents[d.indexInAccidentData]
-                  )
-                  delete accidentData.accidents[d.indexInAccidentData]
-                    .neighbourhoodPosition
-                })
-                .classed('neighbourhood', false)
-                .classed('circlesInAggregatedVis', false)
-                .classed('nodes', true)
-                .remove()
-          )
-*/
 </script>
 
 <style>
@@ -1008,19 +897,19 @@ export default {
   stroke-width: 2px;
 }
 
-.tooltip {	
-  position: absolute;	
-  text-align: center;			
-  width: 90px;					
-  height: 50px;					
-  padding: 2px;				
+.tooltip {
+  position: absolute;
+  text-align: center;
+  width: 90px;
+  height: 50px;
+  padding: 2px;
   font: 12px 'Avenir';
-  font-weight: 470;		
-  background: #f4f5f4ee;	
-  border: 0px;		
-  border-radius: 8px;			
-  pointer-events: none;	
-  transform: translate(4px, -25px);	
+  font-weight: 470;
+  background: #f4f5f4ee;
+  border: 0px;
+  border-radius: 8px;
+  pointer-events: none;
+  transform: translate(4px, -25px);
 }
 
 #main_svg {
