@@ -76,6 +76,7 @@ export default {
       accidentData.accidents[i].index = i
     }
     this.createNeighbours()
+    
   },
   methods: {
     //force layout initialisation (svg, nodes, simulation)
@@ -148,6 +149,47 @@ export default {
       //   .on('tick', this.tick)
       //   .on('end', this.end)
     },
+    listeners() {
+      //all events
+      this.$root.$on('map-zoom', () => {
+        // this.updateD3()
+        // d3.selectAll('polygon').remove()
+        this.moveVisualizations()
+        this.updateVisualizations()
+        
+      })
+      this.$root.$on('map-move', () => {
+        this.moveVisualizations()
+        this.updateVisualizations()
+      })
+      //just end events
+      this.$root.$on('map-zoomend', () => {
+        this.calculateDistanceDeviation()
+        this.removeNeighbours() 
+        this.createNeighbours() //compute new neighbourhoods, make and draw polygons
+        this.updateVisualizations()
+      })
+      this.$root.$on('map-moveend', () => {
+        this.calculateDistanceDeviation()
+        //when zoom is big enough (https://www.youtube.com/watch?v=CCVdQ8xXBfk) , cards about accident detail are shown
+        if (this.$store.state.map.getZoom() > 18.5) {
+          this.createAccidentDetail()
+        }
+
+        /* this.calculateDistanceDeviation()
+        this.removeNeighbours()
+        this.createNeighbours()
+
+        this.updateVisualizations() */
+      })
+      this.$root.$on('map-click', () => {
+        this.drawAggregatedVis()
+      })
+    },
+    moveVisualizations() {
+      this.updateD3()
+      this.drawPolygon()
+    },
     //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateD3() {
       const viewport = getViewport(this.$store.state.map)
@@ -175,6 +217,73 @@ export default {
           this.tooltip.style('opacity', 0)
         })
     },
+    updateVisualizations() {
+      this.updateD3()
+      //this.drawPolygon()
+      //this.updateAggregatedVis()
+      if (!this.isAggrVisActive) {
+        this.drawAggregatedVis()
+        this.isAggrVisActive = true
+      } else {
+        this.updateAggregatedVis()
+      }
+      //TODO: remove visualisations and set this.isAggrVisActive to false on some zoom level
+
+      //making nodes included in aggregated vis invisible in map
+      this.nodes.attr('class', d => {
+        if (d.isInNeighbourhood) {
+          return 'neighbourhood'
+        }
+        return 'nodes'
+      })
+
+      // animated transition of nodes in aggregated vis
+      // Possible shift to mounted? Maybe?
+      /* const t = d3
+        .transition()
+        .duration(2000)
+        .ease(d3.easeLinear)
+
+      const viewport = getViewport(this.$store.state.map)
+
+      this.nodes
+        .attr('cx', d => {
+          d.forceGPS = viewport.unproject([d.x, d.y])
+          return d.x
+        })
+        .attr('cy', d => d.y)
+
+      this.nodes
+
+        .transition(t)
+        .attr('cx', function(d) {
+          d.x = viewport.project(d.forceGPS)[0]
+          return d.x
+        })
+        .attr('cy', function(d) {
+          d.y = viewport.project(d.forceGPS)[1]
+          return d.y
+        }) */
+    },
+    //prepareing things for new neighbourhoods calculating
+     makeNeighbourPolygons() {
+      this.recompute = false
+      this.reverse = false
+      this.anchorPoint = null
+      //this.points = []
+      //this.neighbour = []
+      while (this.neighbourhood.length > 0) {
+        //TODO???
+        this.points.pop()
+        this.neighbourhood.pop()
+      } //empty the array
+      while (this.points.length > 0) {
+        this.points.pop()
+      } //empty the array
+      this.computeNeighbourhoods()
+      this.drawPolygon()
+    },
+    //calculating neighbourhoods (right now from inserted 2 points, but it should start from one of points where houseparty has begun)
     computeNeighbourhoods() {
       this.startingPoints.forEach(o => {
         //mark all points which belonge to neighbouhood (attribute theNeighbourhood) and add to point array
@@ -199,27 +308,9 @@ export default {
         this.anchorPoint = null
       })
     },
-    makeNeighbourPolygons() {
-      this.recompute = false
-      this.reverse = false
-      this.anchorPoint = null
-      //this.points = []
-      //this.neighbour = []
-      while (this.neighbourhood.length > 0) {
-        //TODO???
-        this.points.pop()
-        this.neighbourhood.pop()
-      } //empty the array
-      while (this.points.length > 0) {
-        this.points.pop()
-      } //empty the array
-      this.computeNeighbourhoods()
-      this.drawPolygon()
-    },
-    //create polygon from convex hull array
+    //make polygon from convex hull array
     drawPolygon() {
       d3.selectAll('polygon').remove()
-      //this.polygons =
       this.polygons
         .selectAll('polygon')
         .data(this.neighbourhood)
@@ -273,7 +364,6 @@ export default {
         //console.log(distanceInMeters)
         d.tooFar = distanceInMeters > 0.000001 // currentDistance > 0.000000001 //this.distanceLimit
       })
-
       this.nodes.attr('fill', d => {
         if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
           return '#487284d2'
@@ -341,6 +431,66 @@ export default {
       }
       //console.log('aggrData af', this.aggregatedData)
     },
+    //initialisation of grid for aggregated visualization (house parties)
+    initGrid(arrayLength) {
+      const CELL_SIZE = 10
+      const GRID_COLS = 5
+      const GRID_ROWS = Math.ceil(arrayLength / GRID_COLS)
+
+      const currentCells = []
+
+      for (var r = 0; r < GRID_ROWS; r++) {
+        for (var c = 0; c < GRID_COLS; c++) {
+          if (arrayLength <= 0) break
+          var cell
+          cell = {
+            x: c * CELL_SIZE,
+            y: GRID_COLS - r * CELL_SIZE,
+            occupied: false
+          }
+          currentCells.push(cell)
+          arrayLength--
+        }
+      }
+
+      this.grid_cells.push(currentCells)
+    },
+    //Prepareing things for new neighbourhood computing
+    removeNeighbours() {
+      accidentData.accidents.forEach(o => {
+        o.theNeighbourhood = null
+      })
+      this.startingPoints = []
+    },
+    //Method for hardpushing points to visualise 2 neighbourhood polygons
+    createNeighbours() {
+      this.startingPoints.push(1199)
+      this.startingPoints.push(478)
+      accidentData.accidents[1199].theNeighbourhood =
+        accidentData.accidents[1199].OBJECTID
+      accidentData.accidents[478].theNeighbourhood =
+        accidentData.accidents[478].OBJECTID
+      this.makeNeighbourPolygons()
+    },
+    getNeighbours(obj) {
+      let posiP2 = []
+      this.addPoint(obj.index)
+      let r = 22 //TODO zistit ako dostat presne cisla a ako to menit podla zoomu
+
+      //looking through all points in data if its in close neighbourhood, if yes counting close neighbourhood also for them...
+      accidentData.accidents.forEach(o => {
+        if (o.theNeighbourhood == null && o != obj) {
+          let inNeighbour = Math.sqrt(
+            Math.pow(obj.x - o.x, 2) + Math.pow(obj.y - o.y, 2)
+          )
+          if (inNeighbour <= r) {
+            o.theNeighbourhood = obj.theNeighbourhood
+            this.getNeighbours(o)
+          }
+        }
+      })
+      this.colorNeighbourPoints()
+    },
     getNeighbourhoodCenter(neighbourhood) {
       let viewport = getViewport(this.$store.state.map)
       let minX = Infinity
@@ -369,25 +519,6 @@ export default {
       neighbourhood.centerInGPS = [shiftX, shiftY]
       neighbourhood.centerInPx = viewport.project([shiftX, shiftY])
     },
-    getNeighbours(obj) {
-      let posiP2 = []
-      this.addPoint(obj.index)
-      let r = 22 //TODO zistit ako dostat presne cisla a ako to menit podla zoomu
-
-      //looking through all points in data if its in close neighbourhood, if yes counting close neighbourhood also for them...
-      accidentData.accidents.forEach(o => {
-        if (o.theNeighbourhood == null && o != obj) {
-          let inNeighbour = Math.sqrt(
-            Math.pow(obj.x - o.x, 2) + Math.pow(obj.y - o.y, 2)
-          )
-          if (inNeighbour <= r) {
-            o.theNeighbourhood = obj.theNeighbourhood
-            this.getNeighbours(o)
-          }
-        }
-      })
-      this.colorNeighbourPoints()
-    },
     colorNeighbourPoints() {
       this.nodes.attr('fill', d => {
         if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
@@ -396,39 +527,6 @@ export default {
         return 'black'
       })
     },
-    addPoint(index) {
-      let point = accidentData.accidents[index]
-      let anchorP = accidentData.accidents[this.anchorPoint]
-      //check if this point will be new anchor point
-      if (
-        this.anchorPoint === null ||
-        point.Y < anchorP.Y ||
-        (point.Y === anchorP.Y && anchorP.X > point.X)
-      ) {
-        if (this.anchorPoint !== null) {
-          this.points.push(this.anchorPoint)
-        }
-        this.anchorPoint = index
-      } else {
-        this.points.push(index)
-      }
-    },
-
-    findPolarAngle(anchor, p) {
-      let deltaX = null
-      let deltaY = null
-
-      let point = accidentData.accidents[p]
-      let anchorP = accidentData.accidents[anchor]
-      deltaX = point.X - anchorP.X
-      deltaY = point.Y - anchorP.Y
-
-      if (deltaX == 0 && deltaY == 0) {
-        return 0
-      }
-      return getAngle(deltaX, deltaY, this)
-    },
-
     getHull() {
       let hullPoints = []
       let pointis = []
@@ -481,118 +579,37 @@ export default {
         }
       }
     },
-    listeners() {
-      //all events
-      this.$root.$on('map-zoom', () => {
-        //this.moveVisualizations()
-        this.updateD3() //this.updateVisualizations()
-        //d3.selectAll('polygon').remove()
-      })
-      this.$root.$on('map-move', () => {
-        //this.moveVisualizations()
-        this.updateD3() //this.updateVisualizations()
-      })
-      //just end events
-      this.$root.$on('map-zoomend', () => {
-        this.calculateDistanceDeviation()
-        //d3.selectAll('polygon').remove()
-        this.removeNeighbours()
-        this.createNeighbours()
-
-        this.updateVisualizations()
-      })
-      this.$root.$on('map-moveend', () => {
-        this.calculateDistanceDeviation()
-
-        //when zoom is big enough (https://www.youtube.com/watch?v=CCVdQ8xXBfk) , cards about accident detail are shown
-        if (this.$store.state.map.getZoom() > 18.5) {
-          this.createAccidentDetail()
+    addPoint(index) {
+      let point = accidentData.accidents[index]
+      let anchorP = accidentData.accidents[this.anchorPoint]
+      //check if this point will be new anchor point
+      if (
+        this.anchorPoint === null ||
+        point.Y < anchorP.Y ||
+        (point.Y === anchorP.Y && anchorP.X > point.X)
+      ) {
+        if (this.anchorPoint !== null) {
+          this.points.push(this.anchorPoint)
         }
-
-        /* this.calculateDistanceDeviation()
-        //d3.selectAll('polygon').remove()
-        this.removeNeighbours()
-        this.createNeighbours()
-
-        this.updateVisualizations() */
-      })
-      this.$root.$on('map-click', () => {
-        this.drawAggregatedVis()
-      })
-    },
-    moveVisualizations() {
-      this.updateD3()
-      //this.drawPolygon()
-      this.makeNeighbourPolygons()
-    },
-    updateVisualizations() {
-      this.updateD3()
-      // this.drawPolygon()
-      this.makeNeighbourPolygons()
-      //this.updateAggregatedVis()
-      if (!this.isAggrVisActive) {
-        this.drawAggregatedVis()
-        this.isAggrVisActive = true
+        this.anchorPoint = index
       } else {
-        this.updateAggregatedVis()
+        this.points.push(index)
       }
-      //TODO: remove visualisations and set this.isAggrVisActive to false on some zoom level
-
-      //making nodes included in aggregated vis invisible in map
-      this.nodes.attr('class', d => {
-        if (d.isInNeighbourhood) {
-          return 'neighbourhood'
-        }
-        return 'nodes'
-      })
-
-      // animated transition of nodes in aggregated vis
-      // Possible shift to mounted? Maybe?
-      /* const t = d3
-        .transition()
-        .duration(2000)
-        .ease(d3.easeLinear)
-
-      const viewport = getViewport(this.$store.state.map)
-
-      this.nodes
-        .attr('cx', d => {
-          d.forceGPS = viewport.unproject([d.x, d.y])
-          return d.x
-        })
-        .attr('cy', d => d.y)
-
-      this.nodes
-
-        .transition(t)
-        .attr('cx', function(d) {
-          d.x = viewport.project(d.forceGPS)[0]
-          return d.x
-        })
-        .attr('cy', function(d) {
-          d.y = viewport.project(d.forceGPS)[1]
-          return d.y
-        }) */
     },
-    //Prepareing things for new neighbourhood computing
-    removeNeighbours() {
-      accidentData.accidents.forEach(o => {
-        o.theNeighbourhood = null
-      })
-      this.startingPoints = []
-    },
+    findPolarAngle(anchor, p) {
+      let deltaX = null
+      let deltaY = null
 
-    //Method for hardpushing points to visualise 2 neighbourhood polygons
-    createNeighbours() {
-      this.startingPoints.push(1199)
-      this.startingPoints.push(478)
-      accidentData.accidents[1199].theNeighbourhood =
-        accidentData.accidents[1199].OBJECTID
-      accidentData.accidents[478].theNeighbourhood =
-        accidentData.accidents[478].OBJECTID
-      this.recompute = true
-    },
+      let point = accidentData.accidents[p]
+      let anchorP = accidentData.accidents[anchor]
+      deltaX = point.X - anchorP.X
+      deltaY = point.Y - anchorP.Y
 
+      if (deltaX == 0 && deltaY == 0) {
+        return 0
+      }
+      return getAngle(deltaX, deltaY, this)
+    },
     //when proper zoom, find indicies of accidents which detail should be visualised
     createAccidentDetail() {
       this.detailAccidents = []
@@ -609,30 +626,6 @@ export default {
           this.detailAccidents.push(o.index)
         }
       })
-    },
-    //initialisation of grid for aggregated visualization (house parties)
-    initGrid(arrayLength) {
-      const CELL_SIZE = 10
-      const GRID_COLS = 5
-      const GRID_ROWS = Math.ceil(arrayLength / GRID_COLS)
-
-      const currentCells = []
-
-      for (var r = 0; r < GRID_ROWS; r++) {
-        for (var c = 0; c < GRID_COLS; c++) {
-          if (arrayLength <= 0) break
-          var cell
-          cell = {
-            x: c * CELL_SIZE,
-            y: GRID_COLS - r * CELL_SIZE,
-            occupied: false
-          }
-          currentCells.push(cell)
-          arrayLength--
-        }
-      }
-
-      this.grid_cells.push(currentCells)
     },
     drawAggregatedVis() {
       this.initAggregatedVisData()
