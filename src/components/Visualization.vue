@@ -53,7 +53,10 @@ export default {
       nodes: null, //accident nodes
       polygons: null,
       tooltip: null,
+      kdLibrary: [],
+      kdData:[],
       tree: [],
+      onScreenPoints: [],
       nodeRadius: 5,
       isAggrVisActive: false,
       recompute: false, //variable for recomputing neighbourhoods after moved map
@@ -65,6 +68,7 @@ export default {
     //this.loadData()
     this.$store.state.map.getCanvasContainer().style.cursor = 'default'
     this.dataD3 = accidentData
+    this.kdData = [...accidentData.accidents]
     this.render()
     this.listeners()
 
@@ -75,6 +79,17 @@ export default {
       accidentData.accidents[i].theNeighbourhood = null
       accidentData.accidents[i].index = i
     }
+
+    accidentData.accidents.forEach(o => {
+      o.screen = null
+      this.onScreenPoints.forEach(d => {
+        //console.log(d)
+        if(o.OBJECTID == d.OBJECTID){
+          o.screen = 1
+        }
+      })
+    })
+
     this.createNeighbours()
     
   },
@@ -83,6 +98,30 @@ export default {
     render() {
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+
+      function distance(a, b) {
+        let lat1 = a.Y;
+        let lon1 = a.X;
+        let lat2 = b.Y;
+        let lon2 = b.X;
+        let rad = Math.PI/180;
+        let dLat = (lat2-lat1)*rad;
+        let dLon = (lon2-lon1)*rad;
+        lat1 = lat1*rad;
+        lat2 = lat2*rad;
+        let x = Math.sin(dLat/2);
+        let y = Math.sin(dLon/2);
+        let res = x*x + y*y * Math.cos(lat1) * Math.cos(lat2);
+        return Math.atan2(Math.sqrt(res), Math.sqrt(1-res));
+      }
+      this.kdLibrary = require('kd-tree-javascript')
+      this.tree = new this.kdLibrary.kdTree(this.kdData, distance, ["X", "Y"]);
+      this.accidentsOnScreen(this.tree.root)
+      for (let i = 0; i < this.onScreenPoints.length; i++) {
+        this.onScreenPoints[i].theNeighbourhood = null; 
+        this.onScreenPoints[i].index = i;
+      }
+      console.log(this.onScreenPoints)
 
       this.svg = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
@@ -115,10 +154,14 @@ export default {
         })
         .attr('r', this.nodeRadius)
         .attr('fill', d => {
-          if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
-            return '#487284d2'
+          if(d.screen == 1){
+            return '#8ca9a8'
           }
-          return colorScale(d.Type) //'black'
+          return 'black'
+          // if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
+          //   return '#487284d2'
+          // }
+          // return colorScale(d.Type) //'black'
         })
         .attr('cx', d => {
           d.pos = viewport.project([d.X, d.Y])
@@ -156,11 +199,13 @@ export default {
         // d3.selectAll('polygon').remove()
         this.moveVisualizations()
         this.updateVisualizations()
+        //this.kdTreepoints()
         
       })
       this.$root.$on('map-move', () => {
         this.moveVisualizations()
         this.updateVisualizations()
+        //this.kdTreepoints()
       })
       //just end events
       this.$root.$on('map-zoomend', () => {
@@ -185,6 +230,24 @@ export default {
       this.$root.$on('map-click', () => {
         this.drawAggregatedVis()
       })
+    },
+    kdTreepoints(){
+      this.onScreenPoints = []
+        this.accidentsOnScreen(this.tree.root)
+        for (let i = 0; i < this.onScreenPoints.length; i++) {
+          this.onScreenPoints[i].theNeighbourhood = null; 
+          this.onScreenPoints[i].index = i;
+        }
+        accidentData.accidents.forEach(o => {
+          o.screen = 0
+          this.onScreenPoints.forEach(d => {
+            //console.log(d)
+            if(o.OBJECTID == d.OBJECTID){
+              o.screen = 1
+            }
+          })
+        })
+        console.log(this.onScreenPoints)
     },
     moveVisualizations() {
       this.updateD3()
@@ -365,10 +428,14 @@ export default {
         d.tooFar = distanceInMeters > 0.000001 // currentDistance > 0.000000001 //this.distanceLimit
       })
       this.nodes.attr('fill', d => {
-        if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
-          return '#487284d2'
-        }
-        return 'black'
+        if(d.screen == 1){
+            return '#8ca9a8'
+          }
+          return 'black'
+        // if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
+        //   return '#487284d2'
+        // }
+        // return 'black'
       })
     },
     //should work with array of node indexes from convex hull
@@ -521,10 +588,14 @@ export default {
     },
     colorNeighbourPoints() {
       this.nodes.attr('fill', d => {
-        if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
-          return '#487284d2'
-        }
-        return 'black'
+        if(d.screen == 1){
+            return '#8ca9a8'
+          }
+          return 'black'
+        // if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
+        //   return '#487284d2'
+        // }
+        // return 'black'
       })
     },
     getHull() {
@@ -841,7 +912,72 @@ export default {
           .attr('cx', d => d.x)
           .attr('cy', d => d.y)
       } //end of the extra big for cycle
-    }
+    },
+    accidentsOnScreen(node){
+      let viewport = getViewport(this.$store.state.map)
+      let n = viewport.project([node.obj.X, node.obj.Y])
+      if(node.left == null && node.right == null){
+        if(n[0] >= 0 && n[0] <= window.innerWidth && n[1] >= 0 && n[1] <= window.innerHeight){
+          this.onScreenPoints.push(node.obj)
+        }
+        return
+      }
+      if(node.dimension % 2 == 0){
+        if(n[0] < 0 && (node.right != null || node.left != null)){
+          if(node.right!== null){
+            this.accidentsOnScreen(node.right)
+          }
+          if(node.left!== null){
+            this.accidentsOnScreen(node.left)
+          }
+        }else if(n[0] > window.innerWidth && (node.right != null || node.left != null)){
+          if(node.right!== null){
+            this.accidentsOnScreen(node.right)
+          }
+          if(node.left!== null){
+            this.accidentsOnScreen(node.left)
+          }
+        }else{
+          if(n[1]>=0 && n[1]<= window.innerHeight){
+            this.onScreenPoints.push(node.obj)
+          }
+          if(node.left != null){
+            this.accidentsOnScreen(node.left)
+          }
+          if(node.right != null){
+            this.accidentsOnScreen(node.right)
+          }
+        }
+      }else{
+        if(n[1] < 0 && (node.right != null || node.left != null)){
+          if(node.right!== null){
+            this.accidentsOnScreen(node.right)
+          }
+          if(node.left!== null){
+            this.accidentsOnScreen(node.left)
+          }
+        }else if(n[1] > window.innerHeight && (node.right != null || node.left != null)){
+          if(node.right!== null){
+            this.accidentsOnScreen(node.right)
+          }
+          if(node.left!== null){
+            this.accidentsOnScreen(node.left)
+          }
+        }else{
+          if(n[0]>=0 && n[0]<= window.innerWidth){
+            this.onScreenPoints.push(node.obj)
+          }
+          if(node.left!= null){
+            this.accidentsOnScreen(node.left)
+          }
+          if(node.right!= null){
+            this.accidentsOnScreen(node.right)
+          }
+        }
+      }
+      
+      
+    },
   }, // end of methods
   computed: {
     computedNodes: function() {
@@ -852,10 +988,14 @@ export default {
         this.nodes
           .attr('r', this.nodeRadius)
           .attr('fill', d => {
-            if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
-              return '#487284d2'
+            if(d.screen == 1){
+              return '#8ca9a8'
             }
-            return colorScale(d.Type) //'black'
+            return 'black'
+            // if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
+            //   return '#487284d2'
+            // }
+            // return colorScale(d.Type) //'black'
           })
           .attr('cx', d => {
             d.pos = viewport.project([d.X, d.Y])
