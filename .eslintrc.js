@@ -1,20 +1,20 @@
 module.exports = {
-  root: true,
-  env: {
-    node: true
+  'env': {
+    'browser': true,
+    'es6': true
   },
-  extends: [
-    'plugin:vue/essential',
-    'plugin:prettier/recommended',
-    'eslint:recommended'
+  'extends': 'standard',
+  'globals': {
+    'Atomics': 'readonly',
+    'SharedArrayBuffer': 'readonly'
+  },
+  'parserOptions': {
+    'ecmaVersion': 2018,
+    'sourceType': 'module'
+  },
+  'plugins': [
+    'vue'
   ],
-  rules: {
-    'no-console': 'off',
-    'no-debugger': 'off',
-    'vue/no-unused-vars': 'warning',
-    'vue/valid-v-html': 'warning'
-  },
-  parserOptions: {
-    parser: 'babel-eslint'
+  'rules': {
   }
 }

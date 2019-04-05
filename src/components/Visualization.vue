@@ -76,7 +76,6 @@ export default {
       accidentData.accidents[i].index = i
     }
     this.createNeighbours()
-    
   },
   methods: {
     //force layout initialisation (svg, nodes, simulation)
@@ -102,6 +101,12 @@ export default {
       this.polygons = this.svg.append('g')
 
       // this.calculateDistanceDeviation()
+
+      this.tooltip = d3
+        .select(this.$store.state.map.getCanvasContainer()) //'map'
+        .append('div')
+        .attr('class', 'tooltip')
+        .style('opacity', 0)
 
       this.nodes = this.svg
         .append('g')
@@ -129,16 +134,6 @@ export default {
           d.y = d.pos[1]
           return d.pos[1]
         })
-        .on('click', d => {
-          /* console.log( 'deviation', d.deviation, ' but is it too far? ', d.tooFar ) */
-          // this.calculateDistanceDeviation()
-        })
-
-      this.tooltip = d3
-        .select(this.$store.state.map.getCanvasContainer()) //'map'
-        .append('div')
-        .attr('class', 'tooltip')
-        .style('opacity', 0)
 
       // this.simulation = d3
       //   .forceSimulation()
@@ -155,45 +150,38 @@ export default {
         // this.updateD3()
         // d3.selectAll('polygon').remove()
         this.moveVisualizations()
-        this.updateVisualizations()
-        
       })
       this.$root.$on('map-move', () => {
         this.moveVisualizations()
-        this.updateVisualizations()
       })
       //just end events
       this.$root.$on('map-zoomend', () => {
-        this.calculateDistanceDeviation()
-        this.removeNeighbours() 
-        this.createNeighbours() //compute new neighbourhoods, make and draw polygons
-        this.updateVisualizations()
+        this.zoomVisualization()
       })
       this.$root.$on('map-moveend', () => {
-        this.calculateDistanceDeviation()
+        //called at the end of zoom and move
         //when zoom is big enough (https://www.youtube.com/watch?v=CCVdQ8xXBfk) , cards about accident detail are shown
         if (this.$store.state.map.getZoom() > 18.5) {
           this.createAccidentDetail()
         }
-
-        /* this.calculateDistanceDeviation()
-        this.removeNeighbours()
-        this.createNeighbours()
-
-        this.updateVisualizations() */
       })
-      this.$root.$on('map-click', () => {
-        this.drawAggregatedVis()
-      })
+      // this.$root.$on('map-click', () => {
+      //   this.drawAggregatedVis()
+      // })
     },
     moveVisualizations() {
       this.updateD3()
       this.drawPolygon()
+      this.updateVisualizations()
+    },
+    zoomVisualization() {
+      this.removeNeighbours()
+      this.createNeighbours() //compute new neighbourhoods, make and draw polygons
+      this.updateVisualizations()
     },
     //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateD3() {
       const viewport = getViewport(this.$store.state.map)
-
       this.nodes
         .attr('cx', d => {
           d.forceGPS = viewport.unproject([d.x, d.y]) //probably not needed
@@ -206,6 +194,7 @@ export default {
           return d.y
         })
         .on('click', d => {
+          console.log('megijesuper')
           this.tooltip
             .style('opacity', 1.0)
             .html(d.Type)
@@ -266,7 +255,7 @@ export default {
         }) */
     },
     //prepareing things for new neighbourhoods calculating
-     makeNeighbourPolygons() {
+    makeNeighbourPolygons() {
       this.recompute = false
       this.reverse = false
       this.anchorPoint = null
@@ -288,7 +277,7 @@ export default {
       this.startingPoints.forEach(o => {
         //mark all points which belonge to neighbouhood (attribute theNeighbourhood) and add to point array
         this.getNeighbours(accidentData.accidents[o])
-        if (this.points.length > 1) {
+        if (this.points.length > 2) {
           //neighbourhood of one point is not neighbouhood
           let hull = this.getHull(this.anchorPoint)
           //add neighbourhood object to array of neighbouhoods
@@ -341,35 +330,6 @@ export default {
         .on('mouseout', d => {
           this.tooltip.style('opacity', 0)
         })
-    },
-    //accident's simulation end
-    end() {
-      this.calculateDistanceDeviation()
-    },
-    //calculates distance for all accidents, between the point A (where they are right now)
-    //and point B (where they were supposed to be according to their geo data)
-    //if the difference is larger than distanceLimit, it sets "tooFar" flag
-    calculateDistanceDeviation() {
-      const viewport = getViewport(this.$store.state.map)
-      this.dataD3.accidents.forEach(d => {
-        const unshiftedCoords = [d.X, d.Y]
-        const currentCoords = viewport.unproject(d.pos)
-
-        const distanceInMeters = measureGeoDistance(
-          unshiftedCoords[0],
-          unshiftedCoords[1],
-          currentCoords[0],
-          currentCoords[1]
-        )
-        //console.log(distanceInMeters)
-        d.tooFar = distanceInMeters > 0.000001 // currentDistance > 0.000000001 //this.distanceLimit
-      })
-      this.nodes.attr('fill', d => {
-        if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
-          return '#487284d2'
-        }
-        return 'black'
-      })
     },
     //should work with array of node indexes from convex hull
     // TO DO : Prep of ds + adding necessary attributes + rename, haha
@@ -489,7 +449,7 @@ export default {
           }
         }
       })
-      this.colorNeighbourPoints()
+      //this.colorNeighbourPoints()
     },
     getNeighbourhoodCenter(neighbourhood) {
       let viewport = getViewport(this.$store.state.map)
