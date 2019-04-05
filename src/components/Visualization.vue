@@ -89,9 +89,6 @@ export default {
         .attr('id', 'main_svg')
         .attr('width', window.innerWidth)
         .attr('height', window.innerHeight)
-        .append('g')
-        .attr('class', 'tooltip')
-        .attr('transform', 'translate(20, 20)')
 
       const t = d3
         .transition()
@@ -194,7 +191,6 @@ export default {
           return d.y
         })
         .on('click', d => {
-          console.log('megijesuper')
           this.tooltip
             .style('opacity', 1.0)
             .html(d.Type)
@@ -619,16 +615,6 @@ export default {
         .attr('transform', d => {
           return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
         })
-        .on('click', d => {
-          this.tooltip
-            .style('opacity', 1.0)
-            .html(d.Type)
-            .style('left', d3.event.pageX + 'px')
-            .style('top', d3.event.pageY - 28 + 'px')
-        })
-        .on('mouseout', d => {
-          this.tooltip.style('opacity', 0)
-        })
 
       // For testing of neighbourhood group elements
       // testGdata.append('circle')
@@ -658,6 +644,16 @@ export default {
           .attr('cy', d => {
             d.y = d.pos[1]
             return d.pos[1] - this.aggregatedData[i].centerInPx[1]
+          })
+          .on('click', d => {
+            this.tooltip
+              .style('opacity', 1.0)
+              .html(d.Type)
+              .style('left', d3.event.pageX + 'px')
+              .style('top', d3.event.pageY - 28 + 'px')
+          })
+          .on('mouseout', d => {
+            this.tooltip.style('opacity', 0)
           })
 
         this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
