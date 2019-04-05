@@ -4,7 +4,7 @@
     <AccidentDetail
       v-for="(curr_accident, index) in detailAccidents"
       :key="index"
-      :accident="allData[curr_accident]"
+      :accident="dataD3.accidents[curr_accident]"
       :index="index"
     ></AccidentDetail>
   </div>
@@ -17,7 +17,7 @@ import AccidentDetail from './AccidentDetail.vue'
 import {
   sortPoints,
   checkPoints,
-  addPoint,
+  addPointToNeighbourhood,
   getAngle
 } from '../helpers/neighbourhoodCountingHelper.js'
 import {
@@ -35,29 +35,24 @@ export default {
   data() {
     return {
       detailAccidents: [], //indices for detail card of accident
-      allData: [],
       points: [], //indices of points for countinginprogress neighbourhood
-      neighbourhood: [], //Array of neighbourhoods objects - hullPoints:indices of convex hull points, points:indices of all points, anchorpoint
+      neighbourhood: [], //array of neighbourhoods objects - hullPoints:indices of convex hull points, points:indices of all points, anchorpoint
       startingPoints: [], //points for visualization of neighbourhoods - just prototype
-      compute: 0,
       anchorPoint: null, //anchor point of counting in progress neighbourhood
       reverse: false, //helper for angles in convexhull counting
-      title: null,
-      aggregatedData: [],
+      aggregatedData: [], //array of neighbourhoods, each neighbourhood is and array containing data for the nodes in aggregated vis
       //transition: null, //animated transition for all, uhuh, not working as intended
-      neighbourhoodNodesInSVG: [],
+      neighbourhoodNodesInSVG: [], //array of neighbourhoods, each neighbourhood is an array containing nodes in aggregated vis
       dataD3: [], //accident data
-      grid_cells: [], // barchart grid positions {x, y, occupied} //TODO: temporary
-      simulation: null, // accident data force simulation
-      svg: null,
+      grid_cells: [], //array of cell arrays; each grid array contains barchart grid positions {x, y, occupied}
+      simulation: null, //accident data force simulation
+      svg: null, //d3 svg selection
       nodes: null, //accident nodes
-      polygons: null,
-      tooltip: null,
+      polygons: null, //svg polygon selection
+      tooltip: null, //d3 tooltips
       tree: [],
-      nodeRadius: 5,
-      isAggrVisActive: false,
-      recompute: false, //variable for recomputing neighbourhoods after moved map
-      distanceLimit: 0.000001 //used in calculateDistanceDeviation to compare with the calculated distance between nodes
+      nodeRadius: 5, //default node radius
+      isAggrVisActive: false //flag for deciding if we should draw the aggregated vis or just update it
     }
   },
   store,
@@ -68,9 +63,6 @@ export default {
     this.render()
     this.listeners()
 
-    //preseting attributes of accidents for easier manipulation
-    this.allData = accidentData.accidents
-    //let count = 0
     for (var i = 0; i < accidentData.accidents.length; i++) {
       accidentData.accidents[i].theNeighbourhood = null
       accidentData.accidents[i].index = i
@@ -78,7 +70,7 @@ export default {
     this.createNeighbours()
   },
   methods: {
-    //force layout initialisation (svg, nodes, simulation)
+    //initialisation (svg, nodes, polygons, tooltips)
     render() {
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
@@ -96,8 +88,6 @@ export default {
         .ease(d3.easeLinear)
 
       this.polygons = this.svg.append('g')
-
-      // this.calculateDistanceDeviation()
 
       this.tooltip = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
@@ -131,29 +121,27 @@ export default {
           d.y = d.pos[1]
           return d.pos[1]
         })
-
-      // this.simulation = d3
-      //   .forceSimulation()
-      //   //.polygons(this.neighbour)
-      //   .nodes(this.dataD3.accidents)
-      //   /* .force('collide',d3.forceCollide().radius(this.nodeRadius * 2).strength(1).iterations(1)) */
-      //   //.polygons(this.neighbour)
-      //   .on('tick', this.tick)
-      //   .on('end', this.end)
+        .on('click', d => {
+          this.tooltip
+            .style('opacity', 1.0)
+            .html(d.Type)
+            .style('left', d3.event.pageX + 'px')
+            .style('top', d3.event.pageY - 28 + 'px')
+        })
+        .on('mouseout', d => {
+          this.tooltip.style('opacity', 0)
+        })
     },
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
-        // this.updateD3()
-        // d3.selectAll('polygon').remove()
         this.moveVisualizations()
       })
       this.$root.$on('map-move', () => {
         this.moveVisualizations()
       })
-      //just end events
       this.$root.$on('map-zoomend', () => {
-        this.zoomVisualization()
+        this.zoomVisualizations()
       })
       this.$root.$on('map-moveend', () => {
         //called at the end of zoom and move
@@ -162,22 +150,19 @@ export default {
           this.createAccidentDetail()
         }
       })
-      // this.$root.$on('map-click', () => {
-      //   this.drawAggregatedVis()
-      // })
     },
     moveVisualizations() {
-      this.updateD3()
+      this.updateNodesOnMap()
       this.drawPolygon()
       this.updateVisualizations()
     },
-    zoomVisualization() {
+    zoomVisualizations() {
       this.removeNeighbours()
       this.createNeighbours() //compute new neighbourhoods, make and draw polygons
       this.updateVisualizations()
     },
     //updates positions of circles on map (regular accident data dots), called on zoom and move
-    updateD3() {
+    updateNodesOnMap() {
       const viewport = getViewport(this.$store.state.map)
       this.nodes
         .attr('cx', d => {
@@ -203,7 +188,7 @@ export default {
         })
     },
     updateVisualizations() {
-      this.updateD3()
+      this.updateNodesOnMap()
       //this.drawPolygon()
       //this.updateAggregatedVis()
       if (!this.isAggrVisActive) {
@@ -251,15 +236,10 @@ export default {
         }) */
     },
     //prepareing things for new neighbourhoods calculating
-    makeNeighbourPolygons() {
-      this.recompute = false
+    makeNeighbourhoodPolygon() {
       this.reverse = false
       this.anchorPoint = null
-      //this.points = []
-      //this.neighbour = []
       while (this.neighbourhood.length > 0) {
-        //TODO???
-        this.points.pop()
         this.neighbourhood.pop()
       } //empty the array
       while (this.points.length > 0) {
@@ -275,7 +255,7 @@ export default {
         this.getNeighbours(accidentData.accidents[o])
         if (this.points.length > 2) {
           //neighbourhood of one point is not neighbouhood
-          let hull = this.getHull(this.anchorPoint)
+          let hull = this.getConvexhull(this.anchorPoint)
           //add neighbourhood object to array of neighbouhoods
           let neigh = {
             hullPoints: hull, //convexhull points
@@ -285,9 +265,7 @@ export default {
           neigh.points.push(this.anchorPoint)
           this.neighbourhood.push(neigh)
         }
-        //this.points = []
         while (this.points.length > 0) {
-          //TODO???
           this.points.pop()
         } //empty the array
         this.anchorPoint = null
@@ -426,11 +404,12 @@ export default {
         accidentData.accidents[1199].OBJECTID
       accidentData.accidents[478].theNeighbourhood =
         accidentData.accidents[478].OBJECTID
-      this.makeNeighbourPolygons()
+      this.makeNeighbourhoodPolygon()
     },
+    //recursive finding of neighbours and filling array of neighbourhood
     getNeighbours(obj) {
       let posiP2 = []
-      this.addPoint(obj.index)
+      this.addPointToNeighbourhood(obj.index)
       let r = 22 //TODO zistit ako dostat presne cisla a ako to menit podla zoomu
 
       //looking through all points in data if its in close neighbourhood, if yes counting close neighbourhood also for them...
@@ -475,15 +454,8 @@ export default {
       neighbourhood.centerInGPS = [shiftX, shiftY]
       neighbourhood.centerInPx = viewport.project([shiftX, shiftY])
     },
-    colorNeighbourPoints() {
-      this.nodes.attr('fill', d => {
-        if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
-          return '#487284d2'
-        }
-        return 'black'
-      })
-    },
-    getHull() {
+    //creating convex hull of neighbourhood points when neighbourhood is containing 3 or more accidents
+    getConvexhull() {
       let hullPoints = []
       let pointis = []
       let pointsLength = null
@@ -535,7 +507,7 @@ export default {
         }
       }
     },
-    addPoint(index) {
+    addPointToNeighbourhood(index) {
       let point = accidentData.accidents[index]
       let anchorP = accidentData.accidents[this.anchorPoint]
       //check if this point will be new anchor point
