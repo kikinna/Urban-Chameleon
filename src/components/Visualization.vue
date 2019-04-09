@@ -50,7 +50,7 @@ export default {
       nodes: null, //accident nodes
       polygons: null, //svg polygon selection
       tooltip: null, //d3 tooltips
-      tree: [],
+      tree: [], 
       nodeRadius: 5, //default node radius
       isAggrVisActive: false //flag for deciding if we should draw the aggregated vis or just update it
     }
@@ -60,18 +60,23 @@ export default {
     //this.loadData()
     this.$store.state.map.getCanvasContainer().style.cursor = 'default'
     this.dataD3 = accidentData
-    this.render()
+    this.initialiseSVGelements()
     this.listeners()
-
+    
+    //add index attribute to easier access later
     for (var i = 0; i < accidentData.accidents.length; i++) {
       accidentData.accidents[i].theNeighbourhood = null
       accidentData.accidents[i].index = i
     }
-    this.createNeighbours()
+    //points from which neighbourhood counting begin 
+    this.startingPoints.push(1199)
+    this.startingPoints.push(478)
+    this.computeNeighbourhoodsAndDrawPolygons()
+    this.updateVisualizations()
   },
   methods: {
-    //initialisation (svg, nodes, polygons, tooltips)
-    render() {
+    //initialisation (svg, nodes, polygons, tooltips) 
+    initialiseSVGelements() {
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
@@ -153,12 +158,12 @@ export default {
     },
     moveVisualizations() {
       this.updateNodesOnMap()
-      this.drawPolygon()
+      this.drawPolygonUnderNeighbourhoods()
       this.updateVisualizations()
     },
     zoomVisualizations() {
-      this.removeNeighbours()
-      this.createNeighbours() //compute new neighbourhoods, make and draw polygons
+      this.removeNeighbourhoods()
+      this.computeNeighbourhoodsAndDrawPolygons()//compute new neighbourhoods, make and draw polygons
       this.updateVisualizations()
     },
     //updates positions of circles on map (regular accident data dots), called on zoom and move
@@ -189,7 +194,7 @@ export default {
     },
     updateVisualizations() {
       this.updateNodesOnMap()
-      //this.drawPolygon()
+      //this.drawPolygonUnderNeighbourhoods()
       //this.updateAggregatedVis()
       if (!this.isAggrVisActive) {
         this.drawAggregatedVis()
@@ -198,7 +203,6 @@ export default {
         this.updateAggregatedVis()
       }
       //TODO: remove visualisations and set this.isAggrVisActive to false on some zoom level
-
       //making nodes included in aggregated vis invisible in map
       this.nodes.attr('class', d => {
         if (d.isInNeighbourhood) {
@@ -235,8 +239,12 @@ export default {
           return d.y
         }) */
     },
-    //prepareing things for new neighbourhoods calculating
-    makeNeighbourhoodPolygon() {
+    //prepareing things for new neighbourhoods and stard calculating and make polygon
+    computeNeighbourhoodsAndDrawPolygons() {
+      this.startingPoints.forEach( d => {
+        accidentData.accidents[d].theNeighbourhood =
+        accidentData.accidents[d].OBJECTID
+      })
       this.reverse = false
       this.anchorPoint = null
       while (this.neighbourhood.length > 0) {
@@ -246,7 +254,7 @@ export default {
         this.points.pop()
       } //empty the array
       this.computeNeighbourhoods()
-      this.drawPolygon()
+      this.drawPolygonUnderNeighbourhoods()
     },
     //calculating neighbourhoods (right now from inserted 2 points, but it should start from one of points where houseparty has begun)
     computeNeighbourhoods() {
@@ -271,8 +279,8 @@ export default {
         this.anchorPoint = null
       })
     },
-    //make polygon from convex hull array
-    drawPolygon() {
+    //make polygon from convex hull of neighbourhood array
+    drawPolygonUnderNeighbourhoods() {
       d3.selectAll('polygon').remove()
       this.polygons
         .selectAll('polygon')
@@ -390,21 +398,11 @@ export default {
       this.grid_cells.push(currentCells)
     },
     //Prepareing things for new neighbourhood computing
-    removeNeighbours() {
+    removeNeighbourhoods() {
       accidentData.accidents.forEach(o => {
         o.theNeighbourhood = null
       })
-      this.startingPoints = []
-    },
-    //Method for hardpushing points to visualise 2 neighbourhood polygons
-    createNeighbours() {
-      this.startingPoints.push(1199)
-      this.startingPoints.push(478)
-      accidentData.accidents[1199].theNeighbourhood =
-        accidentData.accidents[1199].OBJECTID
-      accidentData.accidents[478].theNeighbourhood =
-        accidentData.accidents[478].OBJECTID
-      this.makeNeighbourhoodPolygon()
+      //this.startingPoints = []
     },
     //recursive finding of neighbours and filling array of neighbourhood
     getNeighbours(obj) {
