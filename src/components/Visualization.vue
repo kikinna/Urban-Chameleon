@@ -50,7 +50,7 @@ export default {
       nodes: null, //accident nodes
       polygons: null, //svg polygon selection
       tooltip: null, //d3 tooltips
-      tree: [], 
+      tree: [],
       nodeRadius: 5, //default node radius
       isAggrVisActive: false //flag for deciding if we should draw the aggregated vis or just update it
     }
@@ -62,20 +62,20 @@ export default {
     this.dataD3 = accidentData
     this.initialiseSVGelements()
     this.listeners()
-    
+
     //add index attribute to easier access later
     for (var i = 0; i < accidentData.accidents.length; i++) {
       accidentData.accidents[i].theNeighbourhood = null
       accidentData.accidents[i].index = i
     }
-    //points from which neighbourhood counting begin 
+    //points from which neighbourhood counting begin
     this.startingPoints.push(1199)
     this.startingPoints.push(478)
     this.computeNeighbourhoodsAndDrawPolygons()
     this.updateVisualizations()
   },
   methods: {
-    //initialisation (svg, nodes, polygons, tooltips) 
+    //initialisation (svg, nodes, polygons, tooltips)
     initialiseSVGelements() {
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
@@ -159,12 +159,28 @@ export default {
     moveVisualizations() {
       this.updateNodesOnMap()
       this.drawPolygonUnderNeighbourhoods()
-      this.updateVisualizations()
+      this.moveAggregatedVis()
+      //this.updateVisualizations()
     },
     zoomVisualizations() {
       this.removeNeighbourhoods()
-      this.computeNeighbourhoodsAndDrawPolygons()//compute new neighbourhoods, make and draw polygons
+      this.computeNeighbourhoodsAndDrawPolygons() //compute new neighbourhoods, make and draw polygons
+      this.moveAggregatedVis()
       this.updateVisualizations()
+    },
+    //updates positions of aggregated visualizations (the g element)
+    moveAggregatedVis() {
+      const viewport = getViewport(this.$store.state.map)
+      const t = d3.transition()
+      //.duration(0)
+      //.ease(d3.easeLinear)
+
+      d3.selectAll('g.neighbourhood-g')
+        .transition(t)
+        .attr('transform', d => {
+          let pos = viewport.project(d.centerInGPS)
+          return 'translate(' + pos[0] + ', ' + pos[1] + ')'
+        })
     },
     //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateNodesOnMap() {
@@ -192,10 +208,9 @@ export default {
           this.tooltip.style('opacity', 0)
         })
     },
+    //updates all visualizations - svg nodes, aggregated visualizations
     updateVisualizations() {
       this.updateNodesOnMap()
-      //this.drawPolygonUnderNeighbourhoods()
-      //this.updateAggregatedVis()
       if (!this.isAggrVisActive) {
         this.drawAggregatedVis()
         this.isAggrVisActive = true
@@ -241,9 +256,9 @@ export default {
     },
     //prepareing things for new neighbourhoods and stard calculating and make polygon
     computeNeighbourhoodsAndDrawPolygons() {
-      this.startingPoints.forEach( d => {
+      this.startingPoints.forEach(d => {
         accidentData.accidents[d].theNeighbourhood =
-        accidentData.accidents[d].OBJECTID
+          accidentData.accidents[d].OBJECTID
       })
       this.reverse = false
       this.anchorPoint = null
@@ -649,7 +664,7 @@ export default {
         this.neighbourhoodNodesInSVG.push(currentNeighbourhoodSVGNodes)
       } // end of that huge for cycle
     },
-    //updating aggregated vis. (house parties); called on zoom and move
+    //updating aggregated vis. (house parties)
     updateAggregatedVis() {
       const viewport = getViewport(this.$store.state.map)
 
@@ -694,7 +709,92 @@ export default {
         })
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
-        d3.select('#neighbourhood-' + this.aggregatedData[i].id)
+        let currentAggregatedVis = d3
+          .select('#neighbourhood-' + this.aggregatedData[i].id)
+          .selectAll('circle.circlesInAggregatedVis')
+          .data(this.aggregatedData[i].nodesInNeighbourhood)
+
+        //EXIT
+        currentAggregatedVis
+          .exit()
+          .each(d => {
+            d.isInNeighbourhood = false
+            let accidentNode = accidentData.accidents[d.indexInAccidentData]
+            accidentNode.isInNeighbourhood = false
+            delete accidentData.accidents[d.indexInAccidentData]
+              .neighbourhoodPosition
+
+            console.log('exit d', d)
+            console.log('exit n', accidentNode)
+          })
+          .classed('neighbourhood', false)
+          .classed('circlesInAggregatedVis', false)
+          .classed('nodes', true)
+          .attr('fill', 'black')
+          .attr('r', 50)
+          .remove()
+
+        //ENTER
+        currentAggregatedVis
+          .join('circle')
+          .attr('class', 'circlesInAggregatedVis')
+          .attr('r', 5)
+          .attr('fill', d => {
+            return colorScale(d.Type)
+          })
+          .attr('cx', d => {
+            if (d.neighbourhoodPosition) {
+              //console.log('already in', d)
+              d.x = d.neighbourhoodPosition[0]
+              return d.x
+            } else {
+              //console.log('newbie', d.x, d.pos)
+              d.pos = viewport.project([d.X, d.Y])
+              d.x = d.pos[0]
+              //console.log(d.x, d.pos)
+              return d.pos[0] - this.aggregatedData[i].centerInPx[0]
+            }
+          })
+          .attr('cy', d => {
+            if (d.neighbourhoodPosition) {
+              d.y = d.neighbourhoodPosition[1]
+              return d.y
+            } else {
+              d.y = d.pos[1]
+              return d.pos[1] - this.aggregatedData[i].centerInPx[1]
+            }
+          })
+
+        /* //UPDATE
+        currentAggregatedVis
+          .attr('fill', d => {
+            return colorScale(d.Type)
+          })
+          .attr('cx', d => {
+            if (d.neighbourhoodPosition) {
+              //console.log('already in', d)
+              d.x = d.neighbourhoodPosition[0]
+              return d.x
+            } else {
+              //console.log('newbie', d.x, d.pos)
+              d.pos = viewport.project([d.X, d.Y])
+              d.x = d.pos[0]
+              //console.log(d.x, d.pos)
+              return d.pos[0] - this.aggregatedData[i].centerInPx[0]
+            }
+          })
+          .attr('cy', d => {
+            if (d.neighbourhoodPosition) {
+              d.y = d.neighbourhoodPosition[1]
+              return d.y
+            } else {
+              d.y = d.pos[1]
+              return d.pos[1] - this.aggregatedData[i].centerInPx[1]
+            }
+          }) */
+
+        /*
+          d3.select('#neighbourhood-' + this.aggregatedData[i].id)
           .selectAll('circle.circlesInAggregatedVis')
           .data(this.aggregatedData[i].nodesInNeighbourhood)
           .join('circle')
@@ -725,6 +825,7 @@ export default {
               return d.pos[1] - this.aggregatedData[i].centerInPx[1]
             }
           })
+          */
 
         /* .exit()
           .each(d => {

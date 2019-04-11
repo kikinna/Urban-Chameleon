@@ -1,10 +1,10 @@
-//trivial
-export function sqdist(a, b) {
+// trivial
+export function sqdist (a, b) {
   return Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2)
 }
 
-//left as an excercise for the reader
-export function occupyNearest(p, cells) {
+// left as an excercise for the reader
+export function occupyNearest (p, cells) {
   var minDist = Infinity
   var d
   var candidate = null
@@ -15,5 +15,6 @@ export function occupyNearest(p, cells) {
     }
   }
   if (candidate) candidate.occupied = true
+  if (candidate) p.candidate = candidate
   return candidate
 }
