@@ -105,8 +105,7 @@ export default {
         .attr('class', 'nodes')
         .selectAll('circle')
         .data(this.dataD3.accidents)
-        .enter()
-        .append('circle')
+        .join('circle')
         .each(d => {
           d.isInNeighbourhood = false
         })
@@ -176,7 +175,7 @@ export default {
       //.ease(d3.easeLinear)
 
       d3.selectAll('g.neighbourhood-g')
-        .transition(t)
+        //.transition(t)
         .attr('transform', d => {
           let pos = viewport.project(d.centerInGPS)
           return 'translate(' + pos[0] + ', ' + pos[1] + ')'
@@ -185,7 +184,22 @@ export default {
     //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateNodesOnMap() {
       const viewport = getViewport(this.$store.state.map)
-      this.nodes
+
+      //this.svg.selectAll('circle').remove()
+      //.filter(d => d.Type === 'Crash')
+      //this.nodes = this.svg
+      //.append('g')
+      //.attr('class', 'nodes')
+      //.selectAll('circle')
+      //d3.selectAll('.nodes')
+      //.append('g')
+      //.attr('class', 'nodes')
+      this.nodes /* = this.svg
+        .attr('class', 'nodes')
+        .selectAll('circle')
+        .data(this.dataD3.accidents.filter(d => d.Type == 'Crash'))
+        .join('circle')
+        //.merge(this.nodes) */
         .attr('cx', d => {
           d.forceGPS = viewport.unproject([d.x, d.y]) //probably not needed
           d.pos = viewport.project([d.X, d.Y])
@@ -197,6 +211,13 @@ export default {
           return d.y
         })
         .on('click', d => {
+          accidentData.accidents.forEach(o => {
+            o.theNeighbourhood = null
+          })
+          this.startingPoints.push(d.index)
+          this.computeNeighbourhoodsAndDrawPolygons()
+          this.zoomVisualizations()
+
           this.tooltip
             .style('opacity', 1.0)
             .html(d.Type)
@@ -356,7 +377,7 @@ export default {
           id: i
         }
         this.neighbourhood[i].points.forEach(n => {
-          let d = this.dataD3.accidents[n]
+          let d = accidentData.accidents[n]
 
           let newNode = {
             id: d.OBJECTID,
@@ -368,7 +389,7 @@ export default {
             fx: null,
             fy: null,
             inNeighbourhood: true,
-            neighbourhoodPosition: null,
+            neighbourhoodPosition: d.neighbourhoodPosition,
             Type: d.Type,
             neighbourhoodID: 1, //idk
             center: [0, 0]
@@ -574,6 +595,10 @@ export default {
       // Neni to uplne pekne, ze to neporovnavame na neighbourhoodCounts
       while (this.grid_cells.length > 0) {
         this.grid_cells.pop()
+        //this.neighbourhoodNodesInSVG.pop()
+      }
+
+      while (this.neighbourhoodNodesInSVG.length > 0) {
         this.neighbourhoodNodesInSVG.pop()
       }
 
@@ -641,6 +666,12 @@ export default {
             this.tooltip.style('opacity', 0)
           })
 
+        /* this.neighbourhood[i].points.forEach(n => {
+          let d = accidentData.accidents[n]
+
+          //d.neighbourhoodPosition
+        }) */
+
         this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
 
         // For each neighbourhood nodes find a position in a grid and move it there w/ transition
@@ -651,11 +682,19 @@ export default {
             if (gridpoint) {
               d.x = gridpoint.x
               d.y = gridpoint.y
-              accidentData.accidents[
-                d.indexInAccidentData
-              ].neighbourhoodPosition = [d.x, d.y]
-              d.neighbourhoodPosition = [d.x, d.y]
+
+              let currentNodeInAccData =
+                accidentData.accidents[d.indexInAccidentData]
+              currentNodeInAccData.neighbourhoodPosition = [d.x, d.y]
+              //d.neighbourhoodPosition = [d.x, d.y]
               d.forceGPS = viewport.unproject([d.x, d.y])
+              //console.log(currentNodeInAccData)
+              //accidentData.accidents[d.id].neighbourhoodPosition = [d.x, d.y]
+              //Vue.set(currentNodeInAccData, 'neighbourhoodPosition', [d.x, d.y])
+              /* Vue.set(accidentData.accidents[d.id], 'neighbourhoodPosition', [
+                d.x,
+                d.y
+              ]) */
             }
           })
           .attr('cx', d => d.x)
@@ -724,8 +763,9 @@ export default {
             delete accidentData.accidents[d.indexInAccidentData]
               .neighbourhoodPosition
 
-            console.log('exit d', d)
-            console.log('exit n', accidentNode)
+            //console.log('haaaaaallelujah')
+            //console.log('exit d', d)
+            //console.log('exit n', accidentNode)
           })
           .classed('neighbourhood', false)
           .classed('circlesInAggregatedVis', false)
@@ -736,7 +776,9 @@ export default {
 
         //ENTER
         currentAggregatedVis
-          .join('circle')
+          .enter()
+          .append('circle')
+          .merge(currentAggregatedVis)
           .attr('class', 'circlesInAggregatedVis')
           .attr('r', 5)
           .attr('fill', d => {
@@ -763,6 +805,9 @@ export default {
               d.y = d.pos[1]
               return d.pos[1] - this.aggregatedData[i].centerInPx[1]
             }
+          })
+          .on('click', d => {
+            console.log('dis dee', d)
           })
 
         /* //UPDATE
@@ -863,6 +908,15 @@ export default {
               Vue.set(d, 'cx', pos[0])
               Vue.set(d, 'cy', pos[1])
               d.neighbourhoodPosition = [d.x, d.y]
+              accidentData.accidents[
+                d.indexInAccidentData
+              ].neighbourhoodPosition = [d.x, d.y]
+              Vue.set(d, 'neighbourhoodPosition', [d.x, d.y])
+              Vue.set(
+                accidentData.accidents[d.indexInAccidentData],
+                'neighbourhoodPosition',
+                [d.x, d.y]
+              )
             }
           })
           .attr('cx', d => d.x)
