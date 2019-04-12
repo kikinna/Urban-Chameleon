@@ -73,14 +73,14 @@ export default {
     this.listeners()
 
     //preseting attributes of accidents for easier manipulation
-    this.allData = accidentData.accidents
+    this.allData = this.onScreenPoints
     //let count = 0
-    for (var i = 0; i < accidentData.accidents.length; i++) {
-      accidentData.accidents[i].theNeighbourhood = null
-      accidentData.accidents[i].index = i
+    for (var i = 0; i < this.onScreenPoints.length; i++) {
+      this.onScreenPoints[i].theNeighbourhood = null
+      this.onScreenPoints[i].index = i
     }
 
-    accidentData.accidents.forEach(o => {
+    this.onScreenPoints.forEach(o => {
       o.screen = null
       this.onScreenPoints.forEach(d => {
         //console.log(d)
@@ -89,6 +89,7 @@ export default {
         }
       })
     })
+    //this.startingPoints.push(1199)
 
     this.createNeighbours()
     
@@ -121,7 +122,6 @@ export default {
         this.onScreenPoints[i].theNeighbourhood = null; 
         this.onScreenPoints[i].index = i;
       }
-      console.log(this.onScreenPoints)
 
       this.svg = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
@@ -129,9 +129,6 @@ export default {
         .attr('id', 'main_svg')
         .attr('width', window.innerWidth)
         .attr('height', window.innerHeight)
-        .append('g')
-        .attr('class', 'tooltip')
-        .attr('transform', 'translate(20, 20)')
 
       const t = d3
         .transition()
@@ -146,7 +143,7 @@ export default {
         .append('g')
         .attr('class', 'nodes')
         .selectAll('circle')
-        .data(this.dataD3.accidents)
+                .data(this.onScreenPoints)
         .enter()
         .append('circle')
         .each(d => {
@@ -173,9 +170,24 @@ export default {
           return d.pos[1]
         })
         .on('click', d => {
-          /* console.log( 'deviation', d.deviation, ' but is it too far? ', d.tooFar ) */
-          // this.calculateDistanceDeviation()
+          //this.removeNeighbours()
+          this.onScreenPoints.forEach(o => {
+            o.theNeighbourhood = null
+          })
+          this.startingPoints.push(d.index)
+          this.createNeighbours()
+          console.log(this.startingPoints)
+          //console.log(d)
+          this.tooltip
+            .style('opacity', 1.0)
+            .html(d.Type)
+            .style('left', d3.event.pageX + 'px')
+            .style('top', d3.event.pageY - 28 + 'px')
         })
+        .on('mouseout', d => {
+          this.tooltip.style('opacity', 0)
+        })
+
 
       this.tooltip = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
@@ -186,7 +198,7 @@ export default {
       // this.simulation = d3
       //   .forceSimulation()
       //   //.polygons(this.neighbour)
-      //   .nodes(this.dataD3.accidents)
+      //   .nodes(this.onScreenPoints)
       //   /* .force('collide',d3.forceCollide().radius(this.nodeRadius * 2).strength(1).iterations(1)) */
       //   //.polygons(this.neighbour)
       //   .on('tick', this.tick)
@@ -197,25 +209,42 @@ export default {
       this.$root.$on('map-zoom', () => {
         // this.updateD3()
         // d3.selectAll('polygon').remove()
-        this.moveVisualizations()
+        //this.removeNeighbours() 
+        this.kdTreepoints()
+        this.removeNeighbours() 
+        this.createNeighbours() 
+        //this.moveVisualizations()
         this.updateVisualizations()
         //this.kdTreepoints()
+        //console.log(this.onScreenPoints)
         
       })
       this.$root.$on('map-move', () => {
-        this.moveVisualizations()
+        this.kdTreepoints()
+        this.removeNeighbours() 
+        this.createNeighbours() 
+        // this.moveVisualizations()
         this.updateVisualizations()
         //this.kdTreepoints()
+        //console.log(this.onScreenPoints)
+        this.onScreenPoints.forEach( d => {
+          if(d.OBJECTID == 3248){
+            console.log(d.index)
+          }
+        })
       })
       //just end events
       this.$root.$on('map-zoomend', () => {
-        this.calculateDistanceDeviation()
-        this.removeNeighbours() 
-        this.createNeighbours() //compute new neighbourhoods, make and draw polygons
-        this.updateVisualizations()
+        //this.startingPoints = []
+        //this.calculateDistanceDeviation()
+        //this.removeNeighbours() 
+        //this.kdTreepoints()
+        //this.createNeighbours() //compute new neighbourhoods, make and draw polygons
+        //this.updateVisualizations()
       })
       this.$root.$on('map-moveend', () => {
-        this.calculateDistanceDeviation()
+        this.startingPoints = []
+        //this.calculateDistanceDeviation()
         //when zoom is big enough (https://www.youtube.com/watch?v=CCVdQ8xXBfk) , cards about accident detail are shown
         if (this.$store.state.map.getZoom() > 18.5) {
           this.createAccidentDetail()
@@ -238,7 +267,7 @@ export default {
           this.onScreenPoints[i].theNeighbourhood = null; 
           this.onScreenPoints[i].index = i;
         }
-        accidentData.accidents.forEach(o => {
+        this.onScreenPoints.forEach(o => {
           o.screen = 0
           this.onScreenPoints.forEach(d => {
             //console.log(d)
@@ -256,8 +285,17 @@ export default {
     //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateD3() {
       const viewport = getViewport(this.$store.state.map)
+      // console.log(this.onScreenPoints)
+      // d3.select('.nodes')
+      //   .data(this.onScreenPoints)
+      //   .join('circle')
+      //this.onScreenPoints.filter(d => d.Type === 'Crash')
 
-      this.nodes
+      this.nodes = this.svg
+        //.attr('class', 'nodes')
+        .selectAll('circle')
+        .data(this.onScreenPoints)
+        .join('circle')
         .attr('cx', d => {
           d.forceGPS = viewport.unproject([d.x, d.y]) //probably not needed
           d.pos = viewport.project([d.X, d.Y])
@@ -269,6 +307,12 @@ export default {
           return d.y
         })
         .on('click', d => {
+          this.onScreenPoints.forEach(o => {
+            o.theNeighbourhood = null
+          })
+          this.startingPoints.push(d.index)
+          this.createNeighbours()
+          console.log(this.startingPoints)
           this.tooltip
             .style('opacity', 1.0)
             .html(d.Type)
@@ -350,7 +394,7 @@ export default {
     computeNeighbourhoods() {
       this.startingPoints.forEach(o => {
         //mark all points which belonge to neighbouhood (attribute theNeighbourhood) and add to point array
-        this.getNeighbours(accidentData.accidents[o])
+        this.getNeighbours(this.onScreenPoints[o])
         if (this.points.length > 1) {
           //neighbourhood of one point is not neighbouhood
           let hull = this.getHull(this.anchorPoint)
@@ -374,6 +418,7 @@ export default {
     //make polygon from convex hull array
     drawPolygon() {
       d3.selectAll('polygon').remove()
+      let that = this
       this.polygons
         .selectAll('polygon')
         .data(this.neighbourhood)
@@ -384,9 +429,9 @@ export default {
           let str = ''
           d.hullPoints.forEach(o => {
             str +=
-              accidentData.accidents[o].x.toString(10) +
+              that.onScreenPoints[o].x.toString(10) +
               ',' +
-              accidentData.accidents[o].y.toString(10) +
+              that.onScreenPoints[o].y.toString(10) +
               ' '
           })
           return str
@@ -414,7 +459,7 @@ export default {
     //if the difference is larger than distanceLimit, it sets "tooFar" flag
     calculateDistanceDeviation() {
       const viewport = getViewport(this.$store.state.map)
-      this.dataD3.accidents.forEach(d => {
+      this.onScreenPoints.forEach(d => {
         const unshiftedCoords = [d.X, d.Y]
         const currentCoords = viewport.unproject(d.pos)
 
@@ -445,7 +490,7 @@ export default {
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
         this.aggregatedData[i].nodesInNeighbourhood.forEach(n => {
-          let d = this.dataD3.accidents[n.indexInAccidentData]
+          let d = this.onScreenPoints[n.indexInAccidentData]
           d.isInNeighbourhood = false
           /* console.log('lkadflak', n)
           d.x = n.x
@@ -466,7 +511,7 @@ export default {
           id: i
         }
         this.neighbourhood[i].points.forEach(n => {
-          let d = this.dataD3.accidents[n]
+          let d = this.onScreenPoints[n]
 
           let newNode = {
             id: d.OBJECTID,
@@ -484,10 +529,10 @@ export default {
             center: [0, 0]
           }
           if (
-            accidentData.accidents[n].hasOwnProperty('neighbourhoodPosition')
+            this.onScreenPoints[n].hasOwnProperty('neighbourhoodPosition')
           ) {
             newNode.neighbourhoodPosition =
-              accidentData.accidents[n].neighbourhoodPosition
+              this.onScreenPoints[n].neighbourhoodPosition
           }
 
           d.isInNeighbourhood = true
@@ -524,19 +569,18 @@ export default {
     },
     //Prepareing things for new neighbourhood computing
     removeNeighbours() {
-      accidentData.accidents.forEach(o => {
+      this.onScreenPoints.forEach(o => {
         o.theNeighbourhood = null
       })
       this.startingPoints = []
+      this.neighbourhood = []
     },
     //Method for hardpushing points to visualise 2 neighbourhood polygons
     createNeighbours() {
-      this.startingPoints.push(1199)
-      this.startingPoints.push(478)
-      accidentData.accidents[1199].theNeighbourhood =
-        accidentData.accidents[1199].OBJECTID
-      accidentData.accidents[478].theNeighbourhood =
-        accidentData.accidents[478].OBJECTID
+      this.startingPoints.forEach( d => {
+        this.onScreenPoints[d].theNeighbourhood = 
+          this.onScreenPoints[d].OBJECTID
+      })
       this.makeNeighbourPolygons()
     },
     getNeighbours(obj) {
@@ -545,7 +589,7 @@ export default {
       let r = 22 //TODO zistit ako dostat presne cisla a ako to menit podla zoomu
 
       //looking through all points in data if its in close neighbourhood, if yes counting close neighbourhood also for them...
-      accidentData.accidents.forEach(o => {
+      this.onScreenPoints.forEach(o => {
         if (o.theNeighbourhood == null && o != obj) {
           let inNeighbour = Math.sqrt(
             Math.pow(obj.x - o.x, 2) + Math.pow(obj.y - o.y, 2)
@@ -602,7 +646,10 @@ export default {
       let hullPoints = []
       let pointis = []
       let pointsLength = null
-      pointis = [...sortPoints(this.anchorPoint, this.points, this)]
+      let that = this
+      console.log(this.points)
+      sortPoints(this.anchorPoint, this.points, this)
+      pointis = [...this.points]
       pointsLength = pointis.length
       //if there is less than 3 points, joining these is correct hull
       if (pointsLength < 3) {
@@ -631,11 +678,12 @@ export default {
             hullPoints = hullPoints.filter(function(p) {
               return !!p
             })
+            
             if (
               !hullPoints.some(function(p) {
                 return (
-                  accidentData.accidents[p].X == accidentData.accidents[ap].X &&
-                  accidentData.accidents[p].Y == accidentData.accidents[ap].Y
+                  that.onScreenPoints[p].x == that.onScreenPoints[ap].x &&
+                  that.onScreenPoints[p].y == that.onScreenPoints[ap].y
                 )
               })
             ) {
@@ -651,8 +699,8 @@ export default {
       }
     },
     addPoint(index) {
-      let point = accidentData.accidents[index]
-      let anchorP = accidentData.accidents[this.anchorPoint]
+      let point = this.onScreenPoints[index]
+      let anchorP = this.onScreenPoints[this.anchorPoint]
       //check if this point will be new anchor point
       if (
         this.anchorPoint === null ||
@@ -671,8 +719,8 @@ export default {
       let deltaX = null
       let deltaY = null
 
-      let point = accidentData.accidents[p]
-      let anchorP = accidentData.accidents[anchor]
+      let point = this.onScreenPoints[p]
+      let anchorP = this.onScreenPoints[anchor]
       deltaX = point.X - anchorP.X
       deltaY = point.Y - anchorP.Y
 
@@ -685,7 +733,7 @@ export default {
     createAccidentDetail() {
       this.detailAccidents = []
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
-      accidentData.accidents.forEach(o => {
+      this.onScreenPoints.forEach(o => {
         let posi = [o.x, o.y]
         if (
           posi[0] > 0 &&
@@ -730,17 +778,6 @@ export default {
         .attr('transform', d => {
           return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
         })
-        .on('click', d => {
-          this.tooltip
-            .style('opacity', 1.0)
-            .html(d.Type)
-            .style('left', d3.event.pageX + 'px')
-            .style('top', d3.event.pageY - 28 + 'px')
-        })
-        .on('mouseout', d => {
-          this.tooltip.style('opacity', 0)
-        })
-
       // For testing of neighbourhood group elements
       // testGdata.append('circle')
       //   .attr('r', 20)
@@ -770,6 +807,17 @@ export default {
             d.y = d.pos[1]
             return d.pos[1] - this.aggregatedData[i].centerInPx[1]
           })
+          .on('click', d => {
+          this.tooltip
+            .style('opacity', 1.0)
+            .html(d.Type)
+            .style('left', d3.event.pageX + 'px')
+            .style('top', d3.event.pageY - 28 + 'px')
+          })
+          .on('mouseout', d => {
+            this.tooltip.style('opacity', 0)
+          })
+
 
         this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
 
@@ -781,7 +829,7 @@ export default {
             if (gridpoint) {
               d.x = gridpoint.x
               d.y = gridpoint.y
-              accidentData.accidents[
+              this.onScreenPoints[
                 d.indexInAccidentData
               ].neighbourhoodPosition = [d.x, d.y]
               d.neighbourhoodPosition = [d.x, d.y]
@@ -874,9 +922,9 @@ export default {
         /* .exit()
           .each(d => {
             d.isInNeighbourhood = false
-            let accidentNode = accidentData.accidents[d.indexInAccidentData]
+            let accidentNode = this.onScreenPoints[d.indexInAccidentData]
             accidentNode.isInNeighbourhood = false
-            delete accidentData.accidents[d.indexInAccidentData]
+            delete this.onScreenPoints[d.indexInAccidentData]
               .neighbourhoodPosition
 
             console.log('exit d', d)
@@ -922,7 +970,7 @@ export default {
         }
         return
       }
-      if(node.dimension % 2 == 0){
+      if(node.dimension % 2 == 0 && (node.left == null || node.right == null)){
         if(n[0] < 0 && (node.right != null || node.left != null)){
           if(node.right!== null){
             this.accidentsOnScreen(node.right)
@@ -948,7 +996,7 @@ export default {
             this.accidentsOnScreen(node.right)
           }
         }
-      }else{
+      }else if((node.left != null || node.right != null)){
         if(n[1] < 0 && (node.right != null || node.left != null)){
           if(node.right!== null){
             this.accidentsOnScreen(node.right)
@@ -978,6 +1026,37 @@ export default {
       
       
     },
+
+  //   accidentsOnScreen(node){
+  //     let viewport = getViewport(this.$store.state.map)
+  //     let n = viewport.project([node.obj.X, node.obj.Y])
+  //     if(node.left == null && node.right == null){
+  //       if(n[0] >= 0 && n[0] <= window.innerWidth && n[1] >= 0 && n[1] <= window.innerHeight){
+  //         this.onScreenPoints.push(node.obj)
+  //       }
+  //       return
+  //     }
+  //     if((node.left != null || node.right != null)){
+  //       if((n[node.dimension % 2] < 0 ||  n[node.dimension % 2] > window.innerWidth) && (node.right != null || node.left != null)){
+  //         if(node.right!== null){
+  //           this.accidentsOnScreen(node.right)
+  //         }
+  //         if(node.left!== null){
+  //           this.accidentsOnScreen(node.left)
+  //         }
+  //       }else{
+  //         if(n[1]>=0 && n[1]<= window.innerHeight){
+  //           this.onScreenPoints.push(node.obj)
+  //         }
+  //         if(node.left != null){
+  //           this.accidentsOnScreen(node.left)
+  //         }
+  //         if(node.right != null){
+  //           this.accidentsOnScreen(node.right)
+  //         }
+  //       }
+  //     } 
+  //   },
   }, // end of methods
   computed: {
     computedNodes: function() {

@@ -1,7 +1,9 @@
 export function sortPoints(anchorP, points, that) {
   return points.sort((a, b) => {
+    //console.log('a,b',a,b)
     let polarA = that.findPolarAngle(anchorP, a)
     let polarB = that.findPolarAngle(anchorP, b)
+    //console.log('polarA,polarB', polarA,polarB)
     if (polarA < polarB) {
       return -1
     }
