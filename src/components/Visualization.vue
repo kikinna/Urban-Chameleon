@@ -24,7 +24,11 @@ import {
   getViewport,
   measureGeoDistance
 } from '../helpers/geoProjectionHelper.js'
-import { occupyNearest } from '../helpers/mathHelper.js'
+import {
+  occupyNearestWafflechart,
+  occupyNearestBarchart,
+  sortArrayAlphabetically
+} from '../helpers/mathHelper.js'
 import Vue from 'vue'
 
 export default {
@@ -45,14 +49,16 @@ export default {
       neighbourhoodNodesInSVG: [], //array of neighbourhoods, each neighbourhood is an array containing nodes in aggregated vis
       dataD3: [], //accident data
       grid_cells: [], //array of cell arrays; each grid array contains barchart grid positions {x, y, occupied}
-      simulation: null, //accident data force simulation
+      simulation: [], //null, //accident data force simulation
       svg: null, //d3 svg selection
-      nodes: null, //accident nodes
+      nodesOnMap: null, //accident nodes
       polygons: null, //svg polygon selection
       tooltip: null, //d3 tooltips
       tree: [],
       nodeRadius: 5, //default node radius
-      isAggrVisActive: false //flag for deciding if we should draw the aggregated vis or just update it
+      isAggrVisInitialized: false, //flag for deciding if we should draw the aggregated vis or just update it
+      doYouWantSomeWafflesCowboy: false, //TODO: temporary flag for deciding whether we want to draw waffle or barchart
+      listOfBarsTypeOfData: [] //used in barchart to order bars grouped by the type of data
     }
   },
   store,
@@ -75,7 +81,7 @@ export default {
     this.updateVisualizations()
   },
   methods: {
-    //initialisation (svg, nodes, polygons, tooltips)
+    //initialisation (svg, nodesOnMap, polygons, tooltips)
     initialiseSVGelements() {
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
@@ -100,9 +106,9 @@ export default {
         .attr('class', 'tooltip')
         .style('opacity', 0)
 
-      this.nodes = this.svg
+      this.nodesOnMap = this.svg
         .append('g')
-        .attr('class', 'nodes')
+        .attr('class', 'nodesOnMap')
         .selectAll('circle')
         .data(this.dataD3.accidents)
         .join('circle')
@@ -135,6 +141,27 @@ export default {
         .on('mouseout', d => {
           this.tooltip.style('opacity', 0)
         })
+
+      this.listOfBarsTypeOfData = new Set(
+        accidentData.accidents.map(node => node.Type)
+      )
+      /* for (let i = 0; i < set.length; i++) {
+        this.listOfBarsTypeOfData.push(
+          accidentData.accidents
+            .map(node => node.Type)
+            .reduce(function(n, val) {
+              return n + (val === set[i])
+            }, 0)
+        )
+      } */
+
+      this.transition = d3
+        .transition()
+        .duration(2000)
+        .ease(d3.easeLinear)
+
+      //console.log('list', this.listOfBarsTypeOfData)
+      //console.log('list', set)
     },
     listeners() {
       //all events
@@ -170,36 +197,17 @@ export default {
     //updates positions of aggregated visualizations (the g element)
     moveAggregatedVis() {
       const viewport = getViewport(this.$store.state.map)
-      const t = d3.transition()
-      //.duration(0)
-      //.ease(d3.easeLinear)
 
-      d3.selectAll('g.neighbourhood-g')
-        //.transition(t)
-        .attr('transform', d => {
-          let pos = viewport.project(d.centerInGPS)
-          return 'translate(' + pos[0] + ', ' + pos[1] + ')'
-        })
+      d3.selectAll('g.neighbourhood-g').attr('transform', d => {
+        let pos = viewport.project(d.centerInGPS)
+        return 'translate(' + pos[0] + ', ' + pos[1] + ')'
+      })
     },
     //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateNodesOnMap() {
       const viewport = getViewport(this.$store.state.map)
 
-      //this.svg.selectAll('circle').remove()
-      //.filter(d => d.Type === 'Crash')
-      //this.nodes = this.svg
-      //.append('g')
-      //.attr('class', 'nodes')
-      //.selectAll('circle')
-      //d3.selectAll('.nodes')
-      //.append('g')
-      //.attr('class', 'nodes')
-      this.nodes /* = this.svg
-        .attr('class', 'nodes')
-        .selectAll('circle')
-        .data(this.dataD3.accidents.filter(d => d.Type == 'Crash'))
-        .join('circle')
-        //.merge(this.nodes) */
+      this.nodesOnMap
         .attr('cx', d => {
           d.forceGPS = viewport.unproject([d.x, d.y]) //probably not needed
           d.pos = viewport.project([d.X, d.Y])
@@ -223,6 +231,8 @@ export default {
             .html(d.Type)
             .style('left', d3.event.pageX + 'px')
             .style('top', d3.event.pageY - 28 + 'px')
+
+          this.createForceLayout()
         })
         .on('mouseout', d => {
           //this.tooltip.hide)
@@ -232,23 +242,23 @@ export default {
     //updates all visualizations - svg nodes, aggregated visualizations
     updateVisualizations() {
       this.updateNodesOnMap()
-      if (!this.isAggrVisActive) {
+      if (!this.isAggrVisInitialized) {
+        //this.doYouWantSomeWafflesCowboy = true
         this.drawAggregatedVis()
-        this.isAggrVisActive = true
+        this.isAggrVisInitialized = true
       } else {
         this.updateAggregatedVis()
       }
-      //TODO: remove visualisations and set this.isAggrVisActive to false on some zoom level
+      //TODO: remove visualisations and set this.isAggrVisInitialized to false on some zoom level
       //making nodes included in aggregated vis invisible in map
-      this.nodes.attr('class', d => {
+      this.nodesOnMap.attr('class', d => {
         if (d.isInNeighbourhood) {
           return 'neighbourhood'
         }
-        return 'nodes'
+        return 'nodesOnMap'
       })
 
       // animated transition of nodes in aggregated vis
-      // Possible shift to mounted? Maybe?
       /* const t = d3
         .transition()
         .duration(2000)
@@ -256,14 +266,14 @@ export default {
 
       const viewport = getViewport(this.$store.state.map)
 
-      this.nodes
+      this.nodesOnMap
         .attr('cx', d => {
           d.forceGPS = viewport.unproject([d.x, d.y])
           return d.x
         })
         .attr('cy', d => d.y)
 
-      this.nodes
+      this.nodesOnMap
 
         .transition(t)
         .attr('cx', function(d) {
@@ -358,6 +368,8 @@ export default {
         this.aggregatedData[i].nodesInNeighbourhood.forEach(n => {
           let d = this.dataD3.accidents[n.indexInAccidentData]
           d.isInNeighbourhood = false
+          //d.gridCandidate = null
+          //d.gridIndex = null
           /* console.log('lkadflak', n)
           d.x = n.x
           d.y = n.y */
@@ -409,15 +421,111 @@ export default {
       }
       //console.log('aggrData af', this.aggregatedData)
     },
-    //initialisation of grid for aggregated visualization (house parties)
-    initGrid(arrayLength) {
-      const CELL_SIZE = 10
-      const GRID_COLS = 5
-      const GRID_ROWS = Math.ceil(arrayLength / GRID_COLS)
+    //initialisation of grid for aggregated visualization - barchart
+    initGridForBarchart(array) {
+      let CELL_SIZE = 10
+      let GRID_COLS = 5
 
-      const currentCells = []
+      let height = window.innerHeight
 
-      for (var r = 0; r < GRID_ROWS; r++) {
+      const data_structure = {
+        bars: [...this.listOfBarsTypeOfData], //[...new Set(array.map(node => node.Type))],
+        bar_counts: [],
+        bar_rows: [], // not used anywhere lol
+        chart_cells: [],
+        barColls: 0
+      }
+
+      for (var i = 0; i < data_structure.bars.length; i++) {
+        data_structure.bar_counts[i] = array
+          .map(node => node.Type)
+          .reduce(function(n, val) {
+            return n + (val === data_structure.bars[i])
+          }, 0)
+
+        data_structure.bar_rows[i] = Math.ceil(
+          data_structure.bar_counts[i] / GRID_COLS
+        )
+      }
+
+      console.log('rows', data_structure.bar_rows)
+      console.log('counts', data_structure.bar_counts)
+
+      let arrayLen = array.length
+
+      let GRID_ROWS = Math.ceil(array.length / GRID_COLS) // = data_structure.bar_rows[0] //
+      //let start_x = 0
+
+      //const currentBarchart = []
+
+      for (var bar = 0; bar < data_structure.bars.length; bar++) {
+        /* GRID_COLS = data_structure.bar_counts[0]
+        GRID_ROWS = Math.ceil(array.length / GRID_COLS)
+        console.log('rows', GRID_COLS)
+        console.log('counts', GRID_ROWS)
+        console.log('ds', data_structure) */
+        // console.log("This is bar ", bar);
+        //this.cells[bar] = []
+        const currentBarCells = []
+        //let bar_cells = []
+        /* let cells_count
+        while (bar < data_structure.bars.length) {
+          cells_count = data_structure.bar_counts[bar]
+          if (cells_count <= 0) {
+            bar++
+          } else {
+            break
+          }
+        } */
+
+        let cells_count = data_structure.bar_counts[bar]
+
+        //GRID_COLS = Math.ceil(cells_count / 5) //Math.ceil(cells_count / 5)
+        //console.log('cols', GRID_COLS)
+
+        //GRID_ROWS = arrayLen / 2
+        if (GRID_COLS <= 0) {
+          GRID_ROWS = 0
+        } else {
+          GRID_ROWS = Math.ceil(arrayLen / GRID_COLS)
+        }
+
+        // console.log(cells_count);
+        // console.log("cells_count ", cells_count);
+
+        let start_x = bar * (GRID_COLS + 1) * 9 //CELL_SIZE
+        //start_x += bar * (GRID_COLS + 1) //+ bar * 10
+        console.log('start_x', start_x)
+
+        for (var r = 0; r < GRID_ROWS; r++) {
+          for (var c = 0; c < GRID_COLS; c++) {
+            if (cells_count <= 0) continue
+
+            var cell
+            cell = {
+              x: start_x + c * CELL_SIZE,
+              y: GRID_COLS - r * CELL_SIZE,
+              occupied: false
+            }
+
+            currentBarCells.push(cell) //this.cells[bar].push(cell);
+            // bar_cells.push(cell);
+            cells_count--
+            // console.log(cells_count);
+          }
+        }
+        //currentBarchart.push(currentBarCells)
+        data_structure.chart_cells.push(currentBarCells)
+        // console.log(bar_cells);
+        // console.log(this.cells[bar])
+      }
+
+      //data_structure.chart_cells.push(currentBarchart)
+      this.grid_cells.push(data_structure)
+      //this.grid_cells.push(currentBarchart)
+      //this.data_structure.push(data_structure)
+
+      /*for (var r = 0; r < GRID_ROWS; r++) {
         for (var c = 0; c < GRID_COLS; c++) {
           if (arrayLength <= 0) break
           var cell
@@ -431,7 +539,75 @@ export default {
         }
       }
 
-      this.grid_cells.push(currentCells)
+      this.grid_cells.push(currentCells) */
+    },
+    //initialisation of grid for aggregated visualization - wafflechart
+    initGridForWafflechart(array) {
+      let CELL_SIZE = 10
+      let GRID_COLS = 5
+
+      const data_structure = {
+        typesOfData: [...this.listOfBarsTypeOfData],
+        bars: [...this.listOfBarsTypeOfData],
+        //wafflechart_cells: [],
+        chart_cells: [],
+        type_counts: []
+      }
+
+      let GRID_ROWS = Math.ceil(array.length / GRID_COLS)
+
+      for (var i = 0; i < data_structure.typesOfData.length; i++) {
+        data_structure.type_counts[i] = array
+          .map(node => node.Type)
+          .reduce(function(n, val) {
+            return n + (val === data_structure.typesOfData[i])
+          }, 0)
+      }
+
+      //const currentBarchart = []
+
+      /* for (var r = 0; r < GRID_ROWS; r++) {
+        for (var c = 0; c < GRID_COLS; c++) {
+          if (arrayLength <= 0) break
+          var cell
+          cell = {
+            x: c * CELL_SIZE,
+            y: GRID_COLS - r * CELL_SIZE,
+            occupied: false
+          }
+          currentCells.push(cell)
+          arrayLength--
+        }
+      } */
+
+      let arrayLen = array.length
+
+      //for (var type = 0; type < data_structure.typesOfData.length; type++) {
+      //const currentBarCells = []
+
+      //let cells_count = data_structure.type_counts[type]
+
+      for (var r = 0; r < GRID_ROWS; r++) {
+        for (var c = 0; c < GRID_COLS; c++) {
+          //if (cells_count <= 0) continue
+          if (arrayLen <= 0) break
+
+          var cell
+          cell = {
+            x: c * CELL_SIZE,
+            y: GRID_COLS - r * CELL_SIZE,
+            occupied: false
+          }
+          data_structure.chart_cells.push(cell)
+          //cells_count--
+          arrayLen--
+        }
+      }
+
+      //}
+      this.grid_cells.push(data_structure)
+
+      console.log('ds', data_structure)
     },
     //Prepareing things for new neighbourhood computing
     removeNeighbourhoods() {
@@ -589,18 +765,57 @@ export default {
         }
       })
     },
-    drawAggregatedVis() {
-      this.initAggregatedVisData()
+    createForceLayout(array) {
+      const currentSimulation = d3
+        .forceSimulation()
+        .nodes(array)
+        //.forceSimulation(this.graph)
+        .force(
+          'center',
+          d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2)
+        )
+        .force(
+          'collide',
+          d3
+            .forceCollide()
+            .radius(this.nodeRadius * 2)
+            .strength(1)
+            .iterations(1)
+        )
+        .on('tick', this.tick)
 
-      // Neni to uplne pekne, ze to neporovnavame na neighbourhoodCounts
+      this.simulation.push(currentSimulation)
+    },
+    tick() {
+      const viewport = getViewport(this.$store.state.map)
+
+      this.nodes
+        .attr('cx', function(d) {
+          if (d.area) {
+            return
+          }
+          d.forceGPS = viewport.unproject([d.x, d.y])
+          return d.x
+        })
+        .attr('cy', function(d) {
+          if (d.area) {
+            return
+          }
+          return d.y
+        })
+    },
+    emptyAggrVisArrays() {
       while (this.grid_cells.length > 0) {
         this.grid_cells.pop()
-        //this.neighbourhoodNodesInSVG.pop()
       }
 
       while (this.neighbourhoodNodesInSVG.length > 0) {
         this.neighbourhoodNodesInSVG.pop()
       }
+    },
+    drawAggregatedVis() {
+      this.initAggregatedVisData()
+      this.emptyAggrVisArrays()
 
       // animated transition of nodes in aggregated vis
       // Possible shift to mounted? Maybe?
@@ -626,15 +841,12 @@ export default {
           return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
         })
 
-      // For testing of neighbourhood group elements
-      // testGdata.append('circle')
-      //   .attr('r', 20)
-      //   .attr('cx', 0)
-      //   .attr('cy', 0)
-      //   .attr('fill', 'pink')
-
       // Setup
       for (var i = 0; i < this.aggregatedData.length; i++) {
+        this.aggregatedData[i].nodesInNeighbourhood = sortArrayAlphabetically(
+          this.aggregatedData[i].nodesInNeighbourhood
+        )
+
         // Setup neighbourhood in DOM (g/circles) in their GPS positions
         let currentNeighbourhoodSVGNodes = d3
           .select('#neighbourhood-' + this.aggregatedData[i].id)
@@ -666,19 +878,27 @@ export default {
             this.tooltip.style('opacity', 0)
           })
 
-        /* this.neighbourhood[i].points.forEach(n => {
-          let d = accidentData.accidents[n]
+        if (this.doYouWantSomeWafflesCowboy) {
+          this.initGridForWafflechart(
+            this.aggregatedData[i].nodesInNeighbourhood
+          )
+        } else {
+          this.initGridForBarchart(this.aggregatedData[i].nodesInNeighbourhood)
+        }
 
-          //d.neighbourhoodPosition
-        }) */
-
-        this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
+        //console.log('please bro just go bro', this.grid_cells)
 
         // For each neighbourhood nodes find a position in a grid and move it there w/ transition
         currentNeighbourhoodSVGNodes
           .transition(t)
           .each(d => {
-            let gridpoint = occupyNearest(d, this.grid_cells[i])
+            let gridpoint
+
+            if (this.doYouWantSomeWafflesCowboy) {
+              gridpoint = occupyNearestWafflechart(d, this.grid_cells[i])
+            } else {
+              gridpoint = occupyNearestBarchart(d, this.grid_cells[i])
+            }
             if (gridpoint) {
               d.x = gridpoint.x
               d.y = gridpoint.y
@@ -702,6 +922,7 @@ export default {
 
         this.neighbourhoodNodesInSVG.push(currentNeighbourhoodSVGNodes)
       } // end of that huge for cycle
+      console.log('please bro just go bro', this.grid_cells)
     },
     //updating aggregated vis. (house parties)
     updateAggregatedVis() {
@@ -728,11 +949,10 @@ export default {
 
       // init DS for individual aggregated vis
       this.initAggregatedVisData()
+      this.emptyAggrVisArrays()
 
       // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
-      while (this.grid_cells.length > 0) {
-        this.grid_cells.pop()
-      }
+      console.log('grid', this.grid_cells)
 
       this.svg
         .selectAll('g.neighbourhood-g')
@@ -748,6 +968,10 @@ export default {
         })
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
+        this.aggregatedData[i].nodesInNeighbourhood = sortArrayAlphabetically(
+          this.aggregatedData[i].nodesInNeighbourhood
+        )
+
         let currentAggregatedVis = d3
           .select('#neighbourhood-' + this.aggregatedData[i].id)
           .selectAll('circle.circlesInAggregatedVis')
@@ -762,16 +986,17 @@ export default {
             accidentNode.isInNeighbourhood = false
             delete accidentData.accidents[d.indexInAccidentData]
               .neighbourhoodPosition
-
+            //accidentNode.gridCandidate = null
+            //accidentNode.gridIndex = null
             //console.log('haaaaaallelujah')
             //console.log('exit d', d)
             //console.log('exit n', accidentNode)
           })
           .classed('neighbourhood', false)
           .classed('circlesInAggregatedVis', false)
-          .classed('nodes', true)
-          .attr('fill', 'black')
-          .attr('r', 50)
+          .classed('nodesOnMap', true)
+          //.attr('fill', 'black')
+          //.attr('r', 50)
           .remove()
 
         //ENTER
@@ -885,18 +1110,43 @@ export default {
           })
           .classed('neighbourhood', false)
           .classed('circlesInAggregatedVis', false)
-          .classed('nodes', true)
+          .classed('nodesOnMap', true)
           .attr('fill', 'black')
           .attr('r', 50)
           .remove() */
 
-        this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
+        if (this.doYouWantSomeWafflesCowboy) {
+          this.initGridForWafflechart(
+            this.aggregatedData[i].nodesInNeighbourhood
+          )
+        } else {
+          this.initGridForBarchart(this.aggregatedData[i].nodesInNeighbourhood)
+        }
 
         d3.select('#neighbourhood-' + this.aggregatedData[i].id)
           .selectAll('circle.circlesInAggregatedVis')
           .transition(t)
           .each(d => {
-            let gridpoint = occupyNearest(d, this.grid_cells[i])
+            let gridpoint
+
+            if (this.doYouWantSomeWafflesCowboy) {
+              gridpoint = occupyNearestWafflechart(d, this.grid_cells[i])
+            } else {
+              gridpoint = occupyNearestBarchart(d, this.grid_cells[i])
+            }
+            let currentNodeInAccData =
+              accidentData.accidents[d.indexInAccidentData]
+
+            /*if (currentNodeInAccData.gridCandidate) {
+              console.log('actually got ere')
+              gridpoint = currentNodeInAccData.gridCandidate
+              let gridIndex = currentNodeInAccData.gridIndex
+
+              this.grid_cells[i][gridIndex].occupied = true
+            } else {
+              gridpoint = occupyNearest(d, this.grid_cells[i])
+            } */
+
             if (gridpoint) {
               let newX = gridpoint.x
               let newY = gridpoint.y
@@ -911,47 +1161,40 @@ export default {
               accidentData.accidents[
                 d.indexInAccidentData
               ].neighbourhoodPosition = [d.x, d.y]
+
               Vue.set(d, 'neighbourhoodPosition', [d.x, d.y])
-              Vue.set(
-                accidentData.accidents[d.indexInAccidentData],
-                'neighbourhoodPosition',
-                [d.x, d.y]
-              )
+              Vue.set(currentNodeInAccData, 'neighbourhoodPosition', [d.x, d.y])
             }
           })
           .attr('cx', d => d.x)
           .attr('cy', d => d.y)
       } //end of the extra big for cycle
     }
-  }, // end of methods
-  computed: {
-    computedNodes: function() {
-      if (this.nodes) {
-        const colorScale = d3.scaleOrdinal(d3.schemeDark2)
-        const viewport = getViewport(this.$store.state.map)
-
-        this.nodes
-          .attr('r', this.nodeRadius)
-          .attr('fill', d => {
-            if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
-              return '#487284d2'
-            }
-            return colorScale(d.Type) //'black'
-          })
-          .attr('cx', d => {
-            d.pos = viewport.project([d.X, d.Y])
-            d.x = d.pos[0]
-            return d.pos[0]
-          })
-          .attr('cy', d => {
-            d.y = d.pos[1]
-            return d.pos[1]
-          })
+    /* occupyNearest(p, cells) {
+      var minDist = Infinity
+      var d
+      var candidate = null
+      var i //so that it lasts after for cycle
+      for (i = 0; i < cells.length; i++) {
+        if (!cells[i].occupied && (d = sqdist(p, cells[i])) < minDist) {
+          minDist = d
+          candidate = cells[i]
+        }
       }
+      if (candidate) candidate.occupied = true
 
-      return this.nodes
-    }
-  }
+      //my code
+      accidentData.accidents[p.indexInAccidentData].gridCandidate = candidate
+      accidentData.accidents[p.indexInAccidentData].gridIndex = i
+      Vue.set(
+        accidentData.accidents[p.indexInAccidentData],
+        'gridCandidate',
+        candidate
+      )
+      //console.log('bruh', accidentData.accidents[p.indexInAccidentData])
+      return candidate
+    } */
+  } // end of methods
 }
 </script>
 
@@ -966,7 +1209,7 @@ export default {
   stroke-width: 2px;
 }
 
-.nodes {
+.nodesOnMap {
   stroke: rgb(255, 255, 255);
   stroke-width: 2px;
 }
