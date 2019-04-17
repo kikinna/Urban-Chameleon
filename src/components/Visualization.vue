@@ -49,7 +49,7 @@ export default {
       neighbourhoodNodesInSVG: [], //array of neighbourhoods, each neighbourhood is an array containing nodes in aggregated vis
       dataD3: [], //accident data
       grid_cells: [], //array of cell arrays; each grid array contains barchart grid positions {x, y, occupied}
-      simulation: [], //null, //accident data force simulation
+      simulation: null, //[], //null, //accident data force simulation
       svg: null, //d3 svg selection
       nodesOnMap: null, //accident nodes
       polygons: null, //svg polygon selection
@@ -58,6 +58,7 @@ export default {
       nodeRadius: 5, //default node radius
       isAggrVisInitialized: false, //flag for deciding if we should draw the aggregated vis or just update it
       doYouWantSomeWafflesCowboy: false, //TODO: temporary flag for deciding whether we want to draw waffle or barchart
+      arrayForForceLayout: [], //array with the neighbourhood nodes, from neighbourhoods with less than 10 nodes
       listOfBarsTypeOfData: [] //used in barchart to order bars grouped by the type of data
     }
   },
@@ -218,7 +219,7 @@ export default {
         .attr('cy', d => {
           return d.y
         })
-        .on('click', d => {
+        /* .on('click', d => {
           accidentData.accidents.forEach(o => {
             o.theNeighbourhood = null
           })
@@ -231,12 +232,13 @@ export default {
             .html(d.Type)
             .style('left', d3.event.pageX + 'px')
             .style('top', d3.event.pageY - 28 + 'px')
-
-          this.createForceLayout()
-        })
+        }) */
         .on('mouseout', d => {
           //this.tooltip.hide)
           this.tooltip.style('opacity', 0)
+        })
+        .on('click', d => {
+          console.log('dis dee', d)
         })
     },
     //updates all visualizations - svg nodes, aggregated visualizations
@@ -249,6 +251,7 @@ export default {
       } else {
         this.updateAggregatedVis()
       }
+      //this.runForceLayout()
       //TODO: remove visualisations and set this.isAggrVisInitialized to false on some zoom level
       //making nodes included in aggregated vis invisible in map
       this.nodesOnMap.attr('class', d => {
@@ -258,32 +261,53 @@ export default {
         return 'nodesOnMap'
       })
 
+      this.transitionNodesFromAggrVisToMapToTheirPosition()
+    },
+    transitionNodesFromAggrVisToMapToTheirPosition() {
       // animated transition of nodes in aggregated vis
-      /* const t = d3
+      const t = d3
         .transition()
         .duration(2000)
         .ease(d3.easeLinear)
 
       const viewport = getViewport(this.$store.state.map)
 
+      //aggrVis position
       this.nodesOnMap
         .attr('cx', d => {
-          d.forceGPS = viewport.unproject([d.x, d.y])
-          return d.x
+          if (!d.neighbourhoodPosition && !d.centerShift) return d.x
+          if (d.ID === 60206182319) {
+            console.log('af pos', d.pos[0])
+            console.log('af x', d.x)
+            console.log('af c', d.centerShift[0])
+          }
+          //d.forceGPS = viewport.unproject([d.x, d.y])
+
+          return d.centerShift[0] //d.x - d.pos[0] - d.centerShift[0] //d.pos[0] //+ d.x - d.centerShift[0]
         })
-        .attr('cy', d => d.y)
+        .attr('cy', d => {
+          if (!d.neighbourhoodPosition && !d.centerShift) return d.y
+          return d.centerShift[1] //d.y - d.pos[1] - d.centerShift[1] //+ d.y + d.centerShift[1] //d.cy
+        })
+        .attr('r', d => {
+          if (!d.neighbourhoodPosition && !d.centerShift) return 5
+          return 500
+        })
 
       this.nodesOnMap
-
         .transition(t)
         .attr('cx', function(d) {
+          if (!d.neighbourhoodPosition && !d.centerShift) return d.x
           d.x = viewport.project(d.forceGPS)[0]
           return d.x
         })
         .attr('cy', function(d) {
+          if (!d.neighbourhoodPosition && !d.centerShift) return d.y
           d.y = viewport.project(d.forceGPS)[1]
+          delete d.neighbourhoodPosition
+          delete d.centerShift
           return d.y
-        }) */
+        })
     },
     //prepareing things for new neighbourhoods and stard calculating and make polygon
     computeNeighbourhoodsAndDrawPolygons() {
@@ -423,11 +447,6 @@ export default {
     },
     //initialisation of grid for aggregated visualization - barchart
     initGridForBarchart(array) {
-      let CELL_SIZE = 10
-      let GRID_COLS = 5
-
-      let height = window.innerHeight
-
       const data_structure = {
         bars: [...this.listOfBarsTypeOfData], //[...new Set(array.map(node => node.Type))],
         bar_counts: [],
@@ -448,15 +467,26 @@ export default {
         )
       }
 
-      console.log('rows', data_structure.bar_rows)
-      console.log('counts', data_structure.bar_counts)
+      //console.log('rows', data_structure.bar_rows)
+      //console.log('counts', data_structure.bar_counts)
 
       let arrayLen = array.length
+      let CELL_SIZE = 10
+      let GRID_COLS = Math.ceil(Math.max(...data_structure.bar_counts) / 10) //5
+      if (GRID_COLS > 9) GRID_COLS = 9
 
       let GRID_ROWS = Math.ceil(array.length / GRID_COLS) // = data_structure.bar_rows[0] //
       //let start_x = 0
+      //console.log('cols', GRID_COLS)
+      //console.log('rows', GRID_ROWS)
 
       //const currentBarchart = []
+
+      let emptyBarsCount = 0
+      let emptyCollsCount = 0
+
+      let shift =
+        (data_structure.bars.length - 1) * (GRID_COLS + 1) * (CELL_SIZE - 1)
 
       for (var bar = 0; bar < data_structure.bars.length; bar++) {
         /* GRID_COLS = data_structure.bar_counts[0]
@@ -468,34 +498,31 @@ export default {
         //this.cells[bar] = []
         const currentBarCells = []
         //let bar_cells = []
-        /* let cells_count
-        while (bar < data_structure.bars.length) {
-          cells_count = data_structure.bar_counts[bar]
-          if (cells_count <= 0) {
-            bar++
-          } else {
-            break
-          }
-        } */
 
         let cells_count = data_structure.bar_counts[bar]
 
+        if (cells_count <= 0) {
+          data_structure.chart_cells.push([])
+          emptyBarsCount++
+          continue
+        }
+
+        if (GRID_COLS - cells_count > 0) {
+          emptyCollsCount += GRID_COLS - cells_count //TODO: -emptyCollsCount somewhere?
+        }
+        //GRID_COLS = Math.ceil(data_structure.bar_counts[bar] / 10)
+        //GRID_ROWS = Math.ceil(arrayLen / GRID_COLS)
+
         //GRID_COLS = Math.ceil(cells_count / 5) //Math.ceil(cells_count / 5)
         //console.log('cols', GRID_COLS)
-
-        //GRID_ROWS = arrayLen / 2
-        if (GRID_COLS <= 0) {
-          GRID_ROWS = 0
-        } else {
-          GRID_ROWS = Math.ceil(arrayLen / GRID_COLS)
-        }
+        //GRID_ROWS = Math.ceil(arrayLen / GRID_COLS)
 
         // console.log(cells_count);
         // console.log("cells_count ", cells_count);
 
-        let start_x = bar * (GRID_COLS + 1) * 9 //CELL_SIZE
+        let start_x = (bar - emptyBarsCount) * (GRID_COLS + 1) * (CELL_SIZE - 1)
         //start_x += bar * (GRID_COLS + 1) //+ bar * 10
-        console.log('start_x', start_x)
+        //console.log('start_x', start_x)
 
         for (var r = 0; r < GRID_ROWS; r++) {
           for (var c = 0; c < GRID_COLS; c++) {
@@ -503,43 +530,22 @@ export default {
 
             var cell
             cell = {
-              x: start_x + c * CELL_SIZE,
+              x: start_x + c * CELL_SIZE - shift / 2,
               y: GRID_COLS - r * CELL_SIZE,
               occupied: false
             }
 
-            currentBarCells.push(cell) //this.cells[bar].push(cell);
+            currentBarCells.push(cell)
             // bar_cells.push(cell);
             cells_count--
             // console.log(cells_count);
           }
         }
-        //currentBarchart.push(currentBarCells)
         data_structure.chart_cells.push(currentBarCells)
-        // console.log(bar_cells);
-        // console.log(this.cells[bar])
       }
 
-      //data_structure.chart_cells.push(currentBarchart)
+      //console.log('c', emptyCollsCount)
       this.grid_cells.push(data_structure)
-      //this.grid_cells.push(currentBarchart)
-      //this.data_structure.push(data_structure)
-
-      /*for (var r = 0; r < GRID_ROWS; r++) {
-        for (var c = 0; c < GRID_COLS; c++) {
-          if (arrayLength <= 0) break
-          var cell
-          cell = {
-            x: c * CELL_SIZE,
-            y: GRID_COLS - r * CELL_SIZE,
-            occupied: false
-          }
-          currentCells.push(cell)
-          arrayLength--
-        }
-      }
-
-      this.grid_cells.push(currentCells) */
     },
     //initialisation of grid for aggregated visualization - wafflechart
     initGridForWafflechart(array) {
@@ -549,7 +555,6 @@ export default {
       const data_structure = {
         typesOfData: [...this.listOfBarsTypeOfData],
         bars: [...this.listOfBarsTypeOfData],
-        //wafflechart_cells: [],
         chart_cells: [],
         type_counts: []
       }
@@ -563,30 +568,14 @@ export default {
             return n + (val === data_structure.typesOfData[i])
           }, 0)
       }
-
-      //const currentBarchart = []
-
-      /* for (var r = 0; r < GRID_ROWS; r++) {
-        for (var c = 0; c < GRID_COLS; c++) {
-          if (arrayLength <= 0) break
-          var cell
-          cell = {
-            x: c * CELL_SIZE,
-            y: GRID_COLS - r * CELL_SIZE,
-            occupied: false
-          }
-          currentCells.push(cell)
-          arrayLength--
-        }
-      } */
-
       let arrayLen = array.length
 
       //for (var type = 0; type < data_structure.typesOfData.length; type++) {
       //const currentBarCells = []
+      let counterArray = 0
 
       //let cells_count = data_structure.type_counts[type]
-
+      //
       for (var r = 0; r < GRID_ROWS; r++) {
         for (var c = 0; c < GRID_COLS; c++) {
           //if (cells_count <= 0) continue
@@ -596,18 +585,19 @@ export default {
           cell = {
             x: c * CELL_SIZE,
             y: GRID_COLS - r * CELL_SIZE,
-            occupied: false
+            occupied: false,
+            waffleType: array[counterArray].Type
           }
           data_structure.chart_cells.push(cell)
-          //cells_count--
           arrayLen--
+          counterArray++
         }
       }
 
       //}
       this.grid_cells.push(data_structure)
 
-      console.log('ds', data_structure)
+      //console.log('ds', data_structure)
     },
     //Prepareing things for new neighbourhood computing
     removeNeighbourhoods() {
@@ -765,11 +755,10 @@ export default {
         }
       })
     },
-    createForceLayout(array) {
+    runForceLayout() {
       const currentSimulation = d3
         .forceSimulation()
-        .nodes(array)
-        //.forceSimulation(this.graph)
+        .nodes(this.arrayForForceLayout)
         .force(
           'center',
           d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2)
@@ -784,7 +773,8 @@ export default {
         )
         .on('tick', this.tick)
 
-      this.simulation.push(currentSimulation)
+      //this.simulation.push(currentSimulation)
+      this.simulation = currentSimulation
     },
     tick() {
       const viewport = getViewport(this.$store.state.map)
@@ -811,6 +801,10 @@ export default {
 
       while (this.neighbourhoodNodesInSVG.length > 0) {
         this.neighbourhoodNodesInSVG.pop()
+      }
+
+      while (this.arrayForForceLayout.length > 0) {
+        this.arrayForForceLayout.pop()
       }
     },
     drawAggregatedVis() {
@@ -843,6 +837,13 @@ export default {
 
       // Setup
       for (var i = 0; i < this.aggregatedData.length; i++) {
+        if (this.aggregatedData[i].nodesInNeighbourhood.length < 10) {
+          this.arrayForForceLayout.push(
+            this.aggregatedData[i].nodesInNeighbourhood
+          ) //this.runForceLayout()
+          continue
+        }
+
         this.aggregatedData[i].nodesInNeighbourhood = sortArrayAlphabetically(
           this.aggregatedData[i].nodesInNeighbourhood
         )
@@ -861,6 +862,11 @@ export default {
           .attr('cx', d => {
             d.pos = viewport.project([d.X, d.Y])
             d.x = d.pos[0]
+            Vue.set(
+              accidentData.accidents[d.indexInAccidentData],
+              'centerShift',
+              this.aggregatedData[i].centerInPx
+            )
             return d.pos[0] - this.aggregatedData[i].centerInPx[0]
           })
           .attr('cy', d => {
@@ -906,8 +912,9 @@ export default {
               let currentNodeInAccData =
                 accidentData.accidents[d.indexInAccidentData]
               currentNodeInAccData.neighbourhoodPosition = [d.x, d.y]
+              //currentNodeInAccData.neighbourhoodPosition = [d.x, d.y] HERE
               //d.neighbourhoodPosition = [d.x, d.y]
-              d.forceGPS = viewport.unproject([d.x, d.y])
+              //d.forceGPS = viewport.unproject([d.x, d.y])
               //console.log(currentNodeInAccData)
               //accidentData.accidents[d.id].neighbourhoodPosition = [d.x, d.y]
               //Vue.set(currentNodeInAccData, 'neighbourhoodPosition', [d.x, d.y])
@@ -922,7 +929,7 @@ export default {
 
         this.neighbourhoodNodesInSVG.push(currentNeighbourhoodSVGNodes)
       } // end of that huge for cycle
-      console.log('please bro just go bro', this.grid_cells)
+      //console.log('please bro just go bro', this.grid_cells)
     },
     //updating aggregated vis. (house parties)
     updateAggregatedVis() {
@@ -931,7 +938,6 @@ export default {
       d3.selectAll('g.neighbourhood-g')
         .transition(t)
         .attr('transform', d => {
-          //console.log(d)
           let pos = viewport.project(d.centerInGPS)
           return 'translate(' + pos[0] + ', ' + pos[1] + ')'
         })
@@ -949,10 +955,9 @@ export default {
 
       // init DS for individual aggregated vis
       this.initAggregatedVisData()
-      this.emptyAggrVisArrays()
+      this.emptyAggrVisArrays() // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
 
-      // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
-      console.log('grid', this.grid_cells)
+      //console.log('grid', this.grid_cells)
 
       this.svg
         .selectAll('g.neighbourhood-g')
@@ -968,6 +973,13 @@ export default {
         })
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
+        if (this.aggregatedData[i].nodesInNeighbourhood.length < 10) {
+          this.arrayForForceLayout.push(
+            this.aggregatedData[i].nodesInNeighbourhood
+          ) //this.runForceLayout()
+          continue
+        }
+
         this.aggregatedData[i].nodesInNeighbourhood = sortArrayAlphabetically(
           this.aggregatedData[i].nodesInNeighbourhood
         )
@@ -977,94 +989,7 @@ export default {
           .selectAll('circle.circlesInAggregatedVis')
           .data(this.aggregatedData[i].nodesInNeighbourhood)
 
-        //EXIT
-        currentAggregatedVis
-          .exit()
-          .each(d => {
-            d.isInNeighbourhood = false
-            let accidentNode = accidentData.accidents[d.indexInAccidentData]
-            accidentNode.isInNeighbourhood = false
-            delete accidentData.accidents[d.indexInAccidentData]
-              .neighbourhoodPosition
-            //accidentNode.gridCandidate = null
-            //accidentNode.gridIndex = null
-            //console.log('haaaaaallelujah')
-            //console.log('exit d', d)
-            //console.log('exit n', accidentNode)
-          })
-          .classed('neighbourhood', false)
-          .classed('circlesInAggregatedVis', false)
-          .classed('nodesOnMap', true)
-          //.attr('fill', 'black')
-          //.attr('r', 50)
-          .remove()
-
-        //ENTER
-        currentAggregatedVis
-          .enter()
-          .append('circle')
-          .merge(currentAggregatedVis)
-          .attr('class', 'circlesInAggregatedVis')
-          .attr('r', 5)
-          .attr('fill', d => {
-            return colorScale(d.Type)
-          })
-          .attr('cx', d => {
-            if (d.neighbourhoodPosition) {
-              //console.log('already in', d)
-              d.x = d.neighbourhoodPosition[0]
-              return d.x
-            } else {
-              //console.log('newbie', d.x, d.pos)
-              d.pos = viewport.project([d.X, d.Y])
-              d.x = d.pos[0]
-              //console.log(d.x, d.pos)
-              return d.pos[0] - this.aggregatedData[i].centerInPx[0]
-            }
-          })
-          .attr('cy', d => {
-            if (d.neighbourhoodPosition) {
-              d.y = d.neighbourhoodPosition[1]
-              return d.y
-            } else {
-              d.y = d.pos[1]
-              return d.pos[1] - this.aggregatedData[i].centerInPx[1]
-            }
-          })
-          .on('click', d => {
-            console.log('dis dee', d)
-          })
-
-        /* //UPDATE
-        currentAggregatedVis
-          .attr('fill', d => {
-            return colorScale(d.Type)
-          })
-          .attr('cx', d => {
-            if (d.neighbourhoodPosition) {
-              //console.log('already in', d)
-              d.x = d.neighbourhoodPosition[0]
-              return d.x
-            } else {
-              //console.log('newbie', d.x, d.pos)
-              d.pos = viewport.project([d.X, d.Y])
-              d.x = d.pos[0]
-              //console.log(d.x, d.pos)
-              return d.pos[0] - this.aggregatedData[i].centerInPx[0]
-            }
-          })
-          .attr('cy', d => {
-            if (d.neighbourhoodPosition) {
-              d.y = d.neighbourhoodPosition[1]
-              return d.y
-            } else {
-              d.y = d.pos[1]
-              return d.pos[1] - this.aggregatedData[i].centerInPx[1]
-            }
-          }) */
-
-        /*
-          d3.select('#neighbourhood-' + this.aggregatedData[i].id)
+        d3.select('#neighbourhood-' + this.aggregatedData[i].id)
           .selectAll('circle.circlesInAggregatedVis')
           .data(this.aggregatedData[i].nodesInNeighbourhood)
           .join('circle')
@@ -1082,6 +1007,12 @@ export default {
               //console.log('newbie', d.x, d.pos)
               d.pos = viewport.project([d.X, d.Y])
               d.x = d.pos[0]
+              //d.centerShift = this.aggregatedData[i].centerInPx
+              Vue.set(
+                accidentData.accidents[d.indexInAccidentData],
+                'centerShift',
+                this.aggregatedData[i].centerInPx
+              )
               //console.log(d.x, d.pos)
               return d.pos[0] - this.aggregatedData[i].centerInPx[0]
             }
@@ -1095,25 +1026,9 @@ export default {
               return d.pos[1] - this.aggregatedData[i].centerInPx[1]
             }
           })
-          */
-
-        /* .exit()
-          .each(d => {
-            d.isInNeighbourhood = false
-            let accidentNode = accidentData.accidents[d.indexInAccidentData]
-            accidentNode.isInNeighbourhood = false
-            delete accidentData.accidents[d.indexInAccidentData]
-              .neighbourhoodPosition
-
-            console.log('exit d', d)
-            console.log('exit n', accidentNode)
+          .on('click', d => {
+            console.log('dis dee', d)
           })
-          .classed('neighbourhood', false)
-          .classed('circlesInAggregatedVis', false)
-          .classed('nodesOnMap', true)
-          .attr('fill', 'black')
-          .attr('r', 50)
-          .remove() */
 
         if (this.doYouWantSomeWafflesCowboy) {
           this.initGridForWafflechart(

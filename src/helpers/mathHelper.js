@@ -19,11 +19,16 @@ export function occupyNearestWafflechart (p, data_structure) {
   var candidate = null
 
   // console.log('cells', data_structure.chart_cells)
+  // console.log('LOOJK AT MEEE', p)
 
   let cells = data_structure.chart_cells // .currentBarCells
 
   for (var i = 0; i < cells.length; i++) {
-    if (!cells[i].occupied && (d = sqdist(p, cells[i])) < minDist) {
+    if (
+      !cells[i].occupied &&
+      (d = sqdist(p, cells[i])) < minDist &&
+      p.Type === cells[i].waffleType
+    ) {
       minDist = d
       candidate = cells[i]
     }
