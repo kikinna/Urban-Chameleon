@@ -56,7 +56,9 @@ export default {
       kdLibrary: [],
       kdData:[],
       tree: [],
-      onScreenPoints: [],
+      accidentsOnScreenIndices: [],
+      accidentsOnScreenObj: [],
+      wasScreenPoints: [],
       nodeRadius: 5,
       isAggrVisActive: false,
       recompute: false, //variable for recomputing neighbourhoods after moved map
@@ -73,24 +75,11 @@ export default {
     this.listeners()
 
     //preseting attributes of accidents for easier manipulation
-    this.allData = this.onScreenPoints
-    //let count = 0
-    for (var i = 0; i < this.onScreenPoints.length; i++) {
-      this.onScreenPoints[i].theNeighbourhood = null
-      this.onScreenPoints[i].index = i
+    this.allData = accidentData.accidents
+    for (var i = 0; i < accidentData.accidents.length; i++) {
+      accidentData.accidents[i].theNeighbourhood = null
+      accidentData.accidents[i].myIndex = i
     }
-
-    this.onScreenPoints.forEach(o => {
-      o.screen = null
-      this.onScreenPoints.forEach(d => {
-        //console.log(d)
-        if(o.OBJECTID == d.OBJECTID){
-          o.screen = 1
-        }
-      })
-    })
-    //this.startingPoints.push(1199)
-
     this.createNeighbours()
     
   },
@@ -99,6 +88,9 @@ export default {
     render() {
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+      let upL = viewport.unproject([0, 0])
+      let downR = viewport.unproject([window.innerWidth, window.innerHeight])
+      console.log(upL,downR)
 
       function distance(a, b) {
         let lat1 = a.Y;
@@ -116,13 +108,11 @@ export default {
         return Math.atan2(Math.sqrt(res), Math.sqrt(1-res));
       }
       this.kdLibrary = require('kd-tree-javascript')
+      for (let i = 0; i < accidentData.accidents.length; i++) {
+        accidentData.accidents[i].myIndex = i;
+      }
       this.tree = new this.kdLibrary.kdTree(this.kdData, distance, ["X", "Y"]);
       this.accidentsOnScreen(this.tree.root)
-      for (let i = 0; i < this.onScreenPoints.length; i++) {
-        this.onScreenPoints[i].theNeighbourhood = null; 
-        this.onScreenPoints[i].index = i;
-      }
-
       this.svg = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
         .append('svg')
@@ -138,12 +128,11 @@ export default {
       this.polygons = this.svg.append('g')
 
       // this.calculateDistanceDeviation()
-
       this.nodes = this.svg
         .append('g')
         .attr('class', 'nodes')
         .selectAll('circle')
-                .data(this.onScreenPoints)
+        .data(this.accidentsOnScreenObj)
         .enter()
         .append('circle')
         .each(d => {
@@ -151,14 +140,7 @@ export default {
         })
         .attr('r', this.nodeRadius)
         .attr('fill', d => {
-          if(d.screen == 1){
-            return '#8ca9a8'
-          }
           return 'black'
-          // if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
-          //   return '#487284d2'
-          // }
-          // return colorScale(d.Type) //'black'
         })
         .attr('cx', d => {
           d.pos = viewport.project([d.X, d.Y])
@@ -171,10 +153,10 @@ export default {
         })
         .on('click', d => {
           //this.removeNeighbours()
-          this.onScreenPoints.forEach(o => {
-            o.theNeighbourhood = null
+          this.accidentsOnScreenIndices.forEach(o => {
+            accidentData.accidents[o].theNeighbourhood = null
           })
-          this.startingPoints.push(d.index)
+          this.startingPoints.push(d.myIndex)
           this.createNeighbours()
           console.log(this.startingPoints)
           //console.log(d)
@@ -198,7 +180,7 @@ export default {
       // this.simulation = d3
       //   .forceSimulation()
       //   //.polygons(this.neighbour)
-      //   .nodes(this.onScreenPoints)
+      //   .nodes(this.accidentsOnScreenIndices)
       //   /* .force('collide',d3.forceCollide().radius(this.nodeRadius * 2).strength(1).iterations(1)) */
       //   //.polygons(this.neighbour)
       //   .on('tick', this.tick)
@@ -207,44 +189,28 @@ export default {
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
-        // this.updateD3()
-        // d3.selectAll('polygon').remove()
-        //this.removeNeighbours() 
         this.kdTreepoints()
         this.removeNeighbours() 
         this.createNeighbours() 
-        //this.moveVisualizations()
-        this.updateVisualizations()
-        //this.kdTreepoints()
-        //console.log(this.onScreenPoints)
+        this.moveVisualizations()
+        //this.updateVisualizations()
         
       })
       this.$root.$on('map-move', () => {
         this.kdTreepoints()
         this.removeNeighbours() 
         this.createNeighbours() 
-        // this.moveVisualizations()
-        this.updateVisualizations()
-        //this.kdTreepoints()
-        //console.log(this.onScreenPoints)
-        this.onScreenPoints.forEach( d => {
-          if(d.OBJECTID == 3248){
-            console.log(d.index)
-          }
-        })
+        this.moveVisualizations()
+        // this.updateVisualizations()
       })
       //just end events
       this.$root.$on('map-zoomend', () => {
         //this.startingPoints = []
-        //this.calculateDistanceDeviation()
         //this.removeNeighbours() 
-        //this.kdTreepoints()
         //this.createNeighbours() //compute new neighbourhoods, make and draw polygons
         //this.updateVisualizations()
       })
       this.$root.$on('map-moveend', () => {
-        this.startingPoints = []
-        //this.calculateDistanceDeviation()
         //when zoom is big enough (https://www.youtube.com/watch?v=CCVdQ8xXBfk) , cards about accident detail are shown
         if (this.$store.state.map.getZoom() > 18.5) {
           this.createAccidentDetail()
@@ -261,22 +227,10 @@ export default {
       })
     },
     kdTreepoints(){
-      this.onScreenPoints = []
-        this.accidentsOnScreen(this.tree.root)
-        for (let i = 0; i < this.onScreenPoints.length; i++) {
-          this.onScreenPoints[i].theNeighbourhood = null; 
-          this.onScreenPoints[i].index = i;
-        }
-        this.onScreenPoints.forEach(o => {
-          o.screen = 0
-          this.onScreenPoints.forEach(d => {
-            //console.log(d)
-            if(o.OBJECTID == d.OBJECTID){
-              o.screen = 1
-            }
-          })
-        })
-        console.log(this.onScreenPoints)
+      this.wasScreenPoints = [...this.accidentsOnScreenObj]
+      this.accidentsOnScreenIndices = []
+      this.accidentsOnScreenObj = []
+      this.accidentsOnScreen(this.tree.root)
     },
     moveVisualizations() {
       this.updateD3()
@@ -285,32 +239,79 @@ export default {
     //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateD3() {
       const viewport = getViewport(this.$store.state.map)
-      // console.log(this.onScreenPoints)
-      // d3.select('.nodes')
-      //   .data(this.onScreenPoints)
-      //   .join('circle')
-      //this.onScreenPoints.filter(d => d.Type === 'Crash')
 
       this.nodes = this.svg
-        //.attr('class', 'nodes')
         .selectAll('circle')
-        .data(this.onScreenPoints)
-        .join('circle')
+        .filter(d => {
+          let res = false
+          this.wasScreenPoints.forEach( o => {
+            if(o === d){
+              res = true
+              return
+            }
+          })
+          return (res)
+        })
         .attr('cx', d => {
-          d.forceGPS = viewport.unproject([d.x, d.y]) //probably not needed
           d.pos = viewport.project([d.X, d.Y])
           d.x = d.pos[0]
-          d.y = d.pos[1]
-          return d.x
+          return d.pos[0]
         })
         .attr('cy', d => {
-          return d.y
+          d.y = d.pos[1]
+          return d.pos[1]
+        })
+
+      this.nodes = this.svg
+        .selectAll('circle')
+        .filter(d => {
+          let res = false
+          this.wasScreenPoints.forEach( o => {
+            if(o === d){
+              res = true
+              return
+            }
+          })
+          return (!res)
+        })
+        .remove()
+
+      this.nodes = this.svg
+        .append('g')
+        .attr('class', 'nodes')
+        .selectAll('circle')
+        .data(this.accidentsOnScreenObj.filter(d => {
+          let res = false
+          this.wasScreenPoints.forEach( o => {
+            if(o === d){
+              res = true
+              return
+            }
+          })
+          return !res
+        }))
+        .join('circle')
+        .each(d => {
+          d.isInNeighbourhood = false
+        })
+        .attr('r', this.nodeRadius)
+        .attr('fill', d => {
+          return 'black'
+        })
+        .attr('cx', d => {
+          d.pos = viewport.project([d.X, d.Y])
+          d.x = d.pos[0]
+          return d.pos[0]
+        })
+        .attr('cy', d => {
+          d.y = d.pos[1]
+          return d.pos[1]
         })
         .on('click', d => {
-          this.onScreenPoints.forEach(o => {
-            o.theNeighbourhood = null
+          accidentData.accidents.forEach(o => {
+            accidentData.accidents.theNeighbourhood = null
           })
-          this.startingPoints.push(d.index)
+          this.startingPoints.push(d.myIndex)
           this.createNeighbours()
           console.log(this.startingPoints)
           this.tooltip
@@ -320,9 +321,9 @@ export default {
             .style('top', d3.event.pageY - 28 + 'px')
         })
         .on('mouseout', d => {
-          //this.tooltip.hide)
           this.tooltip.style('opacity', 0)
         })
+        
     },
     updateVisualizations() {
       this.updateD3()
@@ -394,7 +395,7 @@ export default {
     computeNeighbourhoods() {
       this.startingPoints.forEach(o => {
         //mark all points which belonge to neighbouhood (attribute theNeighbourhood) and add to point array
-        this.getNeighbours(this.onScreenPoints[o])
+        this.getNeighbours(accidentData.accidents[o])
         if (this.points.length > 1) {
           //neighbourhood of one point is not neighbouhood
           let hull = this.getHull(this.anchorPoint)
@@ -429,9 +430,9 @@ export default {
           let str = ''
           d.hullPoints.forEach(o => {
             str +=
-              that.onScreenPoints[o].x.toString(10) +
+              accidentData.accidents[o].x.toString(10) +
               ',' +
-              that.onScreenPoints[o].y.toString(10) +
+              accidentData.accidents[o].y.toString(10) +
               ' '
           })
           return str
@@ -459,9 +460,9 @@ export default {
     //if the difference is larger than distanceLimit, it sets "tooFar" flag
     calculateDistanceDeviation() {
       const viewport = getViewport(this.$store.state.map)
-      this.onScreenPoints.forEach(d => {
-        const unshiftedCoords = [d.X, d.Y]
-        const currentCoords = viewport.unproject(d.pos)
+      this.accidentsOnScreenIndices.forEach(d => {
+        const unshiftedCoords = [accidentData.accidents[d].X, accidentData.accidents[ d].Y]
+        const currentCoords = viewport.unproject(accidentData.accidents[d].pos)
 
         const distanceInMeters = measureGeoDistance(
           unshiftedCoords[0],
@@ -473,10 +474,7 @@ export default {
         d.tooFar = distanceInMeters > 0.000001 // currentDistance > 0.000000001 //this.distanceLimit
       })
       this.nodes.attr('fill', d => {
-        if(d.screen == 1){
-            return '#8ca9a8'
-          }
-          return 'black'
+        return 'black'
         // if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
         //   return '#487284d2'
         // }
@@ -490,7 +488,7 @@ export default {
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
         this.aggregatedData[i].nodesInNeighbourhood.forEach(n => {
-          let d = this.onScreenPoints[n.indexInAccidentData]
+          let d = accidentData.accidents[n.indexInAccidentData]
           d.isInNeighbourhood = false
           /* console.log('lkadflak', n)
           d.x = n.x
@@ -511,7 +509,7 @@ export default {
           id: i
         }
         this.neighbourhood[i].points.forEach(n => {
-          let d = this.onScreenPoints[n]
+          let d = accidentData.accidents[n]
 
           let newNode = {
             id: d.OBJECTID,
@@ -529,10 +527,10 @@ export default {
             center: [0, 0]
           }
           if (
-            this.onScreenPoints[n].hasOwnProperty('neighbourhoodPosition')
+            accidentData.accidents[n].hasOwnProperty('neighbourhoodPosition')
           ) {
             newNode.neighbourhoodPosition =
-              this.onScreenPoints[n].neighbourhoodPosition
+              accidentData.accidents[n].neighbourhoodPosition
           }
 
           d.isInNeighbourhood = true
@@ -569,34 +567,34 @@ export default {
     },
     //Prepareing things for new neighbourhood computing
     removeNeighbours() {
-      this.onScreenPoints.forEach(o => {
-        o.theNeighbourhood = null
+      this.accidentsOnScreenIndices.forEach(o => {
+        accidentData.accidents[o].theNeighbourhood = null
       })
-      this.startingPoints = []
+      //this.startingPoints = []
       this.neighbourhood = []
     },
     //Method for hardpushing points to visualise 2 neighbourhood polygons
     createNeighbours() {
       this.startingPoints.forEach( d => {
-        this.onScreenPoints[d].theNeighbourhood = 
-          this.onScreenPoints[d].OBJECTID
+        accidentData.accidents[d].theNeighbourhood = 
+          accidentData.accidents[d].OBJECTID
       })
       this.makeNeighbourPolygons()
     },
     getNeighbours(obj) {
       let posiP2 = []
-      this.addPoint(obj.index)
+      this.addPoint(obj.myIndex)
       let r = 22 //TODO zistit ako dostat presne cisla a ako to menit podla zoomu
 
       //looking through all points in data if its in close neighbourhood, if yes counting close neighbourhood also for them...
-      this.onScreenPoints.forEach(o => {
-        if (o.theNeighbourhood == null && o != obj) {
+      this.accidentsOnScreenIndices.forEach(o => {
+        if (accidentData.accidents[o].theNeighbourhood == null && accidentData.accidents[o] != obj) {
           let inNeighbour = Math.sqrt(
-            Math.pow(obj.x - o.x, 2) + Math.pow(obj.y - o.y, 2)
+            Math.pow(obj.x - accidentData.accidents[o].x, 2) + Math.pow(obj.y - accidentData.accidents[o].y, 2)
           )
           if (inNeighbour <= r) {
-            o.theNeighbourhood = obj.theNeighbourhood
-            this.getNeighbours(o)
+            accidentData.accidents[o].theNeighbourhood = obj.theNeighbourhood
+            this.getNeighbours(accidentData.accidents[o])
           }
         }
       })
@@ -632,10 +630,7 @@ export default {
     },
     colorNeighbourPoints() {
       this.nodes.attr('fill', d => {
-        if(d.screen == 1){
-            return '#8ca9a8'
-          }
-          return 'black'
+        return 'black'
         // if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
         //   return '#487284d2'
         // }
@@ -682,8 +677,8 @@ export default {
             if (
               !hullPoints.some(function(p) {
                 return (
-                  that.onScreenPoints[p].x == that.onScreenPoints[ap].x &&
-                  that.onScreenPoints[p].y == that.onScreenPoints[ap].y
+                  accidentData.accidents[p].x == accidentData.accidents[ap].x &&
+                  accidentData.accidents[p].y == accidentData.accidents[ap].y
                 )
               })
             ) {
@@ -699,8 +694,8 @@ export default {
       }
     },
     addPoint(index) {
-      let point = this.onScreenPoints[index]
-      let anchorP = this.onScreenPoints[this.anchorPoint]
+      let point = accidentData.accidents[index]
+      let anchorP = accidentData.accidents[this.anchorPoint]
       //check if this point will be new anchor point
       if (
         this.anchorPoint === null ||
@@ -719,8 +714,8 @@ export default {
       let deltaX = null
       let deltaY = null
 
-      let point = this.onScreenPoints[p]
-      let anchorP = this.onScreenPoints[anchor]
+      let point = accidentData.accidents[p]
+      let anchorP = accidentData.accidents[anchor]
       deltaX = point.X - anchorP.X
       deltaY = point.Y - anchorP.Y
 
@@ -733,16 +728,16 @@ export default {
     createAccidentDetail() {
       this.detailAccidents = []
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
-      this.onScreenPoints.forEach(o => {
-        let posi = [o.x, o.y]
+      this.accidentsOnScreenIndices.forEach(o => {
+        let posi = [accidentData.accidents[o].x, accidentData.accidents[o].y]
         if (
           posi[0] > 0 &&
           posi[0] < window.innerWidth &&
           posi[1] > 0 &&
           posi[1] < window.innerHeight
         ) {
-          o.color = colorScale(o.Type)
-          this.detailAccidents.push(o.index)
+          accidentData.accidents[o].color = colorScale(accidentData.accidents[o].Type)
+          this.detailAccidents.push(accidentData.accidents[o].myIndex)
         }
       })
     },
@@ -829,7 +824,7 @@ export default {
             if (gridpoint) {
               d.x = gridpoint.x
               d.y = gridpoint.y
-              this.onScreenPoints[
+              accidentData.accidents[
                 d.indexInAccidentData
               ].neighbourhoodPosition = [d.x, d.y]
               d.neighbourhoodPosition = [d.x, d.y]
@@ -922,9 +917,9 @@ export default {
         /* .exit()
           .each(d => {
             d.isInNeighbourhood = false
-            let accidentNode = this.onScreenPoints[d.indexInAccidentData]
+            let accidentNode = this.accidentsOnScreenIndices[d.indexInAccidentData]
             accidentNode.isInNeighbourhood = false
-            delete this.onScreenPoints[d.indexInAccidentData]
+            delete this.accidentsOnScreenIndices[d.indexInAccidentData]
               .neighbourhoodPosition
 
             console.log('exit d', d)
@@ -962,101 +957,41 @@ export default {
       } //end of the extra big for cycle
     },
     accidentsOnScreen(node){
-      let viewport = getViewport(this.$store.state.map)
-      let n = viewport.project([node.obj.X, node.obj.Y])
-      if(node.left == null && node.right == null){
-        if(n[0] >= 0 && n[0] <= window.innerWidth && n[1] >= 0 && n[1] <= window.innerHeight){
-          this.onScreenPoints.push(node.obj)
-        }
+      if(node === null){
         return
       }
-      if(node.dimension % 2 == 0 && (node.left == null || node.right == null)){
-        if(n[0] < 0 && (node.right != null || node.left != null)){
-          if(node.right!== null){
-            this.accidentsOnScreen(node.right)
-          }
-          if(node.left!== null){
-            this.accidentsOnScreen(node.left)
-          }
-        }else if(n[0] > window.innerWidth && (node.right != null || node.left != null)){
-          if(node.right!== null){
-            this.accidentsOnScreen(node.right)
-          }
-          if(node.left!== null){
-            this.accidentsOnScreen(node.left)
-          }
-        }else{
-          if(n[1]>=0 && n[1]<= window.innerHeight){
-            this.onScreenPoints.push(node.obj)
-          }
-          if(node.left != null){
-            this.accidentsOnScreen(node.left)
-          }
-          if(node.right != null){
-            this.accidentsOnScreen(node.right)
-          }
+      let viewport = getViewport(this.$store.state.map)
+      let upL = viewport.unproject([0, 0])
+      let downR = viewport.unproject([window.innerWidth, window.innerHeight]) 
+      if(node.obj.X >= upL[0] && node.obj.X <= downR[0] && node.obj.Y <= upL[1] && node.obj.Y >= downR[1]){
+        this.accidentsOnScreenIndices.push(node.obj.myIndex)
+        this.accidentsOnScreenObj.push(node.obj)
+      }
+      if(node.dimension % 2 === 0){
+        if(downR[0] <= node.obj.X){
+          this.accidentsOnScreen(node.left)
         }
-      }else if((node.left != null || node.right != null)){
-        if(n[1] < 0 && (node.right != null || node.left != null)){
-          if(node.right!== null){
-            this.accidentsOnScreen(node.right)
-          }
-          if(node.left!== null){
-            this.accidentsOnScreen(node.left)
-          }
-        }else if(n[1] > window.innerHeight && (node.right != null || node.left != null)){
-          if(node.right!== null){
-            this.accidentsOnScreen(node.right)
-          }
-          if(node.left!== null){
-            this.accidentsOnScreen(node.left)
-          }
-        }else{
-          if(n[0]>=0 && n[0]<= window.innerWidth){
-            this.onScreenPoints.push(node.obj)
-          }
-          if(node.left!= null){
-            this.accidentsOnScreen(node.left)
-          }
-          if(node.right!= null){
-            this.accidentsOnScreen(node.right)
-          }
+        else if(upL[0] >= node.obj.X){
+          this.accidentsOnScreen(node.right)
+        }
+        else{
+          this.accidentsOnScreen(node.left)
+          this.accidentsOnScreen(node.right)
+        }
+
+      } else{
+        if(upL[1] <= node.obj.Y){
+          this.accidentsOnScreen(node.left)
+        }
+        else if(downR[1] >= node.obj.Y){
+          this.accidentsOnScreen(node.right)
+        }
+        else{
+          this.accidentsOnScreen(node.left)
+          this.accidentsOnScreen(node.right)
         }
       }
-      
-      
     },
-
-  //   accidentsOnScreen(node){
-  //     let viewport = getViewport(this.$store.state.map)
-  //     let n = viewport.project([node.obj.X, node.obj.Y])
-  //     if(node.left == null && node.right == null){
-  //       if(n[0] >= 0 && n[0] <= window.innerWidth && n[1] >= 0 && n[1] <= window.innerHeight){
-  //         this.onScreenPoints.push(node.obj)
-  //       }
-  //       return
-  //     }
-  //     if((node.left != null || node.right != null)){
-  //       if((n[node.dimension % 2] < 0 ||  n[node.dimension % 2] > window.innerWidth) && (node.right != null || node.left != null)){
-  //         if(node.right!== null){
-  //           this.accidentsOnScreen(node.right)
-  //         }
-  //         if(node.left!== null){
-  //           this.accidentsOnScreen(node.left)
-  //         }
-  //       }else{
-  //         if(n[1]>=0 && n[1]<= window.innerHeight){
-  //           this.onScreenPoints.push(node.obj)
-  //         }
-  //         if(node.left != null){
-  //           this.accidentsOnScreen(node.left)
-  //         }
-  //         if(node.right != null){
-  //           this.accidentsOnScreen(node.right)
-  //         }
-  //       }
-  //     } 
-  //   },
   }, // end of methods
   computed: {
     computedNodes: function() {
@@ -1067,14 +1002,7 @@ export default {
         this.nodes
           .attr('r', this.nodeRadius)
           .attr('fill', d => {
-            if(d.screen == 1){
-              return '#8ca9a8'
-            }
             return 'black'
-            // if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
-            //   return '#487284d2'
-            // }
-            // return colorScale(d.Type) //'black'
           })
           .attr('cx', d => {
             d.pos = viewport.project([d.X, d.Y])
