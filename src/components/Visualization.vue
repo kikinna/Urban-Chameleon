@@ -4,7 +4,7 @@
     <AccidentDetail
       v-for="(curr_accident, index) in detailAccidents"
       :key="index"
-      :accident="allData[curr_accident]"
+      :accident="dataD3.accidents[curr_accident]"
       :index="index"
     ></AccidentDetail>
   </div>
@@ -17,14 +17,18 @@ import AccidentDetail from './AccidentDetail.vue'
 import {
   sortPoints,
   checkPoints,
-  addPoint,
+  addPointToNeighbourhood,
   getAngle
 } from '../helpers/neighbourhoodCountingHelper.js'
 import {
   getViewport,
   measureGeoDistance
 } from '../helpers/geoProjectionHelper.js'
-import { occupyNearest } from '../helpers/mathHelper.js'
+import {
+  occupyNearestWafflechart,
+  occupyNearestBarchart,
+  sortArrayAlphabetically
+} from '../helpers/mathHelper.js'
 import Vue from 'vue'
 
 export default {
@@ -35,34 +39,35 @@ export default {
   data() {
     return {
       detailAccidents: [], //indices for detail card of accident
-      allData: [],
       points: [], //indices of points for countinginprogress neighbourhood
-      neighbourhood: [], //Array of neighbourhoods objects - hullPoints:indices of convex hull points, points:indices of all points, anchorpoint
+      neighbourhood: [], //array of neighbourhoods objects - hullPoints:indices of convex hull points, points:indices of all points, anchorpoint
       startingPoints: [], //points for visualization of neighbourhoods - just prototype
-      compute: 0,
       anchorPoint: null, //anchor point of counting in progress neighbourhood
       reverse: false, //helper for angles in convexhull counting
-      title: null,
-      aggregatedData: [],
+      aggregatedData: [], //array of neighbourhoods, each neighbourhood is and array containing data for the nodes in aggregated vis
       //transition: null, //animated transition for all, uhuh, not working as intended
-      neighbourhoodNodesInSVG: [],
+      neighbourhoodNodesInSVG: [], //array of neighbourhoods, each neighbourhood is an array containing nodes in aggregated vis
       dataD3: [], //accident data
       grid_cells: [], // barchart grid positions {x, y, occupied} //TODO: temporary
       simulation: null, // accident data force simulation
       svg: null,
-      nodes: null, //accident nodes
+      nodesOnMap: null, //accident nodes
       polygons: null,
       tooltip: null,
       kdLibrary: [],
       kdData:[],
       tree: [],
-      accidentsOnScreenIndices: [],
+      accidentsOnScreenIndices: [], 
       accidentsOnScreenObj: [],
       wasScreenPoints: [],
       nodeRadius: 5,
       isAggrVisActive: false,
       recompute: false, //variable for recomputing neighbourhoods after moved map
-      distanceLimit: 0.000001 //used in calculateDistanceDeviation to compare with the calculated distance between nodes
+      distanceLimit: 0.000001, //used in calculateDistanceDeviation to compare with the calculated distance between nodes
+      isAggrVisInitialized: false, //flag for deciding if we should draw the aggregated vis or just update it
+      doYouWantSomeWafflesCowboy: false, //TODO: temporary flag for deciding whether we want to draw waffle or barchart
+      arrayForForceLayout: [], //array with the neighbourhood nodes, from neighbourhoods with less than 10 nodes
+      listOfBarsTypeOfData: [] //used in barchart to order bars grouped by the type of data
     }
   },
   store,
@@ -71,21 +76,26 @@ export default {
     this.$store.state.map.getCanvasContainer().style.cursor = 'default'
     this.dataD3 = accidentData
     this.kdData = [...accidentData.accidents]
-    this.render()
+    this.initData()
+    this.initialiseSVGelements()
     this.listeners()
 
     //preseting attributes of accidents for easier manipulation
-    this.allData = accidentData.accidents
     for (var i = 0; i < accidentData.accidents.length; i++) {
       accidentData.accidents[i].theNeighbourhood = null
       accidentData.accidents[i].myIndex = i
     }
-    this.createNeighbours()
-    
+    //points from which neighbourhood counting begin
+    this.startingPoints.push(1199)
+    this.startingPoints.push(478)
+    this.computeNeighbourhoodsAndDrawPolygons()
+    console.log('(ﾉ◕ヮ◕)ﾉ*:・ﾟ✧')
+    this.updateVisualizations()
+    console.log('ლ(ಠ_ಠლ)')
   },
   methods: {
-    //force layout initialisation (svg, nodes, simulation)
-    render() {
+    //initialisation (svg, nodesOnMap, polygons, tooltips)
+    initData(){
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
       let upL = viewport.unproject([0, 0])
@@ -113,6 +123,10 @@ export default {
       }
       this.tree = new this.kdLibrary.kdTree(this.kdData, distance, ["X", "Y"]);
       this.accidentsOnScreen(this.tree.root)
+    },
+    initialiseSVGelements() {
+      const viewport = getViewport(this.$store.state.map)
+      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
       this.svg = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
         .append('svg')
@@ -127,10 +141,15 @@ export default {
 
       this.polygons = this.svg.append('g')
 
-      // this.calculateDistanceDeviation()
-      this.nodes = this.svg
+      this.tooltip = d3
+        .select(this.$store.state.map.getCanvasContainer()) //'map'
+        .append('div')
+        .attr('class', 'tooltip')
+        .style('opacity', 0)
+
+      this.nodesOnMap = this.svg
         .append('g')
-        .attr('class', 'nodes')
+        .attr('class', 'nodesOnMap')
         .selectAll('circle')
         .data(this.accidentsOnScreenObj)
         .enter()
@@ -157,7 +176,7 @@ export default {
             accidentData.accidents[o].theNeighbourhood = null
           })
           this.startingPoints.push(d.myIndex)
-          this.createNeighbours()
+          this.computeNeighbourhoodsAndDrawPolygons()
           console.log(this.startingPoints)
           //console.log(d)
           this.tooltip
@@ -170,60 +189,50 @@ export default {
           this.tooltip.style('opacity', 0)
         })
 
+      this.listOfBarsTypeOfData = new Set(
+        accidentData.accidents.map(node => node.Type)
+      )
+      /* for (let i = 0; i < set.length; i++) {
+        this.listOfBarsTypeOfData.push(
+          accidentData.accidents
+            .map(node => node.Type)
+            .reduce(function(n, val) {
+              return n + (val === set[i])
+            }, 0)
+        )
+      } */
 
-      this.tooltip = d3
-        .select(this.$store.state.map.getCanvasContainer()) //'map'
-        .append('div')
-        .attr('class', 'tooltip')
-        .style('opacity', 0)
+      this.transition = d3
+        .transition()
+        .duration(2000)
+        .ease(d3.easeLinear)
 
-      // this.simulation = d3
-      //   .forceSimulation()
-      //   //.polygons(this.neighbour)
-      //   .nodes(this.accidentsOnScreenIndices)
-      //   /* .force('collide',d3.forceCollide().radius(this.nodeRadius * 2).strength(1).iterations(1)) */
-      //   //.polygons(this.neighbour)
-      //   .on('tick', this.tick)
-      //   .on('end', this.end)
+      //console.log('list', this.listOfBarsTypeOfData)
+      //console.log('list', set)
     },
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
         this.kdTreepoints()
-        this.removeNeighbours() 
-        this.createNeighbours() 
+        this.removeNeighbourhoods() 
         this.moveVisualizations()
         //this.updateVisualizations()
         
       })
       this.$root.$on('map-move', () => {
         this.kdTreepoints()
-        this.removeNeighbours() 
-        this.createNeighbours() 
+        this.removeNeighbourhoods() 
         this.moveVisualizations()
-        // this.updateVisualizations()
       })
-      //just end events
       this.$root.$on('map-zoomend', () => {
-        //this.startingPoints = []
-        //this.removeNeighbours() 
-        //this.createNeighbours() //compute new neighbourhoods, make and draw polygons
-        //this.updateVisualizations()
+        this.zoomVisualizations()
       })
       this.$root.$on('map-moveend', () => {
+        //called at the end of zoom and move
         //when zoom is big enough (https://www.youtube.com/watch?v=CCVdQ8xXBfk) , cards about accident detail are shown
         if (this.$store.state.map.getZoom() > 18.5) {
           this.createAccidentDetail()
         }
-
-        /* this.calculateDistanceDeviation()
-        this.removeNeighbours()
-        this.createNeighbours()
-
-        this.updateVisualizations() */
-      })
-      this.$root.$on('map-click', () => {
-        this.drawAggregatedVis()
       })
     },
     kdTreepoints(){
@@ -233,14 +242,68 @@ export default {
       this.accidentsOnScreen(this.tree.root)
     },
     moveVisualizations() {
-      this.updateD3()
-      this.drawPolygon()
+      this.updateNodesOnMap()
+      this.drawPolygonUnderNeighbourhoods()
+      this.moveAggregatedVis()
+      //this.updateVisualizations()
     },
-    //updates positions of circles on map (regular accident data dots), called on zoom and move
-    updateD3() {
+    zoomVisualizations() {
+      //this.removeNeighbourhoods()
+      //this.computeNeighbourhoodsAndDrawPolygons() //compute new neighbourhoods, make and draw polygons
+      //this.moveAggregatedVis()
+      //this.updateVisualizations()
+    },
+    //updates positions of aggregated visualizations (the g element)
+    moveAggregatedVis() {
       const viewport = getViewport(this.$store.state.map)
 
-      this.nodes = this.svg
+      d3.selectAll('g.neighbourhood-g').attr('transform', d => {
+        let pos = viewport.project(d.centerInGPS)
+        return 'translate(' + pos[0] + ', ' + pos[1] + ')'
+      })
+    },
+    accidentsOnScreen(node){
+      if(node === null){
+        return
+      }
+      let viewport = getViewport(this.$store.state.map)
+      let upL = viewport.unproject([0, 0])
+      let downR = viewport.unproject([window.innerWidth, window.innerHeight]) 
+      if(node.obj.X >= upL[0] && node.obj.X <= downR[0] && node.obj.Y <= upL[1] && node.obj.Y >= downR[1]){
+        this.accidentsOnScreenIndices.push(node.obj.myIndex)
+        this.accidentsOnScreenObj.push(node.obj)
+      }
+      if(node.dimension % 2 === 0){
+        if(downR[0] <= node.obj.X){
+          this.accidentsOnScreen(node.left)
+        }
+        else if(upL[0] >= node.obj.X){
+          this.accidentsOnScreen(node.right)
+        }
+        else{
+          this.accidentsOnScreen(node.left)
+          this.accidentsOnScreen(node.right)
+        }
+
+      } else{
+        if(upL[1] <= node.obj.Y){
+          this.accidentsOnScreen(node.left)
+        }
+        else if(downR[1] >= node.obj.Y){
+          this.accidentsOnScreen(node.right)
+        }
+        else{
+          this.accidentsOnScreen(node.left)
+          this.accidentsOnScreen(node.right)
+        }
+      }
+    },
+
+    //updates positions of circles on map (regular accident data dots), called on zoom and move
+    updateNodesOnMap() {
+      const viewport = getViewport(this.$store.state.map)
+
+      this.nodesOnMap = this.svg
         .selectAll('circle')
         .filter(d => {
           let res = false
@@ -262,7 +325,7 @@ export default {
           return d.pos[1]
         })
 
-      this.nodes = this.svg
+      this.nodesOnMap = this.svg
         .selectAll('circle')
         .filter(d => {
           let res = false
@@ -276,9 +339,9 @@ export default {
         })
         .remove()
 
-      this.nodes = this.svg
+      this.nodesOnMap = this.svg
         .append('g')
-        .attr('class', 'nodes')
+        .attr('class', 'nodesOnMap')
         .selectAll('circle')
         .data(this.accidentsOnScreenObj.filter(d => {
           let res = false
@@ -312,93 +375,111 @@ export default {
             accidentData.accidents.theNeighbourhood = null
           })
           this.startingPoints.push(d.myIndex)
-          this.createNeighbours()
+          this.computeNeighbourhoodsAndDrawPolygons()
           console.log(this.startingPoints)
           this.tooltip
             .style('opacity', 1.0)
             .html(d.Type)
             .style('left', d3.event.pageX + 'px')
             .style('top', d3.event.pageY - 28 + 'px')
-        })
+        }) 
         .on('mouseout', d => {
           this.tooltip.style('opacity', 0)
         })
-        
     },
+    //updates all visualizations - svg nodes, aggregated visualizations
     updateVisualizations() {
-      this.updateD3()
-      //this.drawPolygon()
-      //this.updateAggregatedVis()
-      if (!this.isAggrVisActive) {
+      this.updateNodesOnMap()
+      if (!this.isAggrVisInitialized) {
+        //this.doYouWantSomeWafflesCowboy = true
         this.drawAggregatedVis()
-        this.isAggrVisActive = true
+        this.isAggrVisInitialized = true
       } else {
         this.updateAggregatedVis()
       }
-      //TODO: remove visualisations and set this.isAggrVisActive to false on some zoom level
-
+      //this.runForceLayout()
+      //TODO: remove visualisations and set this.isAggrVisInitialized to false on some zoom level
       //making nodes included in aggregated vis invisible in map
-      this.nodes.attr('class', d => {
+      this.nodesOnMap.attr('class', d => {
         if (d.isInNeighbourhood) {
           return 'neighbourhood'
         }
-        return 'nodes'
+        return 'nodesOnMap'
       })
 
+      this.transitionNodesFromAggrVisToMapToTheirPosition()
+    },
+    transitionNodesFromAggrVisToMapToTheirPosition() {
       // animated transition of nodes in aggregated vis
-      // Possible shift to mounted? Maybe?
-      /* const t = d3
+      const t = d3
         .transition()
         .duration(2000)
         .ease(d3.easeLinear)
 
       const viewport = getViewport(this.$store.state.map)
 
-      this.nodes
+      //aggrVis position
+      this.nodesOnMap
         .attr('cx', d => {
-          d.forceGPS = viewport.unproject([d.x, d.y])
-          return d.x
+          if (!d.neighbourhoodPosition && !d.centerShift) return d.x
+          if (d.ID === 60206182319) {
+            console.log('af pos', d.pos[0])
+            console.log('af x', d.x)
+            console.log('af c', d.centerShift[0])
+          }
+          //d.forceGPS = viewport.unproject([d.x, d.y])
+
+          return d.centerShift[0] //d.x - d.pos[0] - d.centerShift[0] //d.pos[0] //+ d.x - d.centerShift[0]
         })
-        .attr('cy', d => d.y)
+        .attr('cy', d => {
+          if (!d.neighbourhoodPosition && !d.centerShift) return d.y
+          return d.centerShift[1] //d.y - d.pos[1] - d.centerShift[1] //+ d.y + d.centerShift[1] //d.cy
+        })
+        .attr('r', d => {
+          if (!d.neighbourhoodPosition && !d.centerShift) return 5
+          return 500
+        })
 
-      this.nodes
-
+      this.nodesOnMap
         .transition(t)
         .attr('cx', function(d) {
+          if (!d.neighbourhoodPosition && !d.centerShift) return d.x
           d.x = viewport.project(d.forceGPS)[0]
           return d.x
         })
         .attr('cy', function(d) {
+          if (!d.neighbourhoodPosition && !d.centerShift) return d.y
           d.y = viewport.project(d.forceGPS)[1]
+          delete d.neighbourhoodPosition
+          delete d.centerShift
           return d.y
-        }) */
+        })
     },
-    //prepareing things for new neighbourhoods calculating
-     makeNeighbourPolygons() {
-      this.recompute = false
+    //prepareing things for new neighbourhoods and stard calculating and make polygon
+    computeNeighbourhoodsAndDrawPolygons() {
+      this.startingPoints.forEach(d => {
+        accidentData.accidents[d].theNeighbourhood =
+          accidentData.accidents[d].OBJECTID
+      })
       this.reverse = false
       this.anchorPoint = null
-      //this.points = []
-      //this.neighbour = []
       while (this.neighbourhood.length > 0) {
-        //TODO???
-        this.points.pop()
         this.neighbourhood.pop()
       } //empty the array
       while (this.points.length > 0) {
         this.points.pop()
       } //empty the array
       this.computeNeighbourhoods()
-      this.drawPolygon()
+      this.drawPolygonUnderNeighbourhoods()
     },
     //calculating neighbourhoods (right now from inserted 2 points, but it should start from one of points where houseparty has begun)
     computeNeighbourhoods() {
       this.startingPoints.forEach(o => {
         //mark all points which belonge to neighbouhood (attribute theNeighbourhood) and add to point array
         this.getNeighbours(accidentData.accidents[o])
-        if (this.points.length > 1) {
+        if (this.points.length > 2) {
           //neighbourhood of one point is not neighbouhood
-          let hull = this.getHull(this.anchorPoint)
+          let hull = this.getConvexhull(this.anchorPoint)
           //add neighbourhood object to array of neighbouhoods
           let neigh = {
             hullPoints: hull, //convexhull points
@@ -408,16 +489,14 @@ export default {
           neigh.points.push(this.anchorPoint)
           this.neighbourhood.push(neigh)
         }
-        //this.points = []
         while (this.points.length > 0) {
-          //TODO???
           this.points.pop()
         } //empty the array
         this.anchorPoint = null
       })
     },
-    //make polygon from convex hull array
-    drawPolygon() {
+    //make polygon from convex hull of neighbourhood array
+    drawPolygonUnderNeighbourhoods() {
       d3.selectAll('polygon').remove()
       let that = this
       this.polygons
@@ -451,36 +530,6 @@ export default {
           this.tooltip.style('opacity', 0)
         })
     },
-    //accident's simulation end
-    end() {
-      this.calculateDistanceDeviation()
-    },
-    //calculates distance for all accidents, between the point A (where they are right now)
-    //and point B (where they were supposed to be according to their geo data)
-    //if the difference is larger than distanceLimit, it sets "tooFar" flag
-    calculateDistanceDeviation() {
-      const viewport = getViewport(this.$store.state.map)
-      this.accidentsOnScreenIndices.forEach(d => {
-        const unshiftedCoords = [accidentData.accidents[d].X, accidentData.accidents[ d].Y]
-        const currentCoords = viewport.unproject(accidentData.accidents[d].pos)
-
-        const distanceInMeters = measureGeoDistance(
-          unshiftedCoords[0],
-          unshiftedCoords[1],
-          currentCoords[0],
-          currentCoords[1]
-        )
-        //console.log(distanceInMeters)
-        d.tooFar = distanceInMeters > 0.000001 // currentDistance > 0.000000001 //this.distanceLimit
-      })
-      this.nodes.attr('fill', d => {
-        return 'black'
-        // if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
-        //   return '#487284d2'
-        // }
-        // return 'black'
-      })
-    },
     //should work with array of node indexes from convex hull
     // TO DO : Prep of ds + adding necessary attributes + rename, haha
     initAggregatedVisData() {
@@ -490,6 +539,8 @@ export default {
         this.aggregatedData[i].nodesInNeighbourhood.forEach(n => {
           let d = accidentData.accidents[n.indexInAccidentData]
           d.isInNeighbourhood = false
+          //d.gridCandidate = null
+          //d.gridIndex = null
           /* console.log('lkadflak', n)
           d.x = n.x
           d.y = n.y */
@@ -521,7 +572,7 @@ export default {
             fx: null,
             fy: null,
             inNeighbourhood: true,
-            neighbourhoodPosition: null,
+            neighbourhoodPosition: d.neighbourhoodPosition,
             Type: d.Type,
             neighbourhoodID: 1, //idk
             center: [0, 0]
@@ -541,49 +592,172 @@ export default {
       }
       //console.log('aggrData af', this.aggregatedData)
     },
-    //initialisation of grid for aggregated visualization (house parties)
-    initGrid(arrayLength) {
-      const CELL_SIZE = 10
-      const GRID_COLS = 5
-      const GRID_ROWS = Math.ceil(arrayLength / GRID_COLS)
+    //initialisation of grid for aggregated visualization - barchart
+    initGridForBarchart(array) {
+      const data_structure = {
+        bars: [...this.listOfBarsTypeOfData], //[...new Set(array.map(node => node.Type))],
+        bar_counts: [],
+        bar_rows: [], // not used anywhere lol
+        chart_cells: [],
+        barColls: 0
+      }
 
-      const currentCells = []
+      for (var i = 0; i < data_structure.bars.length; i++) {
+        data_structure.bar_counts[i] = array
+          .map(node => node.Type)
+          .reduce(function(n, val) {
+            return n + (val === data_structure.bars[i])
+          }, 0)
 
+        data_structure.bar_rows[i] = Math.ceil(
+          data_structure.bar_counts[i] / GRID_COLS
+        )
+      }
+
+      //console.log('rows', data_structure.bar_rows)
+      //console.log('counts', data_structure.bar_counts)
+
+      let arrayLen = array.length
+      let CELL_SIZE = 10
+      let GRID_COLS = Math.ceil(Math.max(...data_structure.bar_counts) / 10) //5
+      if (GRID_COLS > 9) GRID_COLS = 9
+
+      let GRID_ROWS = Math.ceil(array.length / GRID_COLS) // = data_structure.bar_rows[0] //
+      //let start_x = 0
+      //console.log('cols', GRID_COLS)
+      //console.log('rows', GRID_ROWS)
+
+      //const currentBarchart = []
+
+      let emptyBarsCount = 0
+      let emptyCollsCount = 0
+
+      let shift =
+        (data_structure.bars.length - 1) * (GRID_COLS + 1) * (CELL_SIZE - 1)
+
+      for (var bar = 0; bar < data_structure.bars.length; bar++) {
+        /* GRID_COLS = data_structure.bar_counts[0]
+        GRID_ROWS = Math.ceil(array.length / GRID_COLS)
+        console.log('rows', GRID_COLS)
+        console.log('counts', GRID_ROWS)
+        console.log('ds', data_structure) */
+        // console.log("This is bar ", bar);
+        //this.cells[bar] = []
+        const currentBarCells = []
+        //let bar_cells = []
+
+        let cells_count = data_structure.bar_counts[bar]
+
+        if (cells_count <= 0) {
+          data_structure.chart_cells.push([])
+          emptyBarsCount++
+          continue
+        }
+
+        if (GRID_COLS - cells_count > 0) {
+          emptyCollsCount += GRID_COLS - cells_count //TODO: -emptyCollsCount somewhere?
+        }
+        //GRID_COLS = Math.ceil(data_structure.bar_counts[bar] / 10)
+        //GRID_ROWS = Math.ceil(arrayLen / GRID_COLS)
+
+        //GRID_COLS = Math.ceil(cells_count / 5) //Math.ceil(cells_count / 5)
+        //console.log('cols', GRID_COLS)
+        //GRID_ROWS = Math.ceil(arrayLen / GRID_COLS)
+
+        // console.log(cells_count);
+        // console.log("cells_count ", cells_count);
+
+        let start_x = (bar - emptyBarsCount) * (GRID_COLS + 1) * (CELL_SIZE - 1)
+        //start_x += bar * (GRID_COLS + 1) //+ bar * 10
+        //console.log('start_x', start_x)
+
+        for (var r = 0; r < GRID_ROWS; r++) {
+          for (var c = 0; c < GRID_COLS; c++) {
+            if (cells_count <= 0) continue
+
+            var cell
+            cell = {
+              x: start_x + c * CELL_SIZE - shift / 2,
+              y: GRID_COLS - r * CELL_SIZE,
+              occupied: false
+            }
+
+            currentBarCells.push(cell)
+            // bar_cells.push(cell);
+            cells_count--
+            // console.log(cells_count);
+          }
+        }
+        data_structure.chart_cells.push(currentBarCells)
+      }
+
+      //console.log('c', emptyCollsCount)
+      this.grid_cells.push(data_structure)
+    },
+    //initialisation of grid for aggregated visualization - wafflechart
+    initGridForWafflechart(array) {
+      let CELL_SIZE = 10
+      let GRID_COLS = 5
+
+      const data_structure = {
+        typesOfData: [...this.listOfBarsTypeOfData],
+        bars: [...this.listOfBarsTypeOfData],
+        chart_cells: [],
+        type_counts: []
+      }
+
+      let GRID_ROWS = Math.ceil(array.length / GRID_COLS)
+
+      for (var i = 0; i < data_structure.typesOfData.length; i++) {
+        data_structure.type_counts[i] = array
+          .map(node => node.Type)
+          .reduce(function(n, val) {
+            return n + (val === data_structure.typesOfData[i])
+          }, 0)
+      }
+      let arrayLen = array.length
+
+      //for (var type = 0; type < data_structure.typesOfData.length; type++) {
+      //const currentBarCells = []
+      let counterArray = 0
+
+      //let cells_count = data_structure.type_counts[type]
+      //
       for (var r = 0; r < GRID_ROWS; r++) {
         for (var c = 0; c < GRID_COLS; c++) {
-          if (arrayLength <= 0) break
+          //if (cells_count <= 0) continue
+          if (arrayLen <= 0) break
+
           var cell
           cell = {
             x: c * CELL_SIZE,
             y: GRID_COLS - r * CELL_SIZE,
-            occupied: false
+            occupied: false,
+            waffleType: array[counterArray].Type
           }
-          currentCells.push(cell)
-          arrayLength--
+          data_structure.chart_cells.push(cell)
+          arrayLen--
+          counterArray++
         }
       }
 
-      this.grid_cells.push(currentCells)
+      //}
+      this.grid_cells.push(data_structure)
+
+      //console.log('ds', data_structure)
     },
     //Prepareing things for new neighbourhood computing
-    removeNeighbours() {
+    removeNeighbourhoods() {
       this.accidentsOnScreenIndices.forEach(o => {
         accidentData.accidents[o].theNeighbourhood = null
       })
       //this.startingPoints = []
       this.neighbourhood = []
     },
-    //Method for hardpushing points to visualise 2 neighbourhood polygons
-    createNeighbours() {
-      this.startingPoints.forEach( d => {
-        accidentData.accidents[d].theNeighbourhood = 
-          accidentData.accidents[d].OBJECTID
-      })
-      this.makeNeighbourPolygons()
-    },
+    //recursive finding of neighbours and filling array of neighbourhood
     getNeighbours(obj) {
       let posiP2 = []
-      this.addPoint(obj.myIndex)
+      this.addPointToNeighbourhood(obj.myIndex)
       let r = 22 //TODO zistit ako dostat presne cisla a ako to menit podla zoomu
 
       //looking through all points in data if its in close neighbourhood, if yes counting close neighbourhood also for them...
@@ -598,7 +772,7 @@ export default {
           }
         }
       })
-      this.colorNeighbourPoints()
+      //this.colorNeighbourPoints()
     },
     getNeighbourhoodCenter(neighbourhood) {
       let viewport = getViewport(this.$store.state.map)
@@ -628,16 +802,8 @@ export default {
       neighbourhood.centerInGPS = [shiftX, shiftY]
       neighbourhood.centerInPx = viewport.project([shiftX, shiftY])
     },
-    colorNeighbourPoints() {
-      this.nodes.attr('fill', d => {
-        return 'black'
-        // if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
-        //   return '#487284d2'
-        // }
-        // return 'black'
-      })
-    },
-    getHull() {
+    //creating convex hull of neighbourhood points when neighbourhood is containing 3 or more accidents
+    getConvexhull() {
       let hullPoints = []
       let pointis = []
       let pointsLength = null
@@ -693,7 +859,7 @@ export default {
         }
       }
     },
-    addPoint(index) {
+    addPointToNeighbourhood(index) {
       let point = accidentData.accidents[index]
       let anchorP = accidentData.accidents[this.anchorPoint]
       //check if this point will be new anchor point
@@ -741,14 +907,61 @@ export default {
         }
       })
     },
-    drawAggregatedVis() {
-      this.initAggregatedVisData()
+    runForceLayout() {
+      const currentSimulation = d3
+        .forceSimulation()
+        .nodes(this.arrayForForceLayout)
+        .force(
+          'center',
+          d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2)
+        )
+        .force(
+          'collide',
+          d3
+            .forceCollide()
+            .radius(this.nodeRadius * 2)
+            .strength(1)
+            .iterations(1)
+        )
+        .on('tick', this.tick)
 
-      // Neni to uplne pekne, ze to neporovnavame na neighbourhoodCounts
+      //this.simulation.push(currentSimulation)
+      this.simulation = currentSimulation
+    },
+    tick() {
+      const viewport = getViewport(this.$store.state.map)
+
+      this.nodesOnMap
+        .attr('cx', function(d) {
+          if (d.area) {
+            return
+          }
+          d.forceGPS = viewport.unproject([d.x, d.y])
+          return d.x
+        })
+        .attr('cy', function(d) {
+          if (d.area) {
+            return
+          }
+          return d.y
+        })
+    },
+    emptyAggrVisArrays() {
       while (this.grid_cells.length > 0) {
         this.grid_cells.pop()
+      }
+
+      while (this.neighbourhoodNodesInSVG.length > 0) {
         this.neighbourhoodNodesInSVG.pop()
       }
+
+      while (this.arrayForForceLayout.length > 0) {
+        this.arrayForForceLayout.pop()
+      }
+    },
+    drawAggregatedVis() {
+      this.initAggregatedVisData()
+      this.emptyAggrVisArrays()
 
       // animated transition of nodes in aggregated vis
       // Possible shift to mounted? Maybe?
@@ -773,15 +986,20 @@ export default {
         .attr('transform', d => {
           return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
         })
-      // For testing of neighbourhood group elements
-      // testGdata.append('circle')
-      //   .attr('r', 20)
-      //   .attr('cx', 0)
-      //   .attr('cy', 0)
-      //   .attr('fill', 'pink')
 
       // Setup
       for (var i = 0; i < this.aggregatedData.length; i++) {
+        if (this.aggregatedData[i].nodesInNeighbourhood.length < 10) {
+          this.arrayForForceLayout.push(
+            this.aggregatedData[i].nodesInNeighbourhood
+          ) //this.runForceLayout()
+          continue
+        }
+
+        this.aggregatedData[i].nodesInNeighbourhood = sortArrayAlphabetically(
+          this.aggregatedData[i].nodesInNeighbourhood
+        )
+
         // Setup neighbourhood in DOM (g/circles) in their GPS positions
         let currentNeighbourhoodSVGNodes = d3
           .select('#neighbourhood-' + this.aggregatedData[i].id)
@@ -796,6 +1014,11 @@ export default {
           .attr('cx', d => {
             d.pos = viewport.project([d.X, d.Y])
             d.x = d.pos[0]
+            Vue.set(
+              accidentData.accidents[d.indexInAccidentData],
+              'centerShift',
+              this.aggregatedData[i].centerInPx
+            )
             return d.pos[0] - this.aggregatedData[i].centerInPx[0]
           })
           .attr('cy', d => {
@@ -803,32 +1026,54 @@ export default {
             return d.pos[1] - this.aggregatedData[i].centerInPx[1]
           })
           .on('click', d => {
-          this.tooltip
-            .style('opacity', 1.0)
-            .html(d.Type)
-            .style('left', d3.event.pageX + 'px')
-            .style('top', d3.event.pageY - 28 + 'px')
+            this.tooltip
+              .style('opacity', 1.0)
+              .html(d.Type)
+              .style('left', d3.event.pageX + 'px')
+              .style('top', d3.event.pageY - 28 + 'px')
           })
           .on('mouseout', d => {
             this.tooltip.style('opacity', 0)
           })
 
+        if (this.doYouWantSomeWafflesCowboy) {
+          this.initGridForWafflechart(
+            this.aggregatedData[i].nodesInNeighbourhood
+          )
+        } else {
+          this.initGridForBarchart(this.aggregatedData[i].nodesInNeighbourhood)
+        }
 
-        this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
+        //console.log('please bro just go bro', this.grid_cells)
 
         // For each neighbourhood nodes find a position in a grid and move it there w/ transition
         currentNeighbourhoodSVGNodes
           .transition(t)
           .each(d => {
-            let gridpoint = occupyNearest(d, this.grid_cells[i])
+            let gridpoint
+
+            if (this.doYouWantSomeWafflesCowboy) {
+              gridpoint = occupyNearestWafflechart(d, this.grid_cells[i])
+            } else {
+              gridpoint = occupyNearestBarchart(d, this.grid_cells[i])
+            }
             if (gridpoint) {
               d.x = gridpoint.x
               d.y = gridpoint.y
-              accidentData.accidents[
-                d.indexInAccidentData
-              ].neighbourhoodPosition = [d.x, d.y]
-              d.neighbourhoodPosition = [d.x, d.y]
-              d.forceGPS = viewport.unproject([d.x, d.y])
+
+              let currentNodeInAccData =
+                accidentData.accidents[d.indexInAccidentData]
+              currentNodeInAccData.neighbourhoodPosition = [d.x, d.y]
+              //currentNodeInAccData.neighbourhoodPosition = [d.x, d.y] HERE
+              //d.neighbourhoodPosition = [d.x, d.y]
+              //d.forceGPS = viewport.unproject([d.x, d.y])
+              //console.log(currentNodeInAccData)
+              //accidentData.accidents[d.id].neighbourhoodPosition = [d.x, d.y]
+              //Vue.set(currentNodeInAccData, 'neighbourhoodPosition', [d.x, d.y])
+              /* Vue.set(accidentData.accidents[d.id], 'neighbourhoodPosition', [
+                d.x,
+                d.y
+              ]) */
             }
           })
           .attr('cx', d => d.x)
@@ -836,15 +1081,15 @@ export default {
 
         this.neighbourhoodNodesInSVG.push(currentNeighbourhoodSVGNodes)
       } // end of that huge for cycle
+      //console.log('please bro just go bro', this.grid_cells)
     },
-    //updating aggregated vis. (house parties); called on zoom and move
+    //updating aggregated vis. (house parties)
     updateAggregatedVis() {
       const viewport = getViewport(this.$store.state.map)
 
       d3.selectAll('g.neighbourhood-g')
         .transition(t)
         .attr('transform', d => {
-          //console.log(d)
           let pos = viewport.project(d.centerInGPS)
           return 'translate(' + pos[0] + ', ' + pos[1] + ')'
         })
@@ -862,11 +1107,9 @@ export default {
 
       // init DS for individual aggregated vis
       this.initAggregatedVisData()
+      this.emptyAggrVisArrays() // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
 
-      // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
-      while (this.grid_cells.length > 0) {
-        this.grid_cells.pop()
-      }
+      //console.log('grid', this.grid_cells)
 
       this.svg
         .selectAll('g.neighbourhood-g')
@@ -882,6 +1125,22 @@ export default {
         })
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
+        if (this.aggregatedData[i].nodesInNeighbourhood.length < 10) {
+          this.arrayForForceLayout.push(
+            this.aggregatedData[i].nodesInNeighbourhood
+          ) //this.runForceLayout()
+          continue
+        }
+
+        this.aggregatedData[i].nodesInNeighbourhood = sortArrayAlphabetically(
+          this.aggregatedData[i].nodesInNeighbourhood
+        )
+
+        let currentAggregatedVis = d3
+          .select('#neighbourhood-' + this.aggregatedData[i].id)
+          .selectAll('circle.circlesInAggregatedVis')
+          .data(this.aggregatedData[i].nodesInNeighbourhood)
+
         d3.select('#neighbourhood-' + this.aggregatedData[i].id)
           .selectAll('circle.circlesInAggregatedVis')
           .data(this.aggregatedData[i].nodesInNeighbourhood)
@@ -900,6 +1159,12 @@ export default {
               //console.log('newbie', d.x, d.pos)
               d.pos = viewport.project([d.X, d.Y])
               d.x = d.pos[0]
+              //d.centerShift = this.aggregatedData[i].centerInPx
+              Vue.set(
+                accidentData.accidents[d.indexInAccidentData],
+                'centerShift',
+                this.aggregatedData[i].centerInPx
+              )
               //console.log(d.x, d.pos)
               return d.pos[0] - this.aggregatedData[i].centerInPx[0]
             }
@@ -914,31 +1179,38 @@ export default {
             }
           })
 
-        /* .exit()
-          .each(d => {
-            d.isInNeighbourhood = false
-            let accidentNode = this.accidentsOnScreenIndices[d.indexInAccidentData]
-            accidentNode.isInNeighbourhood = false
-            delete this.accidentsOnScreenIndices[d.indexInAccidentData]
-              .neighbourhoodPosition
-
-            console.log('exit d', d)
-            console.log('exit n', accidentNode)
-          })
-          .classed('neighbourhood', false)
-          .classed('circlesInAggregatedVis', false)
-          .classed('nodes', true)
-          .attr('fill', 'black')
-          .attr('r', 50)
-          .remove() */
-
-        this.initGrid(this.aggregatedData[i].nodesInNeighbourhood.length)
+        if (this.doYouWantSomeWafflesCowboy) {
+          this.initGridForWafflechart(
+            this.aggregatedData[i].nodesInNeighbourhood
+          )
+        } else {
+          this.initGridForBarchart(this.aggregatedData[i].nodesInNeighbourhood)
+        }
 
         d3.select('#neighbourhood-' + this.aggregatedData[i].id)
           .selectAll('circle.circlesInAggregatedVis')
           .transition(t)
           .each(d => {
-            let gridpoint = occupyNearest(d, this.grid_cells[i])
+            let gridpoint
+
+            if (this.doYouWantSomeWafflesCowboy) {
+              gridpoint = occupyNearestWafflechart(d, this.grid_cells[i])
+            } else {
+              gridpoint = occupyNearestBarchart(d, this.grid_cells[i])
+            }
+            let currentNodeInAccData =
+              accidentData.accidents[d.indexInAccidentData]
+
+            /*if (currentNodeInAccData.gridCandidate) {
+              console.log('actually got ere')
+              gridpoint = currentNodeInAccData.gridCandidate
+              let gridIndex = currentNodeInAccData.gridIndex
+
+              this.grid_cells[i][gridIndex].occupied = true
+            } else {
+              gridpoint = occupyNearest(d, this.grid_cells[i])
+            } */
+
             if (gridpoint) {
               let newX = gridpoint.x
               let newY = gridpoint.y
@@ -950,74 +1222,19 @@ export default {
               Vue.set(d, 'cx', pos[0])
               Vue.set(d, 'cy', pos[1])
               d.neighbourhoodPosition = [d.x, d.y]
+              accidentData.accidents[
+                d.indexInAccidentData
+              ].neighbourhoodPosition = [d.x, d.y]
+
+              Vue.set(d, 'neighbourhoodPosition', [d.x, d.y])
+              Vue.set(currentNodeInAccData, 'neighbourhoodPosition', [d.x, d.y])
             }
           })
           .attr('cx', d => d.x)
           .attr('cy', d => d.y)
       } //end of the extra big for cycle
-    },
-    accidentsOnScreen(node){
-      if(node === null){
-        return
-      }
-      let viewport = getViewport(this.$store.state.map)
-      let upL = viewport.unproject([0, 0])
-      let downR = viewport.unproject([window.innerWidth, window.innerHeight]) 
-      if(node.obj.X >= upL[0] && node.obj.X <= downR[0] && node.obj.Y <= upL[1] && node.obj.Y >= downR[1]){
-        this.accidentsOnScreenIndices.push(node.obj.myIndex)
-        this.accidentsOnScreenObj.push(node.obj)
-      }
-      if(node.dimension % 2 === 0){
-        if(downR[0] <= node.obj.X){
-          this.accidentsOnScreen(node.left)
-        }
-        else if(upL[0] >= node.obj.X){
-          this.accidentsOnScreen(node.right)
-        }
-        else{
-          this.accidentsOnScreen(node.left)
-          this.accidentsOnScreen(node.right)
-        }
-
-      } else{
-        if(upL[1] <= node.obj.Y){
-          this.accidentsOnScreen(node.left)
-        }
-        else if(downR[1] >= node.obj.Y){
-          this.accidentsOnScreen(node.right)
-        }
-        else{
-          this.accidentsOnScreen(node.left)
-          this.accidentsOnScreen(node.right)
-        }
-      }
-    },
-  }, // end of methods
-  computed: {
-    computedNodes: function() {
-      if (this.nodes) {
-        const colorScale = d3.scaleOrdinal(d3.schemeDark2)
-        const viewport = getViewport(this.$store.state.map)
-
-        this.nodes
-          .attr('r', this.nodeRadius)
-          .attr('fill', d => {
-            return 'black'
-          })
-          .attr('cx', d => {
-            d.pos = viewport.project([d.X, d.Y])
-            d.x = d.pos[0]
-            return d.pos[0]
-          })
-          .attr('cy', d => {
-            d.y = d.pos[1]
-            return d.pos[1]
-          })
-      }
-
-      return this.nodes
     }
-  }
+  } // end of methods
 }
 </script>
 
@@ -1032,7 +1249,7 @@ export default {
   stroke-width: 2px;
 }
 
-.nodes {
+.nodesOnMap {
   stroke: rgb(255, 255, 255);
   stroke-width: 2px;
 }
