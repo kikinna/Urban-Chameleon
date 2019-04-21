@@ -60,10 +60,7 @@ export default {
       accidentsOnScreenIndices: [], 
       accidentsOnScreenObj: [],
       wasScreenPoints: [],
-      nodeRadius: 5,
-      isAggrVisActive: false,
-      recompute: false, //variable for recomputing neighbourhoods after moved map
-      distanceLimit: 0.000001, //used in calculateDistanceDeviation to compare with the calculated distance between nodes
+      nodeRadius: 5, //default node radius
       isAggrVisInitialized: false, //flag for deciding if we should draw the aggregated vis or just update it
       doYouWantSomeWafflesCowboy: false, //TODO: temporary flag for deciding whether we want to draw waffle or barchart
       arrayForForceLayout: [], //array with the neighbourhood nodes, from neighbourhoods with less than 10 nodes
@@ -80,11 +77,6 @@ export default {
     this.initialiseSVGelements()
     this.listeners()
 
-    //preseting attributes of accidents for easier manipulation
-    for (var i = 0; i < accidentData.accidents.length; i++) {
-      accidentData.accidents[i].theNeighbourhood = null
-      accidentData.accidents[i].myIndex = i
-    }
     //points from which neighbourhood counting begin
     this.startingPoints.push(1199)
     this.startingPoints.push(478)
@@ -100,7 +92,11 @@ export default {
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
       let upL = viewport.unproject([0, 0])
       let downR = viewport.unproject([window.innerWidth, window.innerHeight])
-      console.log(upL,downR)
+      //preseting attributes of accidents for easier manipulation
+      for (var i = 0; i < accidentData.accidents.length; i++) {
+        accidentData.accidents[i].theNeighbourhood = null
+        accidentData.accidents[i].myIndex = i
+      }
 
       function distance(a, b) {
         let lat1 = a.Y;
@@ -122,7 +118,7 @@ export default {
         accidentData.accidents[i].myIndex = i;
       }
       this.tree = new this.kdLibrary.kdTree(this.kdData, distance, ["X", "Y"]);
-      this.accidentsOnScreen(this.tree.root)
+      this.recomputeAccidentsOnScreen(this.tree.root)
     },
     initialiseSVGelements() {
       const viewport = getViewport(this.$store.state.map)
@@ -176,9 +172,10 @@ export default {
             accidentData.accidents[o].theNeighbourhood = null
           })
           this.startingPoints.push(d.myIndex)
+          this.removeNeighbourhoods()
           this.computeNeighbourhoodsAndDrawPolygons()
+          this.updateVisualizations()
           console.log(this.startingPoints)
-          //console.log(d)
           this.tooltip
             .style('opacity', 1.0)
             .html(d.Type)
@@ -192,36 +189,19 @@ export default {
       this.listOfBarsTypeOfData = new Set(
         accidentData.accidents.map(node => node.Type)
       )
-      /* for (let i = 0; i < set.length; i++) {
-        this.listOfBarsTypeOfData.push(
-          accidentData.accidents
-            .map(node => node.Type)
-            .reduce(function(n, val) {
-              return n + (val === set[i])
-            }, 0)
-        )
-      } */
-
-      this.transition = d3
-        .transition()
-        .duration(2000)
-        .ease(d3.easeLinear)
-
-      //console.log('list', this.listOfBarsTypeOfData)
-      //console.log('list', set)
     },
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
         this.kdTreepoints()
-        this.removeNeighbourhoods() 
+        //this.removeNeighbourhoods() 
         this.moveVisualizations()
         //this.updateVisualizations()
         
       })
       this.$root.$on('map-move', () => {
         this.kdTreepoints()
-        this.removeNeighbourhoods() 
+        //this.removeNeighbourhoods() 
         this.moveVisualizations()
       })
       this.$root.$on('map-zoomend', () => {
@@ -239,19 +219,19 @@ export default {
       this.wasScreenPoints = [...this.accidentsOnScreenObj]
       this.accidentsOnScreenIndices = []
       this.accidentsOnScreenObj = []
-      this.accidentsOnScreen(this.tree.root)
+      this.recomputeAccidentsOnScreen(this.tree.root)
     },
     moveVisualizations() {
       this.updateNodesOnMap()
       this.drawPolygonUnderNeighbourhoods()
-      this.moveAggregatedVis()
-      //this.updateVisualizations()
+      //this.moveAggregatedVis()
+      this.updateVisualizations()
     },
     zoomVisualizations() {
-      //this.removeNeighbourhoods()
-      //this.computeNeighbourhoodsAndDrawPolygons() //compute new neighbourhoods, make and draw polygons
-      //this.moveAggregatedVis()
-      //this.updateVisualizations()
+      this.removeNeighbourhoods()
+      this.computeNeighbourhoodsAndDrawPolygons() //compute new neighbourhoods, make and draw polygons
+      this.moveAggregatedVis()
+      this.updateVisualizations()
     },
     //updates positions of aggregated visualizations (the g element)
     moveAggregatedVis() {
@@ -262,7 +242,7 @@ export default {
         return 'translate(' + pos[0] + ', ' + pos[1] + ')'
       })
     },
-    accidentsOnScreen(node){
+    recomputeAccidentsOnScreen(node){
       if(node === null){
         return
       }
@@ -275,26 +255,26 @@ export default {
       }
       if(node.dimension % 2 === 0){
         if(downR[0] <= node.obj.X){
-          this.accidentsOnScreen(node.left)
+          this.recomputeAccidentsOnScreen(node.left)
         }
         else if(upL[0] >= node.obj.X){
-          this.accidentsOnScreen(node.right)
+          this.recomputeAccidentsOnScreen(node.right)
         }
         else{
-          this.accidentsOnScreen(node.left)
-          this.accidentsOnScreen(node.right)
+          this.recomputeAccidentsOnScreen(node.left)
+          this.recomputeAccidentsOnScreen(node.right)
         }
 
       } else{
         if(upL[1] <= node.obj.Y){
-          this.accidentsOnScreen(node.left)
+          this.recomputeAccidentsOnScreen(node.left)
         }
         else if(downR[1] >= node.obj.Y){
-          this.accidentsOnScreen(node.right)
+          this.recomputeAccidentsOnScreen(node.right)
         }
         else{
-          this.accidentsOnScreen(node.left)
-          this.accidentsOnScreen(node.right)
+          this.recomputeAccidentsOnScreen(node.left)
+          this.recomputeAccidentsOnScreen(node.right)
         }
       }
     },
@@ -375,7 +355,9 @@ export default {
             accidentData.accidents.theNeighbourhood = null
           })
           this.startingPoints.push(d.myIndex)
+          this.removeNeighbourhoods()
           this.computeNeighbourhoodsAndDrawPolygons()
+          this.updateVisualizations()
           console.log(this.startingPoints)
           this.tooltip
             .style('opacity', 1.0)
