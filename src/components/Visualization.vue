@@ -8,7 +8,7 @@
       :index="index"
     ></AccidentDetail>
     
-    <div class="control-pane">
+    <div class="control-pane urban-ui-border">
       <h2 class="ui-text">Unit visualization</h2>
       <b-select v-model="aggregatedVisSelected" size="is-small" expanded>
         <option
@@ -19,8 +19,8 @@
         </option>
       </b-select>
 
-          <h2 class="ui-text">Primary attribute</h2>
-    <section>
+      <h2 class="ui-text">Primary attribute</h2>
+      <section>
         <b-select v-model="primaryAttributeSelected" size="is-small">
           <option
             v-for="type in primaryAttributeTypes"
@@ -29,9 +29,17 @@
             {{ type }}
           </option>
         </b-select>
-    </section>
+      </section>
 
     <!-- <a class="button">Click me</a> -->
+    </div>
+    <div class="urban-ui-border" style="position: absolute; right:25px; bottom:25px; width: 100px;">
+      <h2 class='ui-text'>LEGEND</h2>
+      <!-- <div v-for="(category, index) in primaryAttributeTypes" :key="index"> -->
+      <div v-for="(color, index) in colors" :key="index">
+        <svg width="15" height="10"> <circle cx="5" cy="5" r="5" :fill="color" stroke="white" stroke-width="2px" /></svg>
+        <span style="font-size:small">{{ color }}</span>
+      </div> 
     </div>
 
 
@@ -91,7 +99,8 @@ export default {
       aggregatedVisTypes: ['Waffle chart', 'Bar chart'],
       aggregatedVisSelected: 'Waffle chart',
       primaryAttributeTypes: ['Day', 'DayNight', 'Type', 'CausedBy', 'Alcohol', 'MainCause', 'RoadCondition', 'Weather', 'VehicleType', 'Skyd'],
-      primaryAttributeSelected: 'Type'
+      primaryAttributeSelected: 'Type',
+      colors: ['red', 'blue', 'pink']
     }
   },
   store,
@@ -1106,16 +1115,23 @@ h2 {
   font-family: 'IBM Plex Sans', sans-serif;
 }
 
-.control-pane {
+.urban-ui-border {
+  position: absolute;
+  
   margin: 10px;
   padding: 15px;
   padding-top: 5px;
-  position: relative;
-  width: 200px;
   background-color: rgba(255, 255, 255, 0.8);
   border-radius: 10px;
   border-style: dashed;
   border-width: 2.5px;
+}
+
+.control-pane {
+  bottom: 25px;
+  left: 25px;
+  /* position: relative; */
+  width: 200px;
 }
 
 .ui-text {
