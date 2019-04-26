@@ -7,6 +7,32 @@
       :accident="dataD3.accidents[curr_accident]"
       :index="index"
     ></AccidentDetail>
+
+    <div class="control-pane urban-ui-border">
+      <h2 class="ui-text">Unit visualization</h2>
+      <b-select v-model="aggregatedVisSelected" size="is-small" expanded>
+        <option v-for="type in aggregatedVisTypes" :value="type" :key="type.id">{{ type }}</option>
+      </b-select>
+
+      <h2 class="ui-text">Primary attribute</h2>
+      <section>
+        <b-select v-model="primaryAttributeSelected" size="is-small">
+          <option v-for="type in primaryAttributeTypes" :value="type" :key="type.id">{{ type }}</option>
+        </b-select>
+      </section>
+
+      <!-- <a class="button">Click me</a> -->
+    </div>
+    <div class="urban-ui-border" style="position: absolute; right:25px; bottom:25px; width: 100px;">
+      <h2 class="ui-text">LEGEND</h2>
+      <!-- <div v-for="(category, index) in primaryAttributeTypes" :key="index"> -->
+      <div v-for="(color, index) in colors" :key="index">
+        <svg width="15" height="10">
+          <circle cx="5" cy="5" r="5" :fill="color" stroke="white" stroke-width="2px"></circle>
+        </svg>
+        <span style="font-size:small">{{ color }}</span>
+      </div>
+    </div>
   </div>
 </template>
 <script>
@@ -59,7 +85,23 @@ export default {
       isAggrVisInitialized: false, //flag for deciding if we should draw the aggregated vis or just update it
       doYouWantSomeWafflesCowboy: false, //TODO: temporary flag for deciding whether we want to draw waffle or barchart
       arrayForForceLayout: [], //array with the neighbourhood nodes, from neighbourhoods with less than 10 nodes
-      listOfBarsTypeOfData: [] //used in barchart to order bars grouped by the type of data
+      listOfBarsTypeOfData: [], //used in barchart to order bars grouped by the type of data
+      aggregatedVisTypes: ['Waffle chart', 'Bar chart'],
+      aggregatedVisSelected: 'Waffle chart',
+      primaryAttributeTypes: [
+        'Day',
+        'DayNight',
+        'Type',
+        'CausedBy',
+        'Alcohol',
+        'MainCause',
+        'RoadCondition',
+        'Weather',
+        'VehicleType',
+        'Skyd'
+      ],
+      primaryAttributeSelected: 'Type',
+      colors: ['red', 'blue', 'pink']
     }
   },
   store,
@@ -900,12 +942,15 @@ export default {
             this.tooltip.style('opacity', 0)
           })
 
-        if (this.doYouWantSomeWafflesCowboy) {
+        // if (this.doYouWantSomeWafflesCowboy) {
+        if (this.aggregatedVisSelected == 'Waffle chart') {
           this.initGridForWafflechart(
             this.aggregatedData[i].nodesInNeighbourhood
           )
-        } else {
+        } else if (this.aggregatedVisSelected == 'Bar chart') {
           this.initGridForBarchart(this.aggregatedData[i].nodesInNeighbourhood)
+        } else {
+          console.log('you dont have any chart selected')
         }
 
         //console.log('please bro just go bro', this.grid_cells)
@@ -916,9 +961,10 @@ export default {
           .each(d => {
             let gridpoint
 
-            if (this.doYouWantSomeWafflesCowboy) {
+            // if (this.doYouWantSomeWafflesCowboy) {
+            if (this.aggregatedVisSelected == 'Waffle chart') {
               gridpoint = occupyNearestWafflechart(d, this.grid_cells[i])
-            } else {
+            } else if (this.aggregatedVisSelected == 'Bar chart') {
               gridpoint = occupyNearestBarchart(d, this.grid_cells[i])
             }
             if (gridpoint) {
@@ -1060,11 +1106,11 @@ export default {
             console.log('dis dee', d)
           })
 
-        if (this.doYouWantSomeWafflesCowboy) {
+        if (this.aggregatedVisSelected == 'Waffle chart') {
           this.initGridForWafflechart(
             this.aggregatedData[i].nodesInNeighbourhood
           )
-        } else {
+        } else if (this.aggregatedVisSelected == 'Bar chart') {
           this.initGridForBarchart(this.aggregatedData[i].nodesInNeighbourhood)
         }
 
@@ -1074,9 +1120,9 @@ export default {
           .each(d => {
             let gridpoint
 
-            if (this.doYouWantSomeWafflesCowboy) {
+            if (this.aggregatedVisSelected == 'Waffle chart') {
               gridpoint = occupyNearestWafflechart(d, this.grid_cells[i])
-            } else {
+            } else if (this.aggregatedVisSelected == 'Bar chart') {
               gridpoint = occupyNearestBarchart(d, this.grid_cells[i])
             }
             let currentNodeInAccData =
@@ -1118,6 +1164,38 @@ export default {
 </script>
 
 <style>
+@import url('https://fonts.googleapis.com/css?family=IBM+Plex+Sans:Bold');
+h2 {
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+.urban-ui-border {
+  position: absolute;
+
+  margin: 10px;
+  padding: 15px;
+  padding-top: 5px;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 10px;
+  border-style: dashed;
+  border-width: 2.5px;
+}
+
+.control-pane {
+  bottom: 25px;
+  left: 25px;
+  /* position: relative; */
+  width: 200px;
+}
+
+.ui-text {
+  position: relative;
+  font-size: small;
+  letter-spacing: 0.1em;
+  padding-top: 10px;
+  padding-bottom: 5px;
+}
+
 .neighbourhood {
   visibility: hidden;
 }

@@ -96,7 +96,7 @@ export default {
 }
 </script>
 
-<style>
+<style lang="scss">
 #app {
   font-family: 'Avenir', Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -113,4 +113,24 @@ export default {
   bottom: 0;
   left: 0;
 }
+
+@import "~bulma/sass/utilities/_all";
+
+// Set your colors
+$primary: #696969;
+$primary-invert: findColorInvert($primary);
+// $twitter: #4099FF;
+// $twitter-invert: findColorInvert($twitter);
+
+$colors: (
+    "primary": ($primary, $primary-invert)
+);
+
+$link: $primary;
+$link-invert: $primary-invert;
+$link-focus-border: $primary;
+
+// Import Bulma and Buefy styles
+@import "~bulma";
+@import "~buefy/src/scss/buefy";
 </style>
