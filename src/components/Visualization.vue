@@ -12,7 +12,7 @@
 <script>
 import * as d3 from 'd3'
 import store from '../store.js'
-import accidentData from '../data/accidents2018.js'
+import accidentData from '../data/accidents2018full.js'
 import AccidentDetail from './AccidentDetail.vue'
 import {
   sortPoints,
@@ -55,11 +55,11 @@ export default {
       polygons: null,
       tooltip: null,
       kdLibrary: [],
-      kdData:[],
+      kdData: [],
       tree: [],
-      accidentsOnScreenIndices: [], 
+      accidentsOnScreenIndices: [],
       accidentsOnScreenObj: [],
-      wasScreenPoints: [], 
+      wasScreenPoints: [],
       nodeRadius: 5, //default node radius
       isAggrVisInitialized: false, //flag for deciding if we should draw the aggregated vis or just update it
       doYouWantSomeWafflesCowboy: false, //TODO: temporary flag for deciding whether we want to draw waffle or barchart
@@ -87,7 +87,7 @@ export default {
   },
   methods: {
     //initialisation (svg, nodesOnMap, polygons, tooltips)
-    initData(){
+    initData() {
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
       let upL = viewport.unproject([0, 0])
@@ -99,25 +99,25 @@ export default {
       }
 
       function distance(a, b) {
-        let lat1 = a.Y;
-        let lon1 = a.X;
-        let lat2 = b.Y;
-        let lon2 = b.X;
-        let rad = Math.PI/180;
-        let dLat = (lat2-lat1)*rad;
-        let dLon = (lon2-lon1)*rad;
-        lat1 = lat1*rad;
-        lat2 = lat2*rad;
-        let x = Math.sin(dLat/2);
-        let y = Math.sin(dLon/2);
-        let res = x*x + y*y * Math.cos(lat1) * Math.cos(lat2);
-        return Math.atan2(Math.sqrt(res), Math.sqrt(1-res));
+        let lat1 = a.Y
+        let lon1 = a.X
+        let lat2 = b.Y
+        let lon2 = b.X
+        let rad = Math.PI / 180
+        let dLat = (lat2 - lat1) * rad
+        let dLon = (lon2 - lon1) * rad
+        lat1 = lat1 * rad
+        lat2 = lat2 * rad
+        let x = Math.sin(dLat / 2)
+        let y = Math.sin(dLon / 2)
+        let res = x * x + y * y * Math.cos(lat1) * Math.cos(lat2)
+        return Math.atan2(Math.sqrt(res), Math.sqrt(1 - res))
       }
       this.kdLibrary = require('kd-tree-javascript')
       for (let i = 0; i < accidentData.accidents.length; i++) {
-        accidentData.accidents[i].myIndex = i;
+        accidentData.accidents[i].myIndex = i
       }
-      this.tree = new this.kdLibrary.kdTree(this.kdData, distance, ["X", "Y"]);
+      this.tree = new this.kdLibrary.kdTree(this.kdData, distance, ['X', 'Y'])
       this.recomputeAccidentsOnScreen(this.tree.root)
     },
     initialiseSVGelements() {
@@ -194,14 +194,14 @@ export default {
       //all events
       this.$root.$on('map-zoom', () => {
         this.updatePoints()
-        //this.removeNeighbourhoods() 
+        //this.removeNeighbourhoods()
         this.moveVisualizations()
         //this.updateVisualizations()
-        
       })
       this.$root.$on('map-move', () => {
         this.updatePoints()
-        //this.removeNeighbourhoods() 
+        //console.log('scr', this.accidentsOnScreenObj)
+        //this.removeNeighbourhoods()
         this.moveVisualizations()
       })
       this.$root.$on('map-zoomend', () => {
@@ -215,10 +215,11 @@ export default {
         }
       })
     },
-    updatePoints(){
+    updatePoints() {
       this.wasScreenPoints = [...this.accidentsOnScreenObj]
       this.accidentsOnScreenIndices = []
       this.accidentsOnScreenObj = []
+      //console.log('b', this.accidentsOnScreenObj)
       this.recomputeAccidentsOnScreen(this.tree.root)
     },
     moveVisualizations() {
@@ -242,37 +243,37 @@ export default {
         return 'translate(' + pos[0] + ', ' + pos[1] + ')'
       })
     },
-    recomputeAccidentsOnScreen(node){
-      if(node === null){
+    recomputeAccidentsOnScreen(node) {
+      if (node === null) {
         return
       }
       let viewport = getViewport(this.$store.state.map)
       let upL = viewport.unproject([0, 0])
-      let downR = viewport.unproject([window.innerWidth, window.innerHeight]) 
-      if(node.obj.X >= upL[0] && node.obj.X <= downR[0] && node.obj.Y <= upL[1] && node.obj.Y >= downR[1]){
+      let downR = viewport.unproject([window.innerWidth, window.innerHeight])
+      if (
+        node.obj.X >= upL[0] &&
+        node.obj.X <= downR[0] &&
+        node.obj.Y <= upL[1] &&
+        node.obj.Y >= downR[1]
+      ) {
         this.accidentsOnScreenIndices.push(node.obj.myIndex)
         this.accidentsOnScreenObj.push(node.obj)
       }
-      if(node.dimension % 2 === 0){
-        if(downR[0] <= node.obj.X){
+      if (node.dimension % 2 === 0) {
+        if (downR[0] <= node.obj.X) {
           this.recomputeAccidentsOnScreen(node.left)
-        }
-        else if(upL[0] >= node.obj.X){
+        } else if (upL[0] >= node.obj.X) {
           this.recomputeAccidentsOnScreen(node.right)
-        }
-        else{
+        } else {
           this.recomputeAccidentsOnScreen(node.left)
           this.recomputeAccidentsOnScreen(node.right)
         }
-
-      } else{
-        if(upL[1] <= node.obj.Y){
+      } else {
+        if (upL[1] <= node.obj.Y) {
           this.recomputeAccidentsOnScreen(node.left)
-        }
-        else if(downR[1] >= node.obj.Y){
+        } else if (downR[1] >= node.obj.Y) {
           this.recomputeAccidentsOnScreen(node.right)
-        }
-        else{
+        } else {
           this.recomputeAccidentsOnScreen(node.left)
           this.recomputeAccidentsOnScreen(node.right)
         }
@@ -282,17 +283,17 @@ export default {
     //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateNodesOnMap() {
       const viewport = getViewport(this.$store.state.map)
-      
-      this.nodesOnMap
+
+      /* this.nodesOnMap
         .filter(d => {
           let res = false
-          this.accidentsOnScreenObj.forEach( o => {
-            if(o === d){
+          this.accidentsOnScreenObj.forEach(o => {
+            if (o === d) {
               res = true
               return
             }
           })
-          return (res)
+          return res
         })
         .attr('cx', d => {
           d.pos = viewport.project([d.X, d.Y])
@@ -302,34 +303,65 @@ export default {
         .attr('cy', d => {
           d.y = d.pos[1]
           return d.pos[1]
-        })
+        }) */
 
-      this.nodesOnMap
+      /* this.nodesOnMap
         .filter(d => {
           let res = false
-          this.accidentsOnScreenObj.forEach( o => {
-            if(o === d){
-              res = true
-              return
-            }
-          })
-          return (!res)
-        })
-        .remove() 
-      //TODO presne toto nefunguje tak ako si predstavujem
-      this.nodesOnMap
-        .data(this.accidentsOnScreenObj.filter(d => {
-          let res = false
-          this.wasScreenPoints.forEach( o => {
-            if(o === d){
+          this.accidentsOnScreenObj.forEach(o => {
+            if (o === d) {
               res = true
               return
             }
           })
           return !res
-        }))
-        .append('circle')
-        .enter()
+        })
+        .remove() */
+
+      /* console.log('bef', this.accidentsOnScreenObj)
+
+      let filtered = this.accidentsOnScreenObj.filter(d => {
+        let res = false
+        this.wasScreenPoints.forEach(o => {
+          if (o === d) {
+            res = true
+            return
+          }
+        })
+        return !res
+      })
+      this.accidentsOnScreenObj = filtered
+
+      console.log('f', filtered)
+
+      console.log('af', this.accidentsOnScreenObj) */
+
+      /* console.log(
+        'af',
+        this.accidentsOnScreenObj.filter(d => {
+          let res = false
+          this.wasScreenPoints.forEach(o => {
+            if (o === d) {
+              res = true
+              return
+            }
+          })
+          return !res
+        })
+      ) */
+
+      //TODO presne toto nefunguje tak ako si predstavujem
+      d3.select('.nodesOnMap')
+        .selectAll('circle')
+        .data(this.accidentsOnScreenObj)
+        //this.nodesOnMap
+        //.selectAll('circle')
+        //.data(this.accidentsOnScreenObj)
+        //.data(this.accidentsOnScreenObj)
+        //.enter()
+        //.append('circle')
+        .join('circle')
+        //.enter()
         .each(d => {
           d.isInNeighbourhood = false
         })
@@ -360,10 +392,12 @@ export default {
             .html(d.Type)
             .style('left', d3.event.pageX + 'px')
             .style('top', d3.event.pageY - 28 + 'px')
-        }) 
+        })
         .on('mouseout', d => {
           this.tooltip.style('opacity', 0)
         })
+
+      //console.log('nodes', this.nodesOnMap)
     },
     //updates all visualizations - svg nodes, aggregated visualizations
     updateVisualizations() {
@@ -385,7 +419,7 @@ export default {
         return 'nodesOnMap'
       })
 
-      this.transitionNodesFromAggrVisToMapToTheirPosition()
+      //this.transitionNodesFromAggrVisToMapToTheirPosition()
     },
     transitionNodesFromAggrVisToMapToTheirPosition() {
       // animated transition of nodes in aggregated vis
@@ -740,9 +774,13 @@ export default {
 
       //looking through all points in data if its in close neighbourhood, if yes counting close neighbourhood also for them...
       this.accidentsOnScreenIndices.forEach(o => {
-        if (accidentData.accidents[o].theNeighbourhood == null && accidentData.accidents[o] != obj) {
+        if (
+          accidentData.accidents[o].theNeighbourhood == null &&
+          accidentData.accidents[o] != obj
+        ) {
           let inNeighbour = Math.sqrt(
-            Math.pow(obj.x - accidentData.accidents[o].x, 2) + Math.pow(obj.y - accidentData.accidents[o].y, 2)
+            Math.pow(obj.x - accidentData.accidents[o].x, 2) +
+              Math.pow(obj.y - accidentData.accidents[o].y, 2)
           )
           if (inNeighbour <= r) {
             accidentData.accidents[o].theNeighbourhood = obj.theNeighbourhood
@@ -817,7 +855,7 @@ export default {
             hullPoints = hullPoints.filter(function(p) {
               return !!p
             })
-            
+
             if (
               !hullPoints.some(function(p) {
                 return (
@@ -880,7 +918,9 @@ export default {
           posi[1] > 0 &&
           posi[1] < window.innerHeight
         ) {
-          accidentData.accidents[o].color = colorScale(accidentData.accidents[o].Type)
+          accidentData.accidents[o].color = colorScale(
+            accidentData.accidents[o].Type
+          )
           this.detailAccidents.push(accidentData.accidents[o].myIndex)
         }
       })
@@ -967,12 +1007,12 @@ export default {
 
       // Setup
       for (var i = 0; i < this.aggregatedData.length; i++) {
-        if (this.aggregatedData[i].nodesInNeighbourhood.length < 10) {
+        /* if (this.aggregatedData[i].nodesInNeighbourhood.length < 10) {
           this.arrayForForceLayout.push(
             this.aggregatedData[i].nodesInNeighbourhood
           ) //this.runForceLayout()
           continue
-        }
+        } */
 
         this.aggregatedData[i].nodesInNeighbourhood = sortArrayAlphabetically(
           this.aggregatedData[i].nodesInNeighbourhood
@@ -1103,12 +1143,12 @@ export default {
         })
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
-        if (this.aggregatedData[i].nodesInNeighbourhood.length < 10) {
+        /* if (this.aggregatedData[i].nodesInNeighbourhood.length < 10) {
           this.arrayForForceLayout.push(
             this.aggregatedData[i].nodesInNeighbourhood
           ) //this.runForceLayout()
           continue
-        }
+        } */
 
         this.aggregatedData[i].nodesInNeighbourhood = sortArrayAlphabetically(
           this.aggregatedData[i].nodesInNeighbourhood
