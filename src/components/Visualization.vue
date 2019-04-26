@@ -59,7 +59,7 @@ export default {
       tree: [],
       accidentsOnScreenIndices: [], 
       accidentsOnScreenObj: [],
-      wasScreenPoints: [],
+      wasScreenPoints: [], 
       nodeRadius: 5, //default node radius
       isAggrVisInitialized: false, //flag for deciding if we should draw the aggregated vis or just update it
       doYouWantSomeWafflesCowboy: false, //TODO: temporary flag for deciding whether we want to draw waffle or barchart
@@ -193,14 +193,14 @@ export default {
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
-        this.kdTreepoints()
+        this.updatePoints()
         //this.removeNeighbourhoods() 
         this.moveVisualizations()
         //this.updateVisualizations()
         
       })
       this.$root.$on('map-move', () => {
-        this.kdTreepoints()
+        this.updatePoints()
         //this.removeNeighbourhoods() 
         this.moveVisualizations()
       })
@@ -215,7 +215,7 @@ export default {
         }
       })
     },
-    kdTreepoints(){
+    updatePoints(){
       this.wasScreenPoints = [...this.accidentsOnScreenObj]
       this.accidentsOnScreenIndices = []
       this.accidentsOnScreenObj = []
@@ -282,12 +282,11 @@ export default {
     //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateNodesOnMap() {
       const viewport = getViewport(this.$store.state.map)
-
-      this.nodesOnMap = this.svg
-        .selectAll('circle')
+      
+      this.nodesOnMap
         .filter(d => {
           let res = false
-          this.wasScreenPoints.forEach( o => {
+          this.accidentsOnScreenObj.forEach( o => {
             if(o === d){
               res = true
               return
@@ -305,11 +304,10 @@ export default {
           return d.pos[1]
         })
 
-      this.nodesOnMap = this.svg
-        .selectAll('circle')
+      this.nodesOnMap
         .filter(d => {
           let res = false
-          this.wasScreenPoints.forEach( o => {
+          this.accidentsOnScreenObj.forEach( o => {
             if(o === d){
               res = true
               return
@@ -317,12 +315,9 @@ export default {
           })
           return (!res)
         })
-        .remove()
-
-      this.nodesOnMap = this.svg
-        .append('g')
-        .attr('class', 'nodesOnMap')
-        .selectAll('circle')
+        .remove() 
+      //TODO presne toto nefunguje tak ako si predstavujem
+      this.nodesOnMap
         .data(this.accidentsOnScreenObj.filter(d => {
           let res = false
           this.wasScreenPoints.forEach( o => {
@@ -333,7 +328,8 @@ export default {
           })
           return !res
         }))
-        .join('circle')
+        .append('circle')
+        .enter()
         .each(d => {
           d.isInNeighbourhood = false
         })
