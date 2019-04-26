@@ -284,84 +284,10 @@ export default {
     updateNodesOnMap() {
       const viewport = getViewport(this.$store.state.map)
 
-      /* this.nodesOnMap
-        .filter(d => {
-          let res = false
-          this.accidentsOnScreenObj.forEach(o => {
-            if (o === d) {
-              res = true
-              return
-            }
-          })
-          return res
-        })
-        .attr('cx', d => {
-          d.pos = viewport.project([d.X, d.Y])
-          d.x = d.pos[0]
-          return d.pos[0]
-        })
-        .attr('cy', d => {
-          d.y = d.pos[1]
-          return d.pos[1]
-        }) */
-
-      /* this.nodesOnMap
-        .filter(d => {
-          let res = false
-          this.accidentsOnScreenObj.forEach(o => {
-            if (o === d) {
-              res = true
-              return
-            }
-          })
-          return !res
-        })
-        .remove() */
-
-      /* console.log('bef', this.accidentsOnScreenObj)
-
-      let filtered = this.accidentsOnScreenObj.filter(d => {
-        let res = false
-        this.wasScreenPoints.forEach(o => {
-          if (o === d) {
-            res = true
-            return
-          }
-        })
-        return !res
-      })
-      this.accidentsOnScreenObj = filtered
-
-      console.log('f', filtered)
-
-      console.log('af', this.accidentsOnScreenObj) */
-
-      /* console.log(
-        'af',
-        this.accidentsOnScreenObj.filter(d => {
-          let res = false
-          this.wasScreenPoints.forEach(o => {
-            if (o === d) {
-              res = true
-              return
-            }
-          })
-          return !res
-        })
-      ) */
-
-      //TODO presne toto nefunguje tak ako si predstavujem
       d3.select('.nodesOnMap')
         .selectAll('circle')
         .data(this.accidentsOnScreenObj)
-        //this.nodesOnMap
-        //.selectAll('circle')
-        //.data(this.accidentsOnScreenObj)
-        //.data(this.accidentsOnScreenObj)
-        //.enter()
-        //.append('circle')
         .join('circle')
-        //.enter()
         .each(d => {
           d.isInNeighbourhood = false
         })
@@ -386,7 +312,6 @@ export default {
           this.removeNeighbourhoods()
           this.computeNeighbourhoodsAndDrawPolygons()
           this.updateVisualizations()
-          console.log(this.startingPoints)
           this.tooltip
             .style('opacity', 1.0)
             .html(d.Type)
@@ -396,8 +321,6 @@ export default {
         .on('mouseout', d => {
           this.tooltip.style('opacity', 0)
         })
-
-      //console.log('nodes', this.nodesOnMap)
     },
     //updates all visualizations - svg nodes, aggregated visualizations
     updateVisualizations() {
