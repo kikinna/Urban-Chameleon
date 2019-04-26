@@ -193,7 +193,7 @@ export default {
           this.tooltip.style('opacity', 0)
         })
 
-      // counts how many types of data there is
+      // counts unique types of data in dataset
       this.listOfBarsTypeOfData = new Set(
         accidentData.accidents.map(node => node.Type)
       )
@@ -280,7 +280,7 @@ export default {
     updateVisualizations() {
       this.updateNodesOnMap()
       if (!this.isAggrVisInitialized) {
-        this.doYouWantSomeWafflesCowboy = true
+        //this.doYouWantSomeWafflesCowboy = true
         this.drawAggregatedVis()
         this.isAggrVisInitialized = true
       } else {
@@ -312,14 +312,8 @@ export default {
       this.nodesOnMap
         .attr('cx', d => {
           if (d.neighbourhoodPosition && d.centerShift && !d.inNeighbourhood) {
-            console.log('imhere', d.neighbourhoodPosition)
             return d.centerShift[0] + d.neighbourhoodPosition[0]
           }
-          /* if (d.ID === 60206182319) {
-            console.log('d', d)
-            console.log('af x', d.x)
-            console.log('af c', d.centerShift)
-          } */
 
           return d.x
         })
@@ -328,17 +322,8 @@ export default {
             return d.centerShift[1] + d.neighbourhoodPosition[1]
           return d.y
         })
-      /* .attr('fill', d => {
-          if (d.neighbourhoodPosition && d.centerShift && !d.inNeighbourhood)
-            return 'red'
-          return 'black'
-        }) */
-      /* .attr('r', d => {
-          if (d.neighbourhoodPosition && d.centerShift && !d.inNeighbourhood)
-            return 7
-          return 5
-        }) */
 
+      //GPS position
       this.nodesOnMap
         .transition(t)
         .attr('cx', d => {
@@ -440,10 +425,6 @@ export default {
           Vue.set(d, 'centerShift', this.aggregatedData[i].centerInPx)
           //d.gridCandidate = null
           //d.gridIndex = null
-          /* console.log('lkadflak', n)
-          d.x = n.x
-          d.y = n.y */
-          // somehow set d.x to nodes actual position in the
         })
         this.aggregatedData[i].nodesInNeighbourhood = []
       } //empty the array
@@ -494,10 +475,7 @@ export default {
             this.aggregatedData[i].centerInPx[1]
           ]
           let d = accidentData.accidents[n]
-          //d.centerShift = this.aggregatedData[i].centerInPx
           Vue.set(d, 'centerShift', center)
-          //Vue.set(d, 'argh', wtf)
-          //console.log(d)
         })
       }
       //console.log('aggrData af', this.aggregatedData)
@@ -528,17 +506,12 @@ export default {
         if (data_structure.bar_counts[i] === 0) allEmptyBarsCount++
       }
 
-      //console.log('rows', data_structure.bar_rows)
-      //console.log('counts', data_structure.bar_counts)
-
       let arrayLen = array.length
       let CELL_SIZE = 10
       let GRID_COLS = Math.ceil(Math.max(...data_structure.bar_counts) / 10) //5
       if (GRID_COLS > 9) GRID_COLS = 9
 
       let GRID_ROWS = Math.ceil(array.length / GRID_COLS)
-      //console.log('cols', GRID_COLS)
-      //console.log('rows', GRID_ROWS)
 
       let emptyBarsSoFarCount = 0
       let emptyCollsCount = 0
@@ -588,9 +561,6 @@ export default {
     },
     //initialisation of grid for aggregated visualization - wafflechart
     initGridForWafflechart(array) {
-      let CELL_SIZE = 10
-      //let GRID_COLS = 5
-
       const data_structure = {
         typesOfData: [...this.listOfBarsTypeOfData],
         bars: [...this.listOfBarsTypeOfData],
@@ -611,24 +581,21 @@ export default {
       }
       let arrayLen = array.length
 
+      let CELL_SIZE = 10
       let GRID_COLS = Math.ceil(numberOfCells / 10) //5
       if (GRID_COLS > 20) GRID_COLS = 20
       let GRID_ROWS = Math.ceil(array.length / GRID_COLS)
+      let shiftX = (GRID_COLS * GRID_COLS) / 2
 
-      //for (var type = 0; type < data_structure.typesOfData.length; type++) {
-      //const currentBarCells = []
       let counterArray = 0
 
-      //let cells_count = data_structure.type_counts[type]
-      //
       for (var r = 0; r < GRID_ROWS; r++) {
         for (var c = 0; c < GRID_COLS; c++) {
-          //if (cells_count <= 0) continue
           if (arrayLen <= 0) break
 
           var cell
           cell = {
-            x: c * CELL_SIZE - (GRID_COLS * GRID_COLS) / 2,
+            x: c * CELL_SIZE - shiftX,
             y: GRID_COLS - r * CELL_SIZE,
             occupied: false,
             waffleType: array[counterArray].Type
@@ -639,10 +606,7 @@ export default {
         }
       }
 
-      //}
       this.grid_cells.push(data_structure)
-
-      //console.log('ds', data_structure)
     },
     //Prepareing things for new neighbourhood computing
     removeNeighbourhoods() {
@@ -888,7 +852,6 @@ export default {
         })
         .attr('class', 'neighbourhood-g')
         .attr('transform', d => {
-          //return 'translate(' + d.max[0] + ', ' + d.centerInPx[1] + ')'
           return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
           //return 'translate(' + d.centerInPx[0] + ', ' + d.min[1] + ')'
         })
@@ -920,11 +883,6 @@ export default {
           .attr('cx', d => {
             d.pos = viewport.project([d.X, d.Y])
             d.x = d.pos[0]
-            /* Vue.set(
-              accidentData.accidents[d.indexInAccidentData],
-              'centerShift',
-              this.aggregatedData[i].centerInPx
-            ) */
             return d.pos[0] - this.aggregatedData[i].centerInPx[0]
           })
           .attr('cy', d => {
@@ -952,8 +910,6 @@ export default {
         } else {
           console.log('you dont have any chart selected')
         }
-
-        //console.log('please bro just go bro', this.grid_cells)
 
         // For each neighbourhood nodes find a position in a grid and move it there w/ transition
         currentNeighbourhoodSVGNodes
@@ -1031,7 +987,6 @@ export default {
         .attr('class', 'neighbourhood-g')
         .transition(t)
         .attr('transform', d => {
-          console.log('d', d)
           //return 'translate(' + d.max[0] + ', ' + d.centerInPx[1] + ')'
           return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
           //return 'translate(' + d.centerInPx[0] + ', ' + d.min[1] + ')'
@@ -1053,23 +1008,6 @@ export default {
           .select('#neighbourhood-' + this.aggregatedData[i].id)
           .selectAll('circle.circlesInAggregatedVis')
           .data(this.aggregatedData[i].nodesInNeighbourhood)
-
-        //console.log('all', this.aggregatedData[i].nodesInNeighbourhood)
-
-        /* currentAggregatedVis.exit().each(d => {
-          let accidentNode = accidentData.accidents[d.indexInAccidentData]
-          accidentNode.inNeighbourhood = false
-          Vue.set(
-            accidentNode,
-            'centerShift',
-            this.aggregatedData[i].centerInPx
-          )
-          //console.log('exit node', accidentNode)
-        }) */
-        /* .attr('r', 5)
-          .attr('fill', d => {
-            return 'red'
-          }) */
 
         d3.select('#neighbourhood-' + this.aggregatedData[i].id)
           .selectAll('circle.circlesInAggregatedVis')
