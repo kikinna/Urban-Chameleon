@@ -69,6 +69,7 @@ export default {
   },
   store,
   mounted() {
+    console.log(getViewport(this.$store.state.map))
     //this.loadData()
     this.$store.state.map.getCanvasContainer().style.cursor = 'default'
     this.dataD3 = accidentData
