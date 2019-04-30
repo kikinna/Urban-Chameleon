@@ -10,13 +10,22 @@
 
     <div class="control-pane urban-ui-border">
       <h2 class="ui-text">Unit visualization</h2>
-      <b-select v-model="aggregatedVisSelected" size="is-small" expanded>
+      <b-select
+        v-model="aggregatedVisSelected"
+        @input="updateVisualizations"
+        size="is-small"
+        expanded
+      >
         <option v-for="type in aggregatedVisTypes" :value="type" :key="type.id">{{ type }}</option>
       </b-select>
 
       <h2 class="ui-text">Primary attribute</h2>
       <section>
-        <b-select v-model="primaryAttributeSelected" size="is-small">
+        <b-select
+          v-model="primaryAttributeSelected"
+          @input="changePrimaryAttribute"
+          size="is-small"
+        >
           <option v-for="type in primaryAttributeTypes" :value="type" :key="type.id">{{ type }}</option>
         </b-select>
       </section>
@@ -86,6 +95,7 @@ export default {
       doYouWantSomeWafflesCowboy: false, //TODO: temporary flag for deciding whether we want to draw waffle or barchart
       arrayForForceLayout: [], //array with the neighbourhood nodes, from neighbourhoods with less than 10 nodes
       listOfBarsTypeOfData: [], //used in barchart to order bars grouped by the type of data
+      numberOfCurrentNeighbourhoods: 0,
       aggregatedVisTypes: ['Waffle chart', 'Bar chart'],
       aggregatedVisSelected: 'Waffle chart',
       primaryAttributeTypes: [
@@ -163,7 +173,7 @@ export default {
           if (d.theNeighbourhood == 3442 || d.theNeighbourhood == 2111) {
             return '#487284d2'
           }
-          return colorScale(d.Type) //'black'
+          return colorScale(d[this.primaryAttributeSelected]) //'black'
         })
         .attr('cx', d => {
           d.pos = viewport.project([d.X, d.Y])
@@ -175,17 +185,9 @@ export default {
           return d.pos[1]
         })
         .on('click', d => {
-          /* accidentData.accidents.forEach(o => {
-            o.theNeighbourhood = null
-          })
-          this.startingPoints.push(d.index)
-          console.log('st', this.startingPoints)
-          this.computeNeighbourhoodsAndDrawPolygons()
-          this.zoomVisualizations() */
-
           this.tooltip
             .style('opacity', 1.0)
-            .html(d.Type)
+            .html(d[this.primaryAttributeSelected])
             .style('left', d3.event.pageX + 'px')
             .style('top', d3.event.pageY - 28 + 'px')
         })
@@ -195,7 +197,7 @@ export default {
 
       // counts unique types of data in dataset
       this.listOfBarsTypeOfData = new Set(
-        accidentData.accidents.map(node => node.Type)
+        accidentData.accidents.map(node => node[this.primaryAttributeSelected])
       )
     },
     listeners() {
@@ -254,36 +256,36 @@ export default {
         .attr('cy', d => {
           return d.y
         })
-        /* .on('click', d => {
-          accidentData.accidents.forEach(o => {
-            o.theNeighbourhood = null
-          })
-          this.startingPoints.push(d.index)
-          this.computeNeighbourhoodsAndDrawPolygons()
-          this.zoomVisualizations()
-
-          this.tooltip
-            .style('opacity', 1.0)
-            .html(d.Type)
-            .style('left', d3.event.pageX + 'px')
-            .style('top', d3.event.pageY - 28 + 'px')
-        }) */
         .on('mouseout', d => {
-          //this.tooltip.hide)
           this.tooltip.style('opacity', 0)
         })
-      /* .on('click', d => {
-          console.log('dis dee', d)
-        }) */
+    },
+    changePrimaryAttribute() {
+      this.listOfBarsTypeOfData = new Set(
+        accidentData.accidents.map(node => node[this.primaryAttributeSelected])
+      )
+      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+      this.nodesOnMap.attr('fill', d => {
+        return colorScale(d[this.primaryAttributeSelected])
+      })
+      this.updateVisualizations()
     },
     //updates all visualizations - svg nodes, aggregated visualizations
     updateVisualizations() {
+      this.initAggregatedVisData()
+      this.emptyAggrVisArrays()
+      //console.log('curr', this.aggregatedData.length, 'bef', this.numberOfCurrentNeighbourhoods )
+      if (this.aggregatedData.length != this.numberOfCurrentNeighbourhoods) {
+        this.isAggrVisInitialized = false
+      }
       this.updateNodesOnMap()
       if (!this.isAggrVisInitialized) {
         //this.doYouWantSomeWafflesCowboy = true
+        this.numberOfCurrentNeighbourhoods = this.aggregatedData.length
         this.drawAggregatedVis()
         this.isAggrVisInitialized = true
       } else {
+        this.numberOfCurrentNeighbourhoods = this.aggregatedData.length
         this.updateAggregatedVis()
       }
       //if (this.arrayForForceLayout.length > 0) this.runForceLayout()
@@ -415,8 +417,6 @@ export default {
     //should work with array of node indexes from convex hull
     // TO DO : Prep of ds + adding necessary attributes + rename, haha
     initAggregatedVisData() {
-      //console.log('aggrData bef bef', this.aggregatedData)
-
       for (var i = 0; i < this.aggregatedData.length; i++) {
         this.aggregatedData[i].nodesInNeighbourhood.forEach(n => {
           let d = this.dataD3.accidents[n.indexInAccidentData]
@@ -455,7 +455,8 @@ export default {
             fy: null,
             inNeighbourhood: true,
             neighbourhoodPosition: d.neighbourhoodPosition,
-            Type: d.Type,
+            Type: d[this.primaryAttributeSelected],
+            primaryAttribute: d[this.primaryAttributeSelected],
             neighbourhoodID: 1, //idk
             center: [0, 0]
           }
@@ -478,7 +479,6 @@ export default {
           Vue.set(d, 'centerShift', center)
         })
       }
-      //console.log('aggrData af', this.aggregatedData)
     },
     //initialisation of grid for aggregated visualization - barchart
     initGridForBarchart(array) {
@@ -494,7 +494,7 @@ export default {
 
       for (var i = 0; i < data_structure.bars.length; i++) {
         data_structure.bar_counts[i] = array
-          .map(node => node.Type)
+          .map(node => node.primaryAttribute)
           .reduce(function(n, val) {
             return n + (val === data_structure.bars[i])
           }, 0)
@@ -572,7 +572,7 @@ export default {
 
       for (var i = 0; i < data_structure.typesOfData.length; i++) {
         data_structure.type_counts[i] = array
-          .map(node => node.Type)
+          .map(node => node.primaryAttribute)
           .reduce(function(n, val) {
             return n + (val === data_structure.typesOfData[i])
           }, 0)
@@ -598,7 +598,7 @@ export default {
             x: c * CELL_SIZE - shiftX,
             y: GRID_COLS - r * CELL_SIZE,
             occupied: false,
-            waffleType: array[counterArray].Type
+            waffleType: array[counterArray].primaryAttribute
           }
           data_structure.chart_cells.push(cell)
           arrayLen--
@@ -828,8 +828,8 @@ export default {
       }
     },
     drawAggregatedVis() {
-      this.initAggregatedVisData()
-      this.emptyAggrVisArrays()
+      //this.initAggregatedVisData()
+      //this.emptyAggrVisArrays()
 
       // animated transition of nodes in aggregated vis
       // Possible shift to mounted? Maybe?
@@ -838,7 +838,7 @@ export default {
         .duration(2000)
         .ease(d3.easeLinear)
 
-      d3.selectAll('.circlesInAggregatedVis').remove()
+      //d3.selectAll('.circlesInAggregatedVis').remove()
 
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
@@ -854,6 +854,12 @@ export default {
         .attr('transform', d => {
           return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
           //return 'translate(' + d.centerInPx[0] + ', ' + d.min[1] + ')'
+        })
+        .on('mouseover', d => {
+          this.nodesOnMap.style('opacity', 0.8)
+        })
+        .on('mouseout', d => {
+          this.nodesOnMap.style('opacity', 1)
         })
 
       // Setup
@@ -878,7 +884,7 @@ export default {
           .attr('class', 'circlesInAggregatedVis')
           .attr('r', 5)
           .attr('fill', d => {
-            return colorScale(d.Type)
+            return colorScale(d.primaryAttribute)
           })
           .attr('cx', d => {
             d.pos = viewport.project([d.X, d.Y])
@@ -892,7 +898,7 @@ export default {
           .on('click', d => {
             this.tooltip
               .style('opacity', 1.0)
-              .html(d.Type)
+              .html(d.primaryAttribute)
               .style('left', d3.event.pageX + 'px')
               .style('top', d3.event.pageY - 28 + 'px')
           })
@@ -930,16 +936,6 @@ export default {
               let currentNodeInAccData =
                 accidentData.accidents[d.indexInAccidentData]
               currentNodeInAccData.neighbourhoodPosition = [d.x, d.y]
-              //currentNodeInAccData.neighbourhoodPosition = [d.x, d.y] HERE
-              //d.neighbourhoodPosition = [d.x, d.y]
-              //d.forceGPS = viewport.unproject([d.x, d.y])
-              //console.log(currentNodeInAccData)
-              //accidentData.accidents[d.id].neighbourhoodPosition = [d.x, d.y]
-              //Vue.set(currentNodeInAccData, 'neighbourhoodPosition', [d.x, d.y])
-              /* Vue.set(accidentData.accidents[d.id], 'neighbourhoodPosition', [
-                d.x,
-                d.y
-              ]) */
             }
           })
           .attr('cx', d => d.x)
@@ -972,8 +968,8 @@ export default {
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
       // init DS for individual aggregated vis
-      this.initAggregatedVisData()
-      this.emptyAggrVisArrays() // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
+      //this.initAggregatedVisData()
+      //this.emptyAggrVisArrays() // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
 
       //console.log('grid', this.grid_cells)
 
@@ -1017,7 +1013,7 @@ export default {
           .attr('class', 'circlesInAggregatedVis')
           .attr('r', 5)
           .attr('fill', d => {
-            return colorScale(d.Type) //'black'
+            return colorScale(d.primaryAttribute) //'black'
           })
           .attr('cx', d => {
             if (d.neighbourhoodPosition) {
@@ -1041,7 +1037,7 @@ export default {
             }
           })
           .on('click', d => {
-            console.log('dis dee', d)
+            console.log('dis dee', d.primaryAttribute)
           })
 
         if (this.aggregatedVisSelected == 'Waffle chart') {
