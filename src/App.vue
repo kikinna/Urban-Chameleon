@@ -24,7 +24,7 @@
         position: 'top-left'
       }"
       :fullscreen-control="{
-        show: true,
+        show: false,
         position: 'top-left'
       }"
       @map-init="mapInit"
@@ -114,7 +114,7 @@ export default {
   left: 0;
 }
 
-@import "~bulma/sass/utilities/_all";
+@import '~bulma/sass/utilities/_all';
 
 // Set your colors
 $primary: #696969;
@@ -123,7 +123,10 @@ $primary-invert: findColorInvert($primary);
 // $twitter-invert: findColorInvert($twitter);
 
 $colors: (
-    "primary": ($primary, $primary-invert)
+  'primary': (
+    $primary,
+    $primary-invert
+  )
 );
 
 $link: $primary;
@@ -131,6 +134,6 @@ $link-invert: $primary-invert;
 $link-focus-border: $primary;
 
 // Import Bulma and Buefy styles
-@import "~bulma";
-@import "~buefy/src/scss/buefy";
+@import '~bulma';
+@import '~buefy/src/scss/buefy';
 </style>

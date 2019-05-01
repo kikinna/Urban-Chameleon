@@ -1,7 +1,5 @@
 <template>
-  <div
-    :id="mapOptions.hasOwnProperty('container') ? mapOptions.container : 'map'"
-  ></div>
+  <div :id="mapOptions.hasOwnProperty('container') ? mapOptions.container : 'map'"></div>
 </template>
 
 <script>
@@ -76,6 +74,13 @@ export default {
 
     //Register Map Events
     this.registerEvents(map)
+
+    //remove draw controls: lineString, polygon, trash, marker...
+    document
+      .querySelector(
+        '#map > div.mapboxgl-control-container > div.mapboxgl-ctrl-top-right > div:nth-child(1)'
+      )
+      .remove()
   },
   methods: {
     mapInit() {

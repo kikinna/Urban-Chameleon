@@ -237,7 +237,7 @@ export default {
       const viewport = getViewport(this.$store.state.map)
 
       d3.selectAll('g.neighbourhood-g').attr('transform', d => {
-        let pos = viewport.project(d.centerInGPS)
+        let pos = viewport.project(d.GPSpos) //(d.centerInGPS)
         return 'translate(' + pos[0] + ', ' + pos[1] + ')'
       })
     },
@@ -272,8 +272,8 @@ export default {
     },
     //updates all visualizations - svg nodes, aggregated visualizations
     updateVisualizations() {
-      this.initAggregatedVisData()
-      this.emptyAggrVisArrays()
+      this.initAggregatedVisData() // init DS for individual aggregated vis
+      this.emptyAggrVisArrays() // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
       //console.log('curr', this.aggregatedData.length, 'bef', this.numberOfCurrentNeighbourhoods )
       if (this.aggregatedData.length != this.numberOfCurrentNeighbourhoods) {
         this.isAggrVisInitialized = false
@@ -305,7 +305,7 @@ export default {
       // animated transition of nodes in aggregated vis
       const t = d3
         .transition()
-        .duration(2000)
+        .duration(1500)
         .ease(d3.easeLinear)
 
       const viewport = getViewport(this.$store.state.map)
@@ -421,10 +421,7 @@ export default {
         this.aggregatedData[i].nodesInNeighbourhood.forEach(n => {
           let d = this.dataD3.accidents[n.indexInAccidentData]
           d.inNeighbourhood = false
-          //d.neighbourhoodPosition = null
           Vue.set(d, 'centerShift', this.aggregatedData[i].centerInPx)
-          //d.gridCandidate = null
-          //d.gridIndex = null
         })
         this.aggregatedData[i].nodesInNeighbourhood = []
       } //empty the array
@@ -585,7 +582,7 @@ export default {
       let GRID_COLS = Math.ceil(numberOfCells / 10) //5
       if (GRID_COLS > 20) GRID_COLS = 20
       let GRID_ROWS = Math.ceil(array.length / GRID_COLS)
-      let shiftX = (GRID_COLS * GRID_COLS) / 2
+      let shiftX = (GRID_COLS * CELL_SIZE) / 2
 
       let counterArray = 0
 
@@ -828,17 +825,12 @@ export default {
       }
     },
     drawAggregatedVis() {
-      //this.initAggregatedVisData()
-      //this.emptyAggrVisArrays()
-
       // animated transition of nodes in aggregated vis
       // Possible shift to mounted? Maybe?
       const t = d3
         .transition()
-        .duration(2000)
+        .duration(1500)
         .ease(d3.easeLinear)
-
-      //d3.selectAll('.circlesInAggregatedVis').remove()
 
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
@@ -852,7 +844,10 @@ export default {
         })
         .attr('class', 'neighbourhood-g')
         .attr('transform', d => {
-          return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
+          //return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
+          d.pos = [d.centerInPx[0], (d.min[1] + d.centerInPx[1]) / 2]
+          d.GPSpos = viewport.unproject(d.pos)
+          return 'translate(' + d.pos[0] + ', ' + d.pos[1] + ')'
           //return 'translate(' + d.centerInPx[0] + ', ' + d.min[1] + ')'
         })
         .on('mouseover', d => {
@@ -949,29 +944,16 @@ export default {
     updateAggregatedVis() {
       const viewport = getViewport(this.$store.state.map)
 
-      d3.selectAll('g.neighbourhood-g')
-        .transition(t)
-        .attr('transform', d => {
-          let pos = viewport.project(d.centerInGPS)
-          return 'translate(' + pos[0] + ', ' + pos[1] + ')'
-        })
-
       // has neighbourhood changed?
       // NO -> update neighbourhood center
       // YES -> neco vic
 
       const t = d3
         .transition()
-        .duration(2000)
+        .duration(1500)
         .ease(d3.easeLinear)
 
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
-
-      // init DS for individual aggregated vis
-      //this.initAggregatedVisData()
-      //this.emptyAggrVisArrays() // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
-
-      //console.log('grid', this.grid_cells)
 
       this.svg
         .selectAll('g.neighbourhood-g')
@@ -984,8 +966,11 @@ export default {
         .transition(t)
         .attr('transform', d => {
           //return 'translate(' + d.max[0] + ', ' + d.centerInPx[1] + ')'
-          return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
+          //return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
           //return 'translate(' + d.centerInPx[0] + ', ' + d.min[1] + ')'
+          d.pos = [d.centerInPx[0], (d.min[1] + d.centerInPx[1]) / 2]
+          d.GPSpos = viewport.unproject(d.pos)
+          return 'translate(' + d.pos[0] + ', ' + d.pos[1] + ')'
         })
 
       for (var i = 0; i < this.aggregatedData.length; i++) {
