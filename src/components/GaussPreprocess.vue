@@ -21,7 +21,7 @@ import store from '../store.js'
 import Paper from 'paper'
 import accidentData from '../data/accidents2018full.js'
 import Visualization from './Visualization.vue'
-import { EventBus } from './EventBus.js';
+import { EventBus } from '../helpers/EventBus.js';
 import {
   getViewport,
   measureGeoDistance,
