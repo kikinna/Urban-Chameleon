@@ -12,13 +12,16 @@
 
         <a class="button test" @click="clearCanvas" style="left: 150px; top: 500px ">Clear Canvas</a>
         <a class="button test" @click="drawNeighbourhoodAdepts" style="left: 10px; top: 500px ">Draw Accidents</a> -->
+        
     </div>
 </template>
 
 <script>
 import store from '../store.js'
 import Paper from 'paper'
-import accidentData from '../data/nehody2018.js'
+import accidentData from '../data/accidents2018full.js'
+import Visualization from './Visualization.vue'
+import { EventBus } from './EventBus.js';
 import {
   getViewport,
   measureGeoDistance,
@@ -27,6 +30,10 @@ import {
 import { findBlobs } from '../helpers/FindBlobs.js'
 
     export default {
+        name: 'GaussPreprocess',
+        components: {
+            Visualization,
+        },
         data() {
             return {
                 paper: null,
@@ -38,31 +45,41 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                 dot_intensity: 40/255,
                 glur_module: null,
                 threshold_module: null,
-                unit_threshold: 12, // 67 is the highest possible threshold to detect small overlaps. Making this value smaller loosens the 
-                area_threshold: 43, // this value controlls how generous the final areas will be drawn. Smaller values means larger areas for the clusters
+                unit_threshold: 25, // 67 is the highest possible threshold to detect small overlaps. Making this value smaller loosens the 
+                area_threshold: 30, // this value controlls how generous the final areas will be drawn. Smaller values means larger areas for the clusters
                 gauss_radius: 7,
-                canvas_height: 900, 
-                canvas_width: 888,
-                canvas_aspect_ratio: 0.5625 // h/w
+                canvas_height: 720, 
+                canvas_width: 710.4,
+                canvas_aspect_ratio: 0.5625, // h/w
+                boundingBoxesOfBlobs : [],
+                imageResult: [],
+                indexies: [],
+                accidentsOnScreen: [],
+                moved: true
             }
         }, 
         created() {
             // Try to load data here? Not. Somewhere else.
-            // Paper.install(window)
+            // Paper.install(window)]
+            
             
         },
-        mounted() {
+        beforeMount(){
             this.listeners();
+            // this.initCanvas();
+        },
+        mounted() {
+            // this.listeners();
             this.initCanvas();
             this.glur_module = require('glur')
             this.threshold_module = require('image-filter-threshold')
-
             window.addEventListener('mousedown', this.mouseMoved)
             this.viewport = getViewport(this.$store.state.map);
 
             this.paper = Paper.setup(this.canvas);
 
-            this.drawNeighbourhoodAdepts();
+            //this.drawNeighbourhoodAdepts();
+            console.log('pls')
 
         },
         methods: {
@@ -73,12 +90,10 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                 let screen_top_left = this.viewport.unproject([0, 0])
                 let screen_bottom_right = this.viewport.unproject([window.innerWidth, window.innerHeight])
 
-                // Draw accidents (dots) into canvas
-                let results = accidentData.accidents.map(d => {
-                    if (d.X > screen_top_left[0] && d.X < screen_bottom_right[0] && d.Y < screen_top_left[1] && d.Y > screen_bottom_right[1]) {
-
-                        let accident_screen_pos = this.viewport.project([d.X, d.Y])
-                    
+                let results = this.accidentsOnScreen.map(d => {
+                
+                    let accident_screen_pos = this.viewport.project([d.X, d.Y])
+                
                     let accident_dot = new Paper.Path.Circle(
                         new Paper.Point(
                             (accident_screen_pos[0] / this.devicePixelRatio) * this.canvas_to_screen_ratio, 
@@ -89,17 +104,17 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                     accident_dot.blendMode = 'add'
 
                     this.accident_dots.push(accident_dot.blendMode)
-                    }
-
-                    
+                
                 })
-                // 
+                
                 Promise.all(results).then((completed) => {
                     setTimeout(() => {
                         // console.log('finished drawing')
                         this.neighbourhoodProcessingPipeline()
                     }, 1)
                 })
+                
+                
             },
             clearCanvas() {
                 if(Paper.project.activeLayer.hasChildren()) {
@@ -109,12 +124,21 @@ import { findBlobs } from '../helpers/FindBlobs.js'
             listeners() {
                 this.$root.$on('map-zoomend', () => {
                     this.viewport = getViewport(this.$store.state.map);
-                    this.drawNeighbourhoodAdepts()
+                    
                 })
                 this.$root.$on('map-moveend', () => {
                     this.viewport = getViewport(this.$store.state.map);
-                    this.drawNeighbourhoodAdepts()
+                    this.moved = true
+                    
                 })
+                EventBus.$on('neigh', data => {
+                    if(this.moved){
+                        this.accidentsOnScreen = data
+                        this.drawNeighbourhoodAdepts()
+                        this.moved = false
+                    }
+                })
+
             },
             initCanvas() {
                 let w = window.innerWidth;
@@ -171,6 +195,15 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                                 // --- 5. BLOB DETECTION ---
                                 that.blobDetection(result);
                                 that.canvas_context.putImageData(that.$store.state.neighbourhoodImage, 0, 0)
+                                that.bbOfHullOfBlob()
+                                setTimeout(() => {
+                                    let data = {
+                                        boundingBoxes: that.boundingBoxesOfBlobs,
+                                        scale: that.canvas_to_screen_ratio
+                                    }
+                                    EventBus.$emit('emittedEvent', data);
+                                }, 1)
+                                
                             })
                     })
             },
@@ -219,7 +252,45 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                 }
                 // this.canvas_context.putImageData(imageData, 0, 0)
                 this.$store.commit('storeNeighbourhoodImage', imageData)
+            },
+
+            bbOfHullOfBlob(){
+                let imageData = this.$store.state.neighbourhoodImage
+                let boundingB = []
+                let scale = this.canvas_to_screen_ratio
+                for(let y = 0; y < imageData.height; y++){
+                    for (let x = 0; x < imageData.width; x += 4){
+                        let gIndex = (y * imageData.width + x) * 4 + 1
+                        let label = imageData.data[gIndex]
+                        if(label > 0){
+                            if(boundingB[label] == undefined){
+                                boundingB[label] = []
+                                for(let i = 0; i < 4; i++){
+                                    boundingB[label].push([Math.floor(x/scale), Math.floor(y/scale)])
+                                }
+                            }else{
+                                if(boundingB[label][0][0] > x/scale){
+                                    boundingB[label][0] = [Math.floor(x/scale), Math.floor(y/scale)]
+                                }
+                                if(boundingB[label][1][0] < x/scale){
+                                    boundingB[label][1] = [Math.floor(x/scale), Math.floor(y/scale)]
+                                }
+                                if(boundingB[label][2][1] > y/scale){
+                                    boundingB[label][2] = [Math.floor(x/scale), Math.floor(y/scale)]
+                                }
+                                if(boundingB[label][3][1] < y/scale){
+                                    boundingB[label][3] = [Math.floor(x/scale), Math.floor(y/scale)]
+                                }
+                            }
+                        }
+                    }
+                }
+                this.boundingBoxesOfBlobs = [...boundingB]
+            },
+            getBoundingBoxes(){
+                return this.boundingBoxesOfBlobs
             }
+
         }
 
 
@@ -235,7 +306,7 @@ import { findBlobs } from '../helpers/FindBlobs.js'
 
 #gauss {
   position: absolute;
-  z-index: 0;
+  z-index: -10;
   /* opacity: 0.7;  */
   /* width: 1903px;
   height: 960px; */
