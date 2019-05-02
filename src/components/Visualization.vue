@@ -14,7 +14,7 @@ import * as d3 from 'd3'
 import store from '../store.js'
 import accidentData from '../data/accidents2018full.js'
 import AccidentDetail from './AccidentDetail.vue'
-import { EventBus } from './EventBus.js';
+import { EventBus } from '../helpers/EventBus.js';
 import {
   sortPoints,
   checkPoints,
