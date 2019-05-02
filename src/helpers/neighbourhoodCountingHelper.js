@@ -16,6 +16,7 @@ export function sortPoints(anchorP, points, that) {
 
 export function checkPoints(p0, p1, p2, that) {
   let difAngle
+  //console.log('p0,p1,p2',p0,p1,p2)
   let cwAngle = that.findPolarAngle(p0, p1)
   let ccwAngle = that.findPolarAngle(p0, p2)
 
