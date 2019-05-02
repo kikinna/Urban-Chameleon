@@ -12,7 +12,8 @@ export default new Vuex.Store({
       get getData() {
         return Object.keys(this.dataset)
       }
-    }
+    },
+    neighbourhoodImage: null
   },
   mutations: {
     loadMap(state, map) {
@@ -36,6 +37,9 @@ export default new Vuex.Store({
       /* state.dataset = data */
       /* Object.freeze(state.datasetObject)
       state.datasetObject.dataset.forEach(o => Object.freeze(o)) */
+    },
+    storeNeighbourhoodImage(state, imagedata) {
+      state.neighbourhoodImage = imagedata
     }
   },
   actions: {
@@ -44,6 +48,9 @@ export default new Vuex.Store({
     },
     loadData(context, data) {
       context.commit('loadData', data)
+    },
+    storeNeighbourhoodImage(context, imagedata) {
+      context.commit('storeNeighbourhoodImage', imagedata)
     }
   },
   getters: {}
