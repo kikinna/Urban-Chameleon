@@ -14,6 +14,7 @@ import * as d3 from 'd3'
 import store from '../store.js'
 import accidentData from '../data/accidents2018full.js'
 import AccidentDetail from './AccidentDetail.vue'
+import { EventBus } from './EventBus.js';
 import {
   sortPoints,
   checkPoints,
@@ -29,12 +30,16 @@ import {
   occupyNearestBarchart,
   sortArrayAlphabetically
 } from '../helpers/mathHelper.js'
+import {
+  distance
+} from '../helpers/kdTreeHelper.js'
 import Vue from 'vue'
+
 
 export default {
   name: 'Visualization',
   components: {
-    AccidentDetail
+    AccidentDetail,
   },
   data() {
     return {
@@ -64,63 +69,55 @@ export default {
       isAggrVisInitialized: false, //flag for deciding if we should draw the aggregated vis or just update it
       doYouWantSomeWafflesCowboy: false, //TODO: temporary flag for deciding whether we want to draw waffle or barchart
       arrayForForceLayout: [], //array with the neighbourhood nodes, from neighbourhoods with less than 10 nodes
-      listOfBarsTypeOfData: [] //used in barchart to order bars grouped by the type of data
+      listOfBarsTypeOfData: [], //used in barchart to order bars grouped by the type of data
+      neighbourhoods: [],
+      boundingBoxesIndices: [],
+      imData: [],
+      scale: null,
+      indexies: [],
+      moved: true,
+      upL: null,
+      downR: null
     }
   },
   store,
   mounted() {
-    console.log(getViewport(this.$store.state.map))
-    //this.loadData()
+    console.log('ლ(ಠ_ಠლ)')
     this.$store.state.map.getCanvasContainer().style.cursor = 'default'
     this.dataD3 = accidentData
     this.kdData = [...accidentData.accidents]
+
     this.initData()
+
+    setTimeout(() => {
+        // console.log('finished drawing')
+        console.log('dnu')
+        EventBus.$emit('neigh', this.accidentsOnScreenObj);
+    }, 1)
     this.initialiseSVGelements()
     this.listeners()
-
-    //points from which neighbourhood counting begin
-    this.startingPoints.push(1199)
-    this.startingPoints.push(478)
-    this.computeNeighbourhoodsAndDrawPolygons()
     console.log('(ﾉ◕ヮ◕)ﾉ*:・ﾟ✧')
-    this.updateVisualizations()
-    console.log('ლ(ಠ_ಠლ)')
+
   },
   methods: {
-    //initialisation (svg, nodesOnMap, polygons, tooltips)
+    //creating kdTree and initialising data on screen
     initData() {
-      const viewport = getViewport(this.$store.state.map)
-      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
-      let upL = viewport.unproject([0, 0])
-      let downR = viewport.unproject([window.innerWidth, window.innerHeight])
+      let viewport = getViewport(this.$store.state.map)
+      this.upL = viewport.unproject([0, 0])
+      this.downR = viewport.unproject([window.innerWidth, window.innerHeight])
       //preseting attributes of accidents for easier manipulation
       for (var i = 0; i < accidentData.accidents.length; i++) {
         accidentData.accidents[i].theNeighbourhood = null
         accidentData.accidents[i].myIndex = i
       }
 
-      function distance(a, b) {
-        let lat1 = a.Y
-        let lon1 = a.X
-        let lat2 = b.Y
-        let lon2 = b.X
-        let rad = Math.PI / 180
-        let dLat = (lat2 - lat1) * rad
-        let dLon = (lon2 - lon1) * rad
-        lat1 = lat1 * rad
-        lat2 = lat2 * rad
-        let x = Math.sin(dLat / 2)
-        let y = Math.sin(dLon / 2)
-        let res = x * x + y * y * Math.cos(lat1) * Math.cos(lat2)
-        return Math.atan2(Math.sqrt(res), Math.sqrt(1 - res))
-      }
       this.kdLibrary = require('kd-tree-javascript')
-      for (let i = 0; i < accidentData.accidents.length; i++) {
-        accidentData.accidents[i].myIndex = i
-      }
+
       this.tree = new this.kdLibrary.kdTree(this.kdData, distance, ['X', 'Y'])
       this.recomputeAccidentsOnScreen(this.tree.root)
+      console.log('koniecInit')
     },
+    //initialisation (svg, nodesOnMap, polygons, tooltips)
     initialiseSVGelements() {
       const viewport = getViewport(this.$store.state.map)
       const colorScale = d3.scaleOrdinal(d3.schemeDark2)
@@ -168,15 +165,6 @@ export default {
           return d.pos[1]
         })
         .on('click', d => {
-          //this.removeNeighbours()
-          this.accidentsOnScreenIndices.forEach(o => {
-            accidentData.accidents[o].theNeighbourhood = null
-          })
-          this.startingPoints.push(d.myIndex)
-          this.removeNeighbourhoods()
-          this.computeNeighbourhoodsAndDrawPolygons()
-          this.updateVisualizations()
-          console.log(this.startingPoints)
           this.tooltip
             .style('opacity', 1.0)
             .html(d.Type)
@@ -195,18 +183,15 @@ export default {
       //all events
       this.$root.$on('map-zoom', () => {
         this.updatePoints()
-        //this.removeNeighbourhoods()
         this.moveVisualizations()
-        //this.updateVisualizations()
       })
       this.$root.$on('map-move', () => {
         this.updatePoints()
-        //console.log('scr', this.accidentsOnScreenObj)
-        //this.removeNeighbourhoods()
         this.moveVisualizations()
       })
       this.$root.$on('map-zoomend', () => {
-        this.zoomVisualizations()
+        //this.zoomed = true
+        // this.zoomVisualizations()
       })
       this.$root.$on('map-moveend', () => {
         //called at the end of zoom and move
@@ -214,25 +199,34 @@ export default {
         if (this.$store.state.map.getZoom() > 18.5) {
           this.createAccidentDetail()
         }
+        this.moved = true
+        EventBus.$emit('neigh', this.accidentsOnScreenObj);
+      })
+      //event for comunication between Visualisation and GaussPreprocess
+      EventBus.$on('emittedEvent', data => {
+            this.boundingBoxesIndices = data.boundingBoxes
+            this.scale = data.scale
+            this.imData = this.$store.state.neighbourhoodImage
+            this.computeNeighbourhoodsAndDrawPolygons()
+            this.moveAggregatedVis()
+            this.updateVisualizations()
+            this.moved = false
       })
     },
+    //update accidents on screen
     updatePoints() {
       this.wasScreenPoints = [...this.accidentsOnScreenObj]
       this.accidentsOnScreenIndices = []
       this.accidentsOnScreenObj = []
-      //console.log('b', this.accidentsOnScreenObj)
+      //set latitude and longitude for left up and right down point
+      let viewport = getViewport(this.$store.state.map)
+      this.upL = viewport.unproject([0, 0])
+      this.downR = viewport.unproject([window.innerWidth, window.innerHeight])
       this.recomputeAccidentsOnScreen(this.tree.root)
     },
     moveVisualizations() {
       this.updateNodesOnMap()
       this.drawPolygonUnderNeighbourhoods()
-      //this.moveAggregatedVis()
-      this.updateVisualizations()
-    },
-    zoomVisualizations() {
-      this.removeNeighbourhoods()
-      this.computeNeighbourhoodsAndDrawPolygons() //compute new neighbourhoods, make and draw polygons
-      this.moveAggregatedVis()
       this.updateVisualizations()
     },
     //updates positions of aggregated visualizations (the g element)
@@ -248,35 +242,112 @@ export default {
       if (node === null) {
         return
       }
-      let viewport = getViewport(this.$store.state.map)
-      let upL = viewport.unproject([0, 0])
-      let downR = viewport.unproject([window.innerWidth, window.innerHeight])
       if (
-        node.obj.X >= upL[0] &&
-        node.obj.X <= downR[0] &&
-        node.obj.Y <= upL[1] &&
-        node.obj.Y >= downR[1]
+        node.obj.X >= this.upL[0] &&
+        node.obj.X <= this.downR[0] &&
+        node.obj.Y <= this.upL[1] &&
+        node.obj.Y >= this.downR[1]
       ) {
         this.accidentsOnScreenIndices.push(node.obj.myIndex)
         this.accidentsOnScreenObj.push(node.obj)
       }
       if (node.dimension % 2 === 0) {
-        if (downR[0] <= node.obj.X) {
+        if (this.downR[0] <= node.obj.X) {
           this.recomputeAccidentsOnScreen(node.left)
-        } else if (upL[0] >= node.obj.X) {
+        } else if (this.upL[0] >= node.obj.X) {
           this.recomputeAccidentsOnScreen(node.right)
         } else {
           this.recomputeAccidentsOnScreen(node.left)
           this.recomputeAccidentsOnScreen(node.right)
         }
       } else {
-        if (upL[1] <= node.obj.Y) {
+        if (this.upL[1] <= node.obj.Y) {
           this.recomputeAccidentsOnScreen(node.left)
-        } else if (downR[1] >= node.obj.Y) {
+        } else if (this.downR[1] >= node.obj.Y) {
           this.recomputeAccidentsOnScreen(node.right)
         } else {
           this.recomputeAccidentsOnScreen(node.left)
           this.recomputeAccidentsOnScreen(node.right)
+        }
+      }
+    },
+    //get all neighbourhoods on screen from bounding boxes precalculated in imagePreprocess
+    computeNeighbourhoods(){
+      let viewport = getViewport(this.$store.state.map)
+      for(let i = 1; i < this.boundingBoxesIndices.length; i++){
+        if(this.boundingBoxesIndices[i]!== undefined){
+          let minX = viewport.unproject([this.boundingBoxesIndices[i][0][0],
+                                         this.boundingBoxesIndices[i][0][1]] )
+          let maxX = viewport.unproject([this.boundingBoxesIndices[i][1][0],
+                                         this.boundingBoxesIndices[i][1][1]] )
+          let minY = viewport.unproject([this.boundingBoxesIndices[i][2][0],
+                                         this.boundingBoxesIndices[i][2][1]] )
+          let maxY = viewport.unproject([this.boundingBoxesIndices[i][3][0],
+                                         this.boundingBoxesIndices[i][3][1]] )
+          let adepts = []
+          this.computeAccidentsInBoundingBox(this.tree.root,minX,maxX,minY,maxY, adepts)
+          if (this.points.length > 4) {
+            let hull = this.getConvexhull()
+            for(let i = 0; i < adepts.length; i++){
+              if(this.isPointInPolygon(adepts[i], hull)){
+                this.points.push(adepts[i])
+              }
+            }
+            let neigh = {
+              hullPoints: hull, //convexhull points
+              //adepts: [...adepts], //accident which was in the boundingbox but not in the blob
+              points: [...this.points], //all neighbourhood points
+              anchorPoint: this.anchorPoint
+            }
+            neigh.points.push(this.anchorPoint)
+            this.neighbourhood.push(neigh)
+          }
+        while (this.points.length > 0) {
+          this.points.pop()
+          } //empty the array
+          this.anchorPoint = null
+        }
+      }
+
+    },
+    //get all points lying in bounding box
+    computeAccidentsInBoundingBox(node,minX,maxX,minY,maxY, adepts){
+      if (node === null) {
+        return
+      }
+      if (
+        node.obj.X >= minX[0] &&
+        node.obj.X <= maxX[0] &&
+        node.obj.Y <= minY[1] &&
+        node.obj.Y >= maxY[1]
+      ) {
+        let viewport = getViewport(this.$store.state.map)
+        let changed = viewport.project([node.obj.X, node.obj.Y])
+
+        let gIndex = (Math.floor(changed[1]*this.scale)*this.imData.width + Math.floor(changed[0]*this.scale)) * 4 + 1
+        if(this.imData.data[gIndex] > 0){
+          this.addPointToNeighbourhood(node.obj.myIndex)
+        }else{
+          adepts.push(node.obj.myIndex)
+        }
+      }
+      if (node.dimension % 2 === 0) {
+        if (maxX[0] <= node.obj.X) {
+          this.computeAccidentsInBoundingBox(node.left,minX,maxX,minY,maxY, adepts)
+        } else if (minX[0] >= node.obj.X) {
+          this.computeAccidentsInBoundingBox(node.right,minX,maxX,minY,maxY, adepts)
+        } else {
+          this.computeAccidentsInBoundingBox(node.left,minX,maxX,minY,maxY, adepts)
+          this.computeAccidentsInBoundingBox(node.right,minX,maxX,minY,maxY, adepts)
+        }
+      } else {
+        if (minY[1] <= node.obj.Y) {
+          this.computeAccidentsInBoundingBox(node.left,minX,maxX,minY,maxY, adepts)
+        } else if (maxY[1] >= node.obj.Y) {
+          this.computeAccidentsInBoundingBox(node.right,minX,maxX,minY,maxY, adepts)
+        } else {
+          this.computeAccidentsInBoundingBox(node.left,minX,maxX,minY,maxY, adepts)
+          this.computeAccidentsInBoundingBox(node.right,minX,maxX,minY,maxY, adepts)
         }
       }
     },
@@ -306,13 +377,6 @@ export default {
           return d.pos[1]
         })
         .on('click', d => {
-          accidentData.accidents.forEach(o => {
-            accidentData.accidents.theNeighbourhood = null
-          })
-          this.startingPoints.push(d.myIndex)
-          this.removeNeighbourhoods()
-          this.computeNeighbourhoodsAndDrawPolygons()
-          this.updateVisualizations()
           this.tooltip
             .style('opacity', 1.0)
             .html(d.Type)
@@ -391,46 +455,13 @@ export default {
           return d.y
         })
     },
-    //prepareing things for new neighbourhoods and stard calculating and make polygon
+    //prepareing things for new neighbourhoods, start computatin and make polygon underneath
     computeNeighbourhoodsAndDrawPolygons() {
-      this.startingPoints.forEach(d => {
-        accidentData.accidents[d].theNeighbourhood =
-          accidentData.accidents[d].OBJECTID
-      })
-      this.reverse = false
-      this.anchorPoint = null
-      while (this.neighbourhood.length > 0) {
-        this.neighbourhood.pop()
-      } //empty the array
-      while (this.points.length > 0) {
-        this.points.pop()
-      } //empty the array
+      this.removeNeighbourhoods()
       this.computeNeighbourhoods()
       this.drawPolygonUnderNeighbourhoods()
     },
-    //calculating neighbourhoods (right now from inserted 2 points, but it should start from one of points where houseparty has begun)
-    computeNeighbourhoods() {
-      this.startingPoints.forEach(o => {
-        //mark all points which belonge to neighbouhood (attribute theNeighbourhood) and add to point array
-        this.getNeighbours(accidentData.accidents[o])
-        if (this.points.length > 2) {
-          //neighbourhood of one point is not neighbouhood
-          let hull = this.getConvexhull(this.anchorPoint)
-          //add neighbourhood object to array of neighbouhoods
-          let neigh = {
-            hullPoints: hull, //convexhull points
-            points: [...this.points], //all neighbourhood points
-            anchorPoint: this.anchorPoint
-          }
-          neigh.points.push(this.anchorPoint)
-          this.neighbourhood.push(neigh)
-        }
-        while (this.points.length > 0) {
-          this.points.pop()
-        } //empty the array
-        this.anchorPoint = null
-      })
-    },
+    
     //make polygon from convex hull of neighbourhood array
     drawPolygonUnderNeighbourhoods() {
       d3.selectAll('polygon').remove()
@@ -687,32 +718,13 @@ export default {
       this.accidentsOnScreenIndices.forEach(o => {
         accidentData.accidents[o].theNeighbourhood = null
       })
-      //this.startingPoints = []
-      this.neighbourhood = []
-    },
-    //recursive finding of neighbours and filling array of neighbourhood
-    getNeighbours(obj) {
-      let posiP2 = []
-      this.addPointToNeighbourhood(obj.myIndex)
-      let r = 22 //TODO zistit ako dostat presne cisla a ako to menit podla zoomu
-
-      //looking through all points in data if its in close neighbourhood, if yes counting close neighbourhood also for them...
-      this.accidentsOnScreenIndices.forEach(o => {
-        if (
-          accidentData.accidents[o].theNeighbourhood == null &&
-          accidentData.accidents[o] != obj
-        ) {
-          let inNeighbour = Math.sqrt(
-            Math.pow(obj.x - accidentData.accidents[o].x, 2) +
-              Math.pow(obj.y - accidentData.accidents[o].y, 2)
-          )
-          if (inNeighbour <= r) {
-            accidentData.accidents[o].theNeighbourhood = obj.theNeighbourhood
-            this.getNeighbours(accidentData.accidents[o])
-          }
-        }
-      })
-      //this.colorNeighbourPoints()
+      this.anchorPoint = null
+      while (this.neighbourhood.length > 0) {
+        this.neighbourhood.pop()
+      } //empty the array
+      while (this.points.length > 0) {
+        this.points.pop()
+      } //empty the array
     },
     getNeighbourhoodCenter(neighbourhood) {
       let viewport = getViewport(this.$store.state.map)
@@ -748,8 +760,9 @@ export default {
       let pointis = []
       let pointsLength = null
       let that = this
-      console.log(this.points)
+
       sortPoints(this.anchorPoint, this.points, this)
+
       pointis = [...this.points]
       pointsLength = pointis.length
       //if there is less than 3 points, joining these is correct hull
@@ -764,14 +777,7 @@ export default {
         let p0 = null
         let p1 = null
         let p2 = null
-        hullPoints.push(pointis.shift())
-        p0 = hullPoints[hullPoints.length - 3]
-        p1 = hullPoints[hullPoints.length - 2]
-        p2 = hullPoints[hullPoints.length - 1]
-        if (checkPoints(p0, p1, p2, this)) {
-          hullPoints.splice(hullPoints.length - 2, 1)
-        }
-        if (pointis.length == 0) {
+        if (!(pointis.length > 0)) {
           if (pointsLength == hullPoints.length) {
             //check for duplicate anchorPoint edge-case, if not found, add the anchorpoint as the first item.
             let ap = this.anchorPoint
@@ -792,12 +798,64 @@ export default {
             }
             return hullPoints
           }
-          pointis = hullPoints
+          pointis = [...hullPoints]
+          pointsLength = pointis.length
+          hullPoints = []
+          hullPoints.push(pointis.shift(), pointis.shift())
+        }
+        hullPoints.push(pointis.shift())
+        p0 = hullPoints[hullPoints.length - 3]
+        p1 = hullPoints[hullPoints.length - 2]
+        p2 = hullPoints[hullPoints.length - 1]
+        if (checkPoints(p0, p1, p2, this)) {
+          hullPoints.splice(hullPoints.length - 2, 1)
+        }
+        if (!(pointis.length > 0)) {
+          if (pointsLength == hullPoints.length) {
+            //check for duplicate anchorPoint edge-case, if not found, add the anchorpoint as the first item.
+            let ap = this.anchorPoint
+            //remove any udefined elements in the hullPoints array.
+            hullPoints = hullPoints.filter(function(p) {
+              return !!p
+            })
+
+            if (
+              !hullPoints.some(function(p) {
+                return (
+                  accidentData.accidents[p].x == accidentData.accidents[ap].x &&
+                  accidentData.accidents[p].y == accidentData.accidents[ap].y
+                )
+              })
+            ) {
+              hullPoints.unshift(this.anchorPoint)
+            }
+            return hullPoints
+          }
+          pointis = [...hullPoints]
           pointsLength = pointis.length
           hullPoints = []
           hullPoints.push(pointis.shift(), pointis.shift())
         }
       }
+    },
+    //returning true if point which was not in hull lies inside the polygon
+    isPointInPolygon(point,polygon){
+      let x = accidentData.accidents[point].x
+      let y = accidentData.accidents[point].y
+      let inside = false
+      let j = polygon.length -1
+      for(let i = 0 ; i < polygon.length; j = i++){
+        let xi = accidentData.accidents[polygon[i]].x
+        let yi = accidentData.accidents[polygon[i]].y
+        let xj = accidentData.accidents[polygon[j]].x
+        let yj = accidentData.accidents[polygon[j]].y
+        let intersect = ((yi > y) != (yj > y))
+                        && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)
+        if (intersect) {
+          inside = !inside
+        }
+      }
+      return inside
     },
     addPointToNeighbourhood(index) {
       let point = accidentData.accidents[index]
