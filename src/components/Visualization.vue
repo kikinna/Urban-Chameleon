@@ -268,6 +268,7 @@ export default {
         this.imData = this.$store.state.neighbourhoodImage
         this.computeNeighbourhoodsAndDrawPolygons()
         this.moveAggregatedVis()
+
         this.updateVisualizations()
         this.moved = false
       })
@@ -496,6 +497,7 @@ export default {
     //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateNodesOnMap() {
       const viewport = getViewport(this.$store.state.map)
+      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
       d3.select('.nodesOnMap')
         .selectAll('circle')
@@ -506,7 +508,7 @@ export default {
         })
         .attr('r', this.nodeRadius)
         .attr('fill', d => {
-          return 'black'
+          return colorScale(d[this.primaryAttributeSelected]) //'black'
         })
         .attr('cx', d => {
           d.pos = viewport.project([d.X, d.Y])
@@ -635,7 +637,8 @@ export default {
           })
           return str
         })
-        .style('fill', '#60bac668')
+        //.style('fill', '#60bac668')
+        .style('fill', '#777b7f68')
         .style('stroke', '567985cc')
         .style('strokeWidth', '2px')
         .on('click', d => {
@@ -1125,7 +1128,7 @@ export default {
           //return 'translate(' + d.centerInPx[0] + ', ' + d.min[1] + ')'
         })
         .on('mouseover', d => {
-          this.nodesOnMap.style('opacity', 0.8)
+          this.nodesOnMap.style('opacity', 0.7)
         })
         .on('mouseout', d => {
           this.nodesOnMap.style('opacity', 1)
@@ -1399,7 +1402,7 @@ h2 {
 }
 
 .polygons {
-  fill: #60bac668;
+  fill: #b6158dcc;
   stroke: #567985cc;
   stroke-width: 2px;
 }
