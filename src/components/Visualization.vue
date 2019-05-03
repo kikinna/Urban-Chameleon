@@ -1,6 +1,5 @@
 <template>
   <div>
-    <svg></svg>
     <AccidentDetail
       v-for="(curr_accident, index) in detailAccidents"
       :key="index"
@@ -83,7 +82,7 @@ export default {
       reverse: false, //helper for angles in convexhull counting
       aggregatedData: [], //array of neighbourhoods, each neighbourhood is and array containing data for the nodes in aggregated vis
       //transition: null, //animated transition for all, uhuh, not working as intended
-      neighbourhoodNodesInSVG: [], //array of neighbourhoods, each neighbourhood is an array containing nodes in aggregated vis
+      //neighbourhoodNodesInSVG: [], //array of neighbourhoods, each neighbourhood is an array containing nodes in aggregated vis
       dataD3: [], //accident data
       grid_cells: [], //array of cell arrays; each grid array contains barchart grid positions {x, y, occupied}
       simulation: null, //[], //null, //accident data force simulation
@@ -153,8 +152,8 @@ export default {
       accidentData.accidents[i].index = i
     }
     //points from which neighbourhood counting begin
-    this.startingPoints.push(1199)
-    this.startingPoints.push(478)
+    //this.startingPoints.push(1199)
+    //this.startingPoints.push(478)
     this.computeNeighbourhoodsAndDrawPolygons()
     this.updateVisualizations()
   },
@@ -493,7 +492,6 @@ export default {
         }
       }
     },
-
     //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateNodesOnMap() {
       const viewport = getViewport(this.$store.state.map)
@@ -543,20 +541,8 @@ export default {
     updateVisualizations() {
       this.initAggregatedVisData() // init DS for individual aggregated vis
       this.emptyAggrVisArrays() // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
-      //console.log('curr', this.aggregatedData.length, 'bef', this.numberOfCurrentNeighbourhoods )
-      if (this.aggregatedData.length != this.numberOfCurrentNeighbourhoods) {
-        this.isAggrVisInitialized = false
-      }
-      this.updateNodesOnMap()
-      if (!this.isAggrVisInitialized) {
-        //this.doYouWantSomeWafflesCowboy = true
-        this.numberOfCurrentNeighbourhoods = this.aggregatedData.length
-        this.drawAggregatedVis()
-        this.isAggrVisInitialized = true
-      } else {
-        this.numberOfCurrentNeighbourhoods = this.aggregatedData.length
-        this.updateAggregatedVis()
-      }
+      this.drawOrUpdateAggregatedVis()
+
       //if (this.arrayForForceLayout.length > 0) this.runForceLayout()
       //TODO: remove visualisations and set this.isAggrVisInitialized to false on some zoom level
 
@@ -574,7 +560,7 @@ export default {
       // animated transition of nodes in aggregated vis
       const t = d3
         .transition()
-        .duration(1500)
+        .duration(1200)
         .ease(d3.easeLinear)
 
       const viewport = getViewport(this.$store.state.map)
@@ -1093,20 +1079,17 @@ export default {
         this.grid_cells.pop()
       }
 
-      while (this.neighbourhoodNodesInSVG.length > 0) {
-        this.neighbourhoodNodesInSVG.pop()
-      }
-
       while (this.arrayForForceLayout.length > 0) {
         this.arrayForForceLayout.pop()
       }
     },
-    drawAggregatedVis() {
+    //draws aggregated visualizations or updates them if they exists
+    drawOrUpdateAggregatedVis() {
       // animated transition of nodes in aggregated vis
       // Possible shift to mounted? Maybe?
       const t = d3
         .transition()
-        .duration(1500)
+        .duration(1200)
         .ease(d3.easeLinear)
 
       const viewport = getViewport(this.$store.state.map)
@@ -1123,6 +1106,7 @@ export default {
         .attr('transform', d => {
           //return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
           d.pos = [d.centerInPx[0], (d.min[1] + d.centerInPx[1]) / 2]
+          console.log('d.pos', d.pos)
           d.GPSpos = viewport.unproject(d.pos)
           return 'translate(' + d.pos[0] + ', ' + d.pos[1] + ')'
           //return 'translate(' + d.centerInPx[0] + ', ' + d.min[1] + ')'
@@ -1159,18 +1143,30 @@ export default {
             return colorScale(d.primaryAttribute)
           })
           .attr('cx', d => {
-            d.pos = viewport.project([d.X, d.Y])
-            d.x = d.pos[0]
-            Vue.set(
-              accidentData.accidents[d.indexInAccidentData],
-              'centerShift',
-              this.aggregatedData[i].centerInPx
-            )
-            return d.pos[0] - this.aggregatedData[i].centerInPx[0]
+            if (d.neighbourhoodPosition) {
+              //console.log('already in', d)
+              d.x = d.neighbourhoodPosition[0]
+              return d.x
+            } else {
+              //console.log('newbie', d.x, d.pos)
+              d.pos = viewport.project([d.X, d.Y])
+              d.x = d.pos[0]
+              Vue.set(
+                accidentData.accidents[d.indexInAccidentData],
+                'centerShift',
+                this.aggregatedData[i].centerInPx
+              )
+              return d.pos[0] - this.aggregatedData[i].centerInPx[0]
+            }
           })
           .attr('cy', d => {
-            d.y = d.pos[1]
-            return d.pos[1] - this.aggregatedData[i].centerInPx[1]
+            if (d.neighbourhoodPosition) {
+              d.y = d.neighbourhoodPosition[1]
+              return d.y
+            } else {
+              d.y = d.pos[1]
+              return d.pos[1] - this.aggregatedData[i].centerInPx[1]
+            }
           })
           .on('click', d => {
             this.tooltip
@@ -1191,7 +1187,7 @@ export default {
         } else if (this.aggregatedVisSelected == 'Bar chart') {
           this.initGridForBarchart(this.aggregatedData[i].nodesInNeighbourhood)
         } else {
-          console.log('you dont have any chart selected')
+          //console.log('you dont have any chart selected')
         }
 
         // For each neighbourhood nodes find a position in a grid and move it there w/ transition
@@ -1199,7 +1195,6 @@ export default {
           .transition(t)
           .each(d => {
             let gridpoint
-
             // if (this.doYouWantSomeWafflesCowboy) {
             if (this.aggregatedVisSelected == 'Waffle chart') {
               gridpoint = occupyNearestWafflechart(d, this.grid_cells[i])
@@ -1217,148 +1212,8 @@ export default {
           })
           .attr('cx', d => d.x)
           .attr('cy', d => d.y)
-
-        this.neighbourhoodNodesInSVG.push(currentNeighbourhoodSVGNodes)
       } // end of that huge for cycle
       //console.log('please bro just go bro', this.grid_cells)
-    },
-    //updating aggregated vis. (house parties)
-    updateAggregatedVis() {
-      const viewport = getViewport(this.$store.state.map)
-
-      // has neighbourhood changed?
-      // NO -> update neighbourhood center
-      // YES -> neco vic
-
-      const t = d3
-        .transition()
-        .duration(1500)
-        .ease(d3.easeLinear)
-
-      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
-
-      this.svg
-        .selectAll('g.neighbourhood-g')
-        .data(this.aggregatedData)
-        .join('g')
-        .attr('id', d => {
-          return 'neighbourhood-' + d.id
-        })
-        .attr('class', 'neighbourhood-g')
-        .transition(t)
-        .attr('transform', d => {
-          //return 'translate(' + d.max[0] + ', ' + d.centerInPx[1] + ')'
-          //return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
-          //return 'translate(' + d.centerInPx[0] + ', ' + d.min[1] + ')'
-          d.pos = [d.centerInPx[0], (d.min[1] + d.centerInPx[1]) / 2]
-          d.GPSpos = viewport.unproject(d.pos)
-          return 'translate(' + d.pos[0] + ', ' + d.pos[1] + ')'
-        })
-
-      for (var i = 0; i < this.aggregatedData.length; i++) {
-        /* if (this.aggregatedData[i].nodesInNeighbourhood.length < 10) {
-          this.arrayForForceLayout.push(
-            this.aggregatedData[i].nodesInNeighbourhood
-          ) //this.runForceLayout()
-          continue
-        } */
-
-        this.aggregatedData[i].nodesInNeighbourhood = sortArrayAlphabetically(
-          this.aggregatedData[i].nodesInNeighbourhood
-        )
-
-        let currentAggregatedVis = d3
-          .select('#neighbourhood-' + this.aggregatedData[i].id)
-          .selectAll('circle.circlesInAggregatedVis')
-          .data(this.aggregatedData[i].nodesInNeighbourhood)
-
-        d3.select('#neighbourhood-' + this.aggregatedData[i].id)
-          .selectAll('circle.circlesInAggregatedVis')
-          .data(this.aggregatedData[i].nodesInNeighbourhood)
-          .join('circle')
-          //.update()
-          .attr('class', 'circlesInAggregatedVis')
-          .attr('r', 5)
-          .attr('fill', d => {
-            return colorScale(d.primaryAttribute) //'black'
-          })
-          .attr('cx', d => {
-            if (d.neighbourhoodPosition) {
-              //console.log('already in', d)
-              d.x = d.neighbourhoodPosition[0]
-              return d.x
-            } else {
-              //console.log('newbie', d.x, d.pos)
-              d.pos = viewport.project([d.X, d.Y])
-              d.x = d.pos[0]
-              return d.pos[0] - this.aggregatedData[i].centerInPx[0]
-            }
-          })
-          .attr('cy', d => {
-            if (d.neighbourhoodPosition) {
-              d.y = d.neighbourhoodPosition[1]
-              return d.y
-            } else {
-              d.y = d.pos[1]
-              return d.pos[1] - this.aggregatedData[i].centerInPx[1]
-            }
-          })
-          .on('click', d => {
-            console.log('dis dee', d.primaryAttribute)
-          })
-
-        if (this.aggregatedVisSelected == 'Waffle chart') {
-          this.initGridForWafflechart(
-            this.aggregatedData[i].nodesInNeighbourhood
-          )
-        } else if (this.aggregatedVisSelected == 'Bar chart') {
-          this.initGridForBarchart(this.aggregatedData[i].nodesInNeighbourhood)
-        }
-
-        d3.select('#neighbourhood-' + this.aggregatedData[i].id)
-          .selectAll('circle.circlesInAggregatedVis')
-          .transition(t)
-          .each(d => {
-            let gridpoint
-
-            if (this.aggregatedVisSelected == 'Waffle chart') {
-              gridpoint = occupyNearestWafflechart(d, this.grid_cells[i])
-            } else if (this.aggregatedVisSelected == 'Bar chart') {
-              gridpoint = occupyNearestBarchart(d, this.grid_cells[i])
-            }
-            let currentNodeInAccData =
-              accidentData.accidents[d.indexInAccidentData]
-
-            /*if (currentNodeInAccData.gridCandidate) {
-              console.log('actually got ere')
-              gridpoint = currentNodeInAccData.gridCandidate
-              let gridIndex = currentNodeInAccData.gridIndex
-
-              this.grid_cells[i][gridIndex].occupied = true
-            } else {
-              gridpoint = occupyNearest(d, this.grid_cells[i])
-            } */
-
-            if (gridpoint) {
-              let newX = gridpoint.x
-              let newY = gridpoint.y
-
-              d.x = gridpoint.x
-              d.y = gridpoint.y
-              let newForceGPS = viewport.unproject([newX, newY])
-              let pos = viewport.project(newForceGPS)
-              Vue.set(d, 'cx', pos[0])
-              Vue.set(d, 'cy', pos[1])
-              d.neighbourhoodPosition = [d.x, d.y]
-              currentNodeInAccData.neighbourhoodPosition = [d.x, d.y]
-
-              Vue.set(d, 'neighbourhoodPosition', [d.x, d.y])
-              Vue.set(currentNodeInAccData, 'neighbourhoodPosition', [d.x, d.y])
-            }
-          })
-          .attr('cx', d => d.x)
-          .attr('cy', d => d.y)
-      } //end of the extra big for cycle
     }
   } // end of methods
 }
