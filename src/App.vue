@@ -7,7 +7,10 @@
         style:
           'https://maps.tilehosting.com/styles/positron/style.json?key=erAyQhECgFpHi6K8tzqm', //'mapbox://styles/mapbox/light-v9',
         center: [16.606837, 49.19506],
-        zoom: 14
+        zoom: 14,
+        pitchWithRotate: false,
+        dragRotate: false,
+        touchZoomRotate: false
       }"
       :geolocate-control="{
         show: true,
@@ -44,7 +47,6 @@
 import Mapbox from './components/Mapbox.vue'
 import Visualization from './components/Visualization.vue'
 import GaussPreprocess from './components/GaussPreprocess.vue'
-//import VisualizationCircles from './components/VisualizationCircles.vue'
 import store from './store.js'
 
 export default {

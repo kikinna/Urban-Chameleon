@@ -29,6 +29,13 @@
         </b-select>
       </section>
 
+      <h2 class="ui-text">Change map style</h2>
+      <section>
+        <b-select v-model="mapStyleSelected" @input="changeMapStyle" size="is-small">
+          <option v-for="type in mapStyles" :value="type" :key="type.id">{{ type }}</option>
+        </b-select>
+      </section>
+
       <!-- <a class="button">Click me</a> -->
     </div>
     <div class="urban-ui-border" style="position: absolute; right:25px; bottom:25px; width: 100px;">
@@ -86,6 +93,7 @@ export default {
       dataD3: [], //accident data
       grid_cells: [], //array of cell arrays; each grid array contains barchart grid positions {x, y, occupied}
       simulation: null, //[], //null, //accident data force simulation
+      nodesForceLayout: [],
       svg: null, //d3 svg selection
       nodesOnMap: null, //accident nodes
       polygons: null, //svg polygon selection
@@ -97,9 +105,10 @@ export default {
       accidentsOnScreenObj: [],
       wasScreenPoints: [],
       nodeRadius: 5, //default node radius
+      maxSizeOfForceLayoutNeighbourhood: 10, //maxSizeOfNeighbourhoodToUseForceLayoutInsteadOfAggrVis IActuallyDidn'tNeedToUseCamelCaseHereButIOnlyNoticedNowHelpMe
       isAggrVisInitialized: false, //flag for deciding if we should draw the aggregated vis or just update it
       doYouWantSomeWafflesCowboy: false, //TODO: temporary flag for deciding whether we want to draw waffle or barchart
-      arrayForForceLayout: [], //array with the neighbourhood nodes, from neighbourhoods with less than 10 nodes
+      arrayForForceLayout: [], //array with the neighbourhood nodes, from neighbourhoods with less than maxSizeOfForceLayoutNeighbourhood nodes
       listOfBarsTypeOfData: [], //used in barchart to order bars grouped by the type of data
       numberOfCurrentNeighbourhoods: 0,
       aggregatedVisTypes: ['Waffle chart', 'Bar chart'],
@@ -117,6 +126,8 @@ export default {
         'Skyd'
       ],
       primaryAttributeSelected: 'Type',
+      mapStyleSelected: 'Light',
+      mapStyles: ['Light', 'Dark', 'Other'],
       colors: ['red', 'blue', 'pink'],
       neighbourhoods: [],
       boundingBoxesIndices: [],
@@ -206,6 +217,7 @@ export default {
         .data(this.accidentsOnScreenObj)
         .join('circle')
         .each(d => {
+          d.inForceLayout = false //TODO
           d.inNeighbourhood = false
         })
         .attr('r', this.nodeRadius)
@@ -242,14 +254,17 @@ export default {
       this.$root.$on('map-zoom', () => {
         this.updatePoints()
         this.moveVisualizations()
+        this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       })
       this.$root.$on('map-move', () => {
         this.updatePoints()
         this.moveVisualizations()
+        this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       })
       this.$root.$on('map-zoomend', () => {
         //this.zoomed = true
         // this.zoomVisualizations()
+        this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       })
       this.$root.$on('map-moveend', () => {
         //called at the end of zoom and move
@@ -259,6 +274,7 @@ export default {
         }
         this.moved = true
         EventBus.$emit('neigh', this.accidentsOnScreenObj)
+        this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       })
       //event for comunication between Visualisation and GaussPreprocess
       EventBus.$on('emittedEvent', data => {
@@ -270,6 +286,7 @@ export default {
 
         this.updateVisualizations()
         this.moved = false
+        this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       })
     },
     //update accidents on screen
@@ -368,7 +385,9 @@ export default {
             maxY,
             adepts
           )
-          if (this.points.length > 4) {
+          if (this.points.length > 2) {
+            //used to be 4
+
             let hull = this.getConvexhull()
             for (let i = 0; i < adepts.length; i++) {
               if (this.isPointInPolygon(adepts[i], hull)) {
@@ -382,7 +401,13 @@ export default {
               anchorPoint: this.anchorPoint
             }
             neigh.points.push(this.anchorPoint)
-            this.neighbourhood.push(neigh)
+
+            //sorry ze sa ti hrabem vo funkciach megi ∠( ᐛ 」∠)＿
+            if (this.points.length < this.maxSizeOfForceLayoutNeighbourhood) {
+              this.arrayForForceLayout.push(neigh.points)
+            } else {
+              this.neighbourhood.push(neigh)
+            }
           }
           while (this.points.length > 0) {
             this.points.pop()
@@ -537,6 +562,21 @@ export default {
       })
       this.updateVisualizations()
     },
+    changeMapStyle() {
+      if (this.mapStyleSelected === 'Light') {
+        this.$store.state.map.setStyle(
+          'https://maps.tilehosting.com/styles/positron/style.json?key=erAyQhECgFpHi6K8tzqm'
+        ) //'https://api.maptiler.com/maps/positron/style.json?key=erAyQhECgFpHi6K8tzqm'
+      } else if (this.mapStyleSelected === 'Dark') {
+        this.$store.state.map.setStyle(
+          'https://api.maptiler.com/maps/darkmatter/style.json?key=erAyQhECgFpHi6K8tzqm'
+        )
+      } else if (this.mapStyleSelected === 'Other') {
+        this.$store.state.map.setStyle(
+          'https://api.maptiler.com/maps/hybrid/style.json?key=erAyQhECgFpHi6K8tzqm'
+        )
+      }
+    },
     //updates all visualizations - svg nodes, aggregated visualizations
     updateVisualizations() {
       this.initAggregatedVisData() // init DS for individual aggregated vis
@@ -544,19 +584,21 @@ export default {
       this.drawOrUpdateAggregatedVis()
 
       //if (this.arrayForForceLayout.length > 0) this.runForceLayout()
+      this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       //TODO: remove visualisations and set this.isAggrVisInitialized to false on some zoom level
 
       this.transitionNodesFromAggrVisToMapToTheirPosition()
     },
-    transitionNodesFromAggrVisToMapToTheirPosition() {
-      //making nodes included in aggregated vis invisible in map
+    //making nodes included in aggregated vis invisible in map
+    makeNodesFromNeighbourhoodsInvisibleOnMap() {
       this.nodesOnMap.attr('class', d => {
         if (d.inNeighbourhood) {
           return 'neighbourhood'
         }
         return 'nodesOnMap'
       })
-
+    },
+    transitionNodesFromAggrVisToMapToTheirPosition() {
       // animated transition of nodes in aggregated vis
       const t = d3
         .transition()
@@ -571,7 +613,6 @@ export default {
           if (d.neighbourhoodPosition && d.centerShift && !d.inNeighbourhood) {
             return d.centerShift[0] + d.neighbourhoodPosition[0]
           }
-
           return d.x
         })
         .attr('cy', d => {
@@ -662,6 +703,11 @@ export default {
           other_stuff: null,
           id: i
         }
+
+        // if the neighbourhood has less nodes than... 10? then we will use force layout
+        let useTheForceLukeButOnlyIfLessThanTen =
+          this.neighbourhood[i].points.length < 10
+
         this.neighbourhood[i].points.forEach(n => {
           let d = accidentData.accidents[n]
 
@@ -674,7 +720,7 @@ export default {
             indexInAccidentData: n,
             fx: null,
             fy: null,
-            inNeighbourhood: true,
+            inNeighbourhood: true, //this.neighbourhood[i].points.length >= 10, //useTheForceLukeButOnlyIfLessThanTen, //true,
             neighbourhoodPosition: d.neighbourhoodPosition,
             Type: d[this.primaryAttributeSelected],
             primaryAttribute: d[this.primaryAttributeSelected],
@@ -685,8 +731,10 @@ export default {
             newNode.neighbourhoodPosition = d.neighbourhoodPosition
           }
 
-          d.inNeighbourhood = true
-          neighbourhood.nodesInNeighbourhood.push(newNode)
+          //console.log(this.neighbourhood[i].points.length)
+
+          ;(d.inNeighbourhood = true), //this.neighbourhood[i].points.length >= 10 //useTheForceLukeButOnlyIfLessThanTen //true
+            neighbourhood.nodesInNeighbourhood.push(newNode)
         })
         this.getNeighbourhoodCenter(neighbourhood)
         this.aggregatedData.push(neighbourhood)
@@ -1028,49 +1076,141 @@ export default {
     },
     runForceLayout() {
       let currentForceArray = []
+      //console.log('we in', this.arrayForForceLayout)
+      //console.log(this.nodesForceLayout)
+      const viewport = getViewport(this.$store.state.map)
       for (var i = 0; i < this.arrayForForceLayout.length; i++) {
         this.arrayForForceLayout[i].forEach(n => {
-          currentForceArray.push(this.dataD3.accidents[n.indexInAccidentData])
+          currentForceArray.push(this.dataD3.accidents[n])
+          this.dataD3.accidents[n].inForceLayout = true
+          //Vue.set(this.dataD3.accidents[n], 'isForce', true)
+          //currentForceArray.push(this.dataD3.accidents[n.indexInAccidentData])
         })
       }
+
+      this.nodesOnMap.attr('class', d => {
+        /* if (d.inForceLayout) {
+          return 'nodesForceLayout'
+        } else */
+        if (d.inNeighbourhood) {
+          return 'neighbourhood'
+        }
+        return 'nodesOnMap'
+      })
+
+      //console.log('all', this.nodesOnMap)
+      //console.log('force', d3.selectAll('.nodesForceLayout'))
+
+      while (this.arrayForForceLayout.length > 0) {
+        this.arrayForForceLayout.pop()
+      }
+
+      /* if (this.simulation) {
+        this.simulation.stop()
+        this.simulation = null
+      } */
+
+      //this.arrayForForceLayout = currentForceArray
+      //let newForce = d3.select(this.nodesForceLayout) //this.nodesForceLayout[0] //
+
+      /* for (var i = 1; i < this.nodesForceLayout.length; i++) {
+        newForce.concat(this.nodesForceLayout[i])
+      } */
+
+      /* this.nodesForceLayout.forEach(d => {
+        newForce.merge(d)
+      }) */
+
+      //console.log('f', newForce)
+
+      //this.nodesForceLayout.push(d3.selectAll('circle.nodesForceLayout'))
+
+      /* for (var i = 0; i < this.arrayForForceLayout.length - 1; i++) {
+        console.log(this.arrayForForceLayout[i])
+        console.log(this.nodesForceLayout[i])
+        const currentSimulation = d3
+          .forceSimulation()
+          .nodes(this.arrayForForceLayout[i])
+          .force(
+            'collide',
+            d3
+              .forceCollide()
+              .radius(this.nodeRadius)
+              .strength(1)
+              .iterations(1)
+          )
+          .on('tick', () => {
+            this.nodesForceLayout[i]
+              .attr('cx', function(d) {
+                return d.x
+              })
+              .attr('cy', function(d) {
+                return d.y
+              })
+          })
+
+        //this.simulation.push(currentSimulation)
+      } */
 
       const currentSimulation = d3
         .forceSimulation()
         .nodes(currentForceArray)
         .force(
-          'center',
-          d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2)
-        )
-        .force(
           'collide',
           d3
             .forceCollide()
-            .radius(this.nodeRadius * 2)
+            .radius(this.nodeRadius)
             .strength(1)
             .iterations(1)
         )
-      //.on('tick', this.tick)
 
+        .on('tick', this.tick)
+
+      /* currentSimulation.stop()
+
+      while (currentSimulation.alpha() > currentSimulation.alphaMin()) {
+        currentSimulation.tick()
+      } */
+
+      /* currentSimulation.restart()
+      currentSimulation.tick(5)
+      currentSimulation.alpha(0)
+      currentSimulation.alphaMin(0)
+      currentSimulation.alphaTarget(0)
+      currentSimulation.stop() */
+
+      /* for (let i = 0; i < 300; ++i) {
+        // currentSimulation.tick()
+        this.nodesOnMap
+          .attr('cx', function(d) {
+            //if (d.inForceLayout)
+            d.forceGPS = viewport.unproject([d.x, d.y])
+            return d.x
+          })
+          .attr('cy', function(d) {
+            return d.y
+          })
+      }
+ */
+      //currentSimulation.stop()
       //this.simulation.push(currentSimulation)
-      this.simulation = currentSimulation
-      console.log('we run lol', currentSimulation)
-      console.log('we run lol', currentForceArray)
+      //this.simulation = currentSimulation
+
+      //this.updateNodesOnMap()
+      //console.log('we run lol', currentSimulation)
+      //console.log('we run lol', currentForceArray)
     },
     tick() {
       const viewport = getViewport(this.$store.state.map)
 
       this.nodesOnMap
+        //d3.selectAll('.nodesForceLayout')
         .attr('cx', function(d) {
-          if (d.area) {
-            return
-          }
+          //if (d.inForceLayout)
           d.forceGPS = viewport.unproject([d.x, d.y])
           return d.x
         })
         .attr('cy', function(d) {
-          if (d.area) {
-            return
-          }
           return d.y
         })
     },
@@ -1079,12 +1219,13 @@ export default {
         this.grid_cells.pop()
       }
 
-      while (this.arrayForForceLayout.length > 0) {
+      /* while (this.arrayForForceLayout.length > 0) {
         this.arrayForForceLayout.pop()
-      }
+      } */
     },
     //draws aggregated visualizations or updates them if they exists
     drawOrUpdateAggregatedVis() {
+      this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       // animated transition of nodes in aggregated vis
       // Possible shift to mounted? Maybe?
       const t = d3
@@ -1106,7 +1247,7 @@ export default {
         .attr('transform', d => {
           //return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
           d.pos = [d.centerInPx[0], (d.min[1] + d.centerInPx[1]) / 2]
-          console.log('d.pos', d.pos)
+          //console.log('d.pos', d.pos)
           d.GPSpos = viewport.unproject(d.pos)
           return 'translate(' + d.pos[0] + ', ' + d.pos[1] + ')'
           //return 'translate(' + d.centerInPx[0] + ', ' + d.min[1] + ')'
@@ -1120,13 +1261,6 @@ export default {
 
       // Setup
       for (var i = 0; i < this.aggregatedData.length; i++) {
-        /* if (this.aggregatedData[i].nodesInNeighbourhood.length < 10) {
-          this.arrayForForceLayout.push(
-            this.aggregatedData[i].nodesInNeighbourhood
-          ) //this.runForceLayout()
-          continue
-        } */
-
         this.aggregatedData[i].nodesInNeighbourhood = sortArrayAlphabetically(
           this.aggregatedData[i].nodesInNeighbourhood
         )
@@ -1187,7 +1321,7 @@ export default {
         } else if (this.aggregatedVisSelected == 'Bar chart') {
           this.initGridForBarchart(this.aggregatedData[i].nodesInNeighbourhood)
         } else {
-          //console.log('you dont have any chart selected')
+          console.log('you dont have any chart selected')
         }
 
         // For each neighbourhood nodes find a position in a grid and move it there w/ transition
@@ -1208,12 +1342,25 @@ export default {
               let currentNodeInAccData =
                 accidentData.accidents[d.indexInAccidentData]
               currentNodeInAccData.neighbourhoodPosition = [d.x, d.y]
+
+              //TODO: MAYBEEEEE??? but would need actual position, so - centerInPx
+              //currentNodeInAccData.x = d.x
+              //currentNodeInAccData.y = d.y
+
+              /* let newForceGPS = viewport.unproject([d.x, d.y])
+              let pos = viewport.project(newForceGPS)
+              Vue.set(d, 'cx', pos[0])
+              Vue.set(d, 'cy', pos[1])
+              d.neighbourhoodPosition = [d.x, d.y]
+              currentNodeInAccData.neighbourhoodPosition = [d.x, d.y]
+
+              Vue.set(d, 'neighbourhoodPosition', [d.x, d.y])
+              Vue.set(currentNodeInAccData, 'neighbourhoodPosition', [d.x, d.y]) */
             }
           })
           .attr('cx', d => d.x)
           .attr('cy', d => d.y)
       } // end of that huge for cycle
-      //console.log('please bro just go bro', this.grid_cells)
     }
   } // end of methods
 }
