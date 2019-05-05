@@ -36,6 +36,13 @@
         </b-select>
       </section>
 
+      <h2 class="ui-text">Change color style</h2>
+      <section>
+        <b-select v-model="colorStyleSelected" @input="changeColorStyle" size="is-small">
+          <option v-for="type in colorStyles" :value="type" :key="type.id">{{ type }}</option>
+        </b-select>
+      </section>
+
       <!-- <a class="button">Click me</a> -->
     </div>
     <div class="urban-ui-border" style="position: absolute; right:25px; bottom:25px; width: 100px;">
@@ -43,7 +50,7 @@
       <!-- <div v-for="(category, index) in primaryAttributeTypes" :key="index"> -->
       <div v-for="(color, index) in colors" :key="index">
         <svg width="15" height="10">
-          <circle cx="5" cy="5" r="5" :fill="color" stroke="white" stroke-width="2px"></circle>
+          <circle cx="5" cy="5" r="5" :fill="colorHexes[index]" stroke="white" stroke-width="2px"></circle>
         </svg>
         <span style="font-size:small">{{ color }}</span>
       </div>
@@ -128,7 +135,44 @@ export default {
       primaryAttributeSelected: 'Type',
       mapStyleSelected: 'Light',
       mapStyles: ['Light', 'Dark', 'Other'],
-      colors: ['red', 'blue', 'pink'],
+      colorStyleSelected: 'schemeDark2',
+      colorStyles: ['schemeDark2', '15distinctColors'],
+      colorScale: null,
+      //colors: ['red', 'blue', 'pink'],
+      colors: [
+        'red',
+        'green',
+        'yellow',
+        'blue',
+        'orange',
+        'cyan',
+        'magenta',
+        'pink',
+        'teal',
+        'lavender',
+        'brown',
+        'beige',
+        'maroon',
+        'mint',
+        'navy'
+      ],
+      colorHexes: [
+        '#e6194B',
+        '#3cb44b',
+        '#ffe119',
+        '#4363d8',
+        '#f58231',
+        '#42d4f4',
+        '#f032e6',
+        '#fabebe',
+        '#469990',
+        '#e6beff',
+        '#9A6324',
+        '#fffac8',
+        '#800000',
+        '#aaffc3',
+        '#000075'
+      ],
       neighbourhoods: [],
       boundingBoxesIndices: [],
       imData: [],
@@ -189,7 +233,34 @@ export default {
     //initialisation (svg, nodesOnMap, polygons, tooltips)
     initialiseSVGelements() {
       const viewport = getViewport(this.$store.state.map)
-      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+
+      // counts unique types of data in dataset
+      this.listOfBarsTypeOfData = [
+        ...new Set(
+          accidentData.accidents.map(
+            node => node[this.primaryAttributeSelected]
+          )
+        )
+      ]
+
+      /*       let array = [...this.listOfBarsTypeOfData]
+
+      console.log(this.listOfBarsTypeOfData)
+      console.log(this.listOfBarsTypeOfData[0]) */
+      /* const colorScale = d3
+        .scaleOrdinal()
+        .domain(this.listOfBarsTypeOfData)
+        .range(this.colorHexes) //d3.scaleOrdinal(d3.schemeDark2) */
+
+      this.colorScale = d3.scaleOrdinal(d3.schemeDark2)
+
+      //console.log(this.listOfBarsTypeOfData)
+      /* let omg = this.listOfBarsTypeOfData.length - 1
+      console.log('hm', this.listOfBarsTypeOfData[0])
+      console.log('hmm', this.listOfBarsTypeOfData[omg])
+      console.log('hmmm', this.colorHexes)
+      console.log('hmmmm', this.listOfBarsTypeOfData) */
+
       this.svg = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
         .append('svg')
@@ -222,7 +293,8 @@ export default {
         })
         .attr('r', this.nodeRadius)
         .attr('fill', d => {
-          return colorScale(d[this.primaryAttributeSelected]) //'black'
+          // console.log('c', this.colorScale(d[this.primaryAttributeSelected]))
+          return this.colorScale(d[this.primaryAttributeSelected]) //'black'
         })
         .attr('cx', d => {
           d.pos = viewport.project([d.X, d.Y])
@@ -243,28 +315,20 @@ export default {
         .on('mouseout', d => {
           this.tooltip.style('opacity', 0)
         })
-
-      // counts unique types of data in dataset
-      this.listOfBarsTypeOfData = new Set(
-        accidentData.accidents.map(node => node[this.primaryAttributeSelected])
-      )
     },
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
         this.updatePoints()
         this.moveVisualizations()
-        this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       })
       this.$root.$on('map-move', () => {
         this.updatePoints()
         this.moveVisualizations()
-        this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       })
       this.$root.$on('map-zoomend', () => {
         //this.zoomed = true
         // this.zoomVisualizations()
-        this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       })
       this.$root.$on('map-moveend', () => {
         //called at the end of zoom and move
@@ -274,7 +338,6 @@ export default {
         }
         this.moved = true
         EventBus.$emit('neigh', this.accidentsOnScreenObj)
-        this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       })
       //event for comunication between Visualisation and GaussPreprocess
       EventBus.$on('emittedEvent', data => {
@@ -286,7 +349,6 @@ export default {
 
         this.updateVisualizations()
         this.moved = false
-        this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       })
     },
     //update accidents on screen
@@ -520,7 +582,11 @@ export default {
     //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateNodesOnMap() {
       const viewport = getViewport(this.$store.state.map)
-      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+      /* const colorScale = d3
+        .scaleOrdinal()
+        .domain(this.listOfBarsTypeOfData)
+        .range(this.colorHexes) //d3.scaleOrdinal(d3.schemeDark2) */
+      //this.colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
       d3.select('.nodesOnMap')
         .selectAll('circle')
@@ -531,7 +597,7 @@ export default {
         })
         .attr('r', this.nodeRadius)
         .attr('fill', d => {
-          return colorScale(d[this.primaryAttributeSelected]) //'black'
+          return this.colorScale(d[this.primaryAttributeSelected]) //'black'
         })
         .attr('cx', d => {
           d.pos = viewport.project([d.X, d.Y])
@@ -556,9 +622,14 @@ export default {
       this.listOfBarsTypeOfData = new Set(
         accidentData.accidents.map(node => node[this.primaryAttributeSelected])
       )
-      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+      console.log(this.listOfBarsTypeOfData)
+      /*  const colorScale = d3
+        .scaleOrdinal()
+        .domain(this.listOfBarsTypeOfData)
+        .range(this.colorHexes) //d3.scaleOrdinal(d3.schemeDark2) */
+      // this.colorScale = d3.scaleOrdinal(d3.schemeDark2)
       this.nodesOnMap.attr('fill', d => {
-        return colorScale(d[this.primaryAttributeSelected])
+        return this.colorScale(d[this.primaryAttributeSelected])
       })
       this.updateVisualizations()
     },
@@ -577,17 +648,31 @@ export default {
         )
       }
     },
+    changeColorStyle() {
+      if (this.colorStyleSelected === 'schemeDark2') {
+        this.colorScale = d3.scaleOrdinal(d3.schemeDark2)
+      } else if (this.colorStyleSelected === '15distinctColors') {
+        this.colorScale = d3
+          .scaleOrdinal()
+          .domain(this.listOfBarsTypeOfData)
+          .range(this.colorHexes)
+      }
+
+      this.updateVisualizations()
+    },
     //updates all visualizations - svg nodes, aggregated visualizations
     updateVisualizations() {
       this.initAggregatedVisData() // init DS for individual aggregated vis
-      this.emptyAggrVisArrays() // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
+
+      this.updateNodesOnMap()
       this.drawOrUpdateAggregatedVis()
 
-      //if (this.arrayForForceLayout.length > 0) this.runForceLayout()
+      if (this.arrayForForceLayout.length > 0) this.runForceLayout()
       this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       //TODO: remove visualisations and set this.isAggrVisInitialized to false on some zoom level
 
       this.transitionNodesFromAggrVisToMapToTheirPosition()
+      this.emptyAggrVisArrays() // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
     },
     //making nodes included in aggregated vis invisible in map
     makeNodesFromNeighbourhoodsInvisibleOnMap() {
@@ -704,10 +789,6 @@ export default {
           id: i
         }
 
-        // if the neighbourhood has less nodes than... 10? then we will use force layout
-        let useTheForceLukeButOnlyIfLessThanTen =
-          this.neighbourhood[i].points.length < 10
-
         this.neighbourhood[i].points.forEach(n => {
           let d = accidentData.accidents[n]
 
@@ -720,20 +801,17 @@ export default {
             indexInAccidentData: n,
             fx: null,
             fy: null,
-            inNeighbourhood: true, //this.neighbourhood[i].points.length >= 10, //useTheForceLukeButOnlyIfLessThanTen, //true,
+            inNeighbourhood: true,
             neighbourhoodPosition: d.neighbourhoodPosition,
             Type: d[this.primaryAttributeSelected],
             primaryAttribute: d[this.primaryAttributeSelected],
-            neighbourhoodID: 1, //idk
             center: [0, 0]
           }
           if (d.hasOwnProperty('neighbourhoodPosition')) {
             newNode.neighbourhoodPosition = d.neighbourhoodPosition
           }
 
-          //console.log(this.neighbourhood[i].points.length)
-
-          ;(d.inNeighbourhood = true), //this.neighbourhood[i].points.length >= 10 //useTheForceLukeButOnlyIfLessThanTen //true
+          ;(d.inNeighbourhood = true),
             neighbourhood.nodesInNeighbourhood.push(newNode)
         })
         this.getNeighbourhoodCenter(neighbourhood)
@@ -1058,7 +1136,11 @@ export default {
     //when proper zoom, find indicies of accidents which detail should be visualised
     createAccidentDetail() {
       this.detailAccidents = []
-      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+      /* const colorScale = d3
+        .scaleOrdinal()
+        .domain(this.listOfBarsTypeOfData)
+        .range(this.colorHexes) //d3.scaleOrdinal(d3.schemeDark2) */
+      //this.colorScale = d3.scaleOrdinal(d3.schemeDark2)
       this.accidentsOnScreenIndices.forEach(o => {
         let posi = [accidentData.accidents[o].x, accidentData.accidents[o].y]
         if (
@@ -1067,7 +1149,7 @@ export default {
           posi[1] > 0 &&
           posi[1] < window.innerHeight
         ) {
-          accidentData.accidents[o].color = colorScale(
+          accidentData.accidents[o].color = this.colorScale(
             accidentData.accidents[o].Type
           )
           this.detailAccidents.push(accidentData.accidents[o].myIndex)
@@ -1101,9 +1183,9 @@ export default {
       //console.log('all', this.nodesOnMap)
       //console.log('force', d3.selectAll('.nodesForceLayout'))
 
-      while (this.arrayForForceLayout.length > 0) {
+      /* while (this.arrayForForceLayout.length > 0) {
         this.arrayForForceLayout.pop()
-      }
+      } */
 
       /* if (this.simulation) {
         this.simulation.stop()
@@ -1163,7 +1245,6 @@ export default {
             .strength(1)
             .iterations(1)
         )
-
         .on('tick', this.tick)
 
       /* currentSimulation.stop()
@@ -1219,9 +1300,9 @@ export default {
         this.grid_cells.pop()
       }
 
-      /* while (this.arrayForForceLayout.length > 0) {
+      while (this.arrayForForceLayout.length > 0) {
         this.arrayForForceLayout.pop()
-      } */
+      }
     },
     //draws aggregated visualizations or updates them if they exists
     drawOrUpdateAggregatedVis() {
@@ -1234,7 +1315,11 @@ export default {
         .ease(d3.easeLinear)
 
       const viewport = getViewport(this.$store.state.map)
-      const colorScale = d3.scaleOrdinal(d3.schemeDark2)
+      /* const colorScale = d3
+        .scaleOrdinal()
+        .domain(this.listOfBarsTypeOfData)
+        .range(this.colorHexes) //d3.scaleOrdinal(d3.schemeDark2) */
+      //this.colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
       this.svg
         .selectAll('g.neighbourhood-g')
@@ -1272,9 +1357,11 @@ export default {
           .data(this.aggregatedData[i].nodesInNeighbourhood)
           .join('circle')
           .attr('class', 'circlesInAggregatedVis')
-          .attr('r', 5)
+          .attr('r', () => {
+            return this.nodeRadius
+          })
           .attr('fill', d => {
-            return colorScale(d.primaryAttribute)
+            return this.colorScale(d.primaryAttribute)
           })
           .attr('cx', d => {
             if (d.neighbourhoodPosition) {
