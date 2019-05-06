@@ -243,23 +243,7 @@ export default {
         )
       ]
 
-      /*       let array = [...this.listOfBarsTypeOfData]
-
-      console.log(this.listOfBarsTypeOfData)
-      console.log(this.listOfBarsTypeOfData[0]) */
-      /* const colorScale = d3
-        .scaleOrdinal()
-        .domain(this.listOfBarsTypeOfData)
-        .range(this.colorHexes) //d3.scaleOrdinal(d3.schemeDark2) */
-
-      this.colorScale = d3.scaleOrdinal(d3.schemeDark2)
-
-      //console.log(this.listOfBarsTypeOfData)
-      /* let omg = this.listOfBarsTypeOfData.length - 1
-      console.log('hm', this.listOfBarsTypeOfData[0])
-      console.log('hmm', this.listOfBarsTypeOfData[omg])
-      console.log('hmmm', this.colorHexes)
-      console.log('hmmmm', this.listOfBarsTypeOfData) */
+      this.colorScale = d3.scaleOrdinal(d3.schemeDark2) //this.changeColorStyle()
 
       this.svg = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
@@ -293,7 +277,6 @@ export default {
         })
         .attr('r', this.nodeRadius)
         .attr('fill', d => {
-          // console.log('c', this.colorScale(d[this.primaryAttributeSelected]))
           return this.colorScale(d[this.primaryAttributeSelected]) //'black'
         })
         .attr('cx', d => {
@@ -460,7 +443,8 @@ export default {
               hullPoints: hull, //convexhull points
               //adepts: [...adepts], //accident which was in the boundingbox but not in the blob
               points: [...this.points], //all neighbourhood points
-              anchorPoint: this.anchorPoint
+              anchorPoint: this.anchorPoint,
+              indexInBoundingBoxes: i
             }
             neigh.points.push(this.anchorPoint)
 
@@ -582,11 +566,6 @@ export default {
     //updates positions of circles on map (regular accident data dots), called on zoom and move
     updateNodesOnMap() {
       const viewport = getViewport(this.$store.state.map)
-      /* const colorScale = d3
-        .scaleOrdinal()
-        .domain(this.listOfBarsTypeOfData)
-        .range(this.colorHexes) //d3.scaleOrdinal(d3.schemeDark2) */
-      //this.colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
       d3.select('.nodesOnMap')
         .selectAll('circle')
@@ -597,7 +576,7 @@ export default {
         })
         .attr('r', this.nodeRadius)
         .attr('fill', d => {
-          return this.colorScale(d[this.primaryAttributeSelected]) //'black'
+          return this.colorScale(d[this.primaryAttributeSelected])
         })
         .attr('cx', d => {
           d.pos = viewport.project([d.X, d.Y])
@@ -618,21 +597,18 @@ export default {
           return 'nodesOnMap'
         })
     },
+    // changes primary attribute based on which are circles colored
     changePrimaryAttribute() {
       this.listOfBarsTypeOfData = new Set(
         accidentData.accidents.map(node => node[this.primaryAttributeSelected])
       )
       console.log(this.listOfBarsTypeOfData)
-      /*  const colorScale = d3
-        .scaleOrdinal()
-        .domain(this.listOfBarsTypeOfData)
-        .range(this.colorHexes) //d3.scaleOrdinal(d3.schemeDark2) */
-      // this.colorScale = d3.scaleOrdinal(d3.schemeDark2)
       this.nodesOnMap.attr('fill', d => {
         return this.colorScale(d[this.primaryAttributeSelected])
       })
       this.updateVisualizations()
     },
+    // changes map style
     changeMapStyle() {
       if (this.mapStyleSelected === 'Light') {
         this.$store.state.map.setStyle(
@@ -648,6 +624,7 @@ export default {
         )
       }
     },
+    // changes color style/scheme
     changeColorStyle() {
       if (this.colorStyleSelected === 'schemeDark2') {
         this.colorScale = d3.scaleOrdinal(d3.schemeDark2)
@@ -667,7 +644,7 @@ export default {
       this.updateNodesOnMap()
       this.drawOrUpdateAggregatedVis()
 
-      if (this.arrayForForceLayout.length > 0) this.runForceLayout()
+      if (this.arrayForForceLayout.length > 0) this.createForceLayout()
       this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       //TODO: remove visualisations and set this.isAggrVisInitialized to false on some zoom level
 
@@ -811,10 +788,14 @@ export default {
             newNode.neighbourhoodPosition = d.neighbourhoodPosition
           }
 
-          ;(d.inNeighbourhood = true),
-            neighbourhood.nodesInNeighbourhood.push(newNode)
+          d.inNeighbourhood = true
+          neighbourhood.nodesInNeighbourhood.push(newNode)
         })
-        this.getNeighbourhoodCenter(neighbourhood)
+        //console.log(this.neighbourhood[i].indexInBoundingBoxes)
+        this.getNeighbourhoodCenter(
+          neighbourhood,
+          this.neighbourhood[i].indexInBoundingBoxes
+        )
         this.aggregatedData.push(neighbourhood)
 
         this.neighbourhood[i].points.forEach(n => {
@@ -969,7 +950,7 @@ export default {
         this.points.pop()
       } //empty the array
     },
-    getNeighbourhoodCenter(neighbourhood) {
+    getNeighbourhoodCenter(neighbourhood, indexInBoundingBoxes) {
       let viewport = getViewport(this.$store.state.map)
       let minX = Infinity
       let minY = Infinity
@@ -991,11 +972,28 @@ export default {
         }
       })
 
-      const shiftX = (minX + maxX) / 2
-      const shiftY = (minY + maxY) / 2
+      // this is array in which megi stores min max values for the neighbourhood
+      // the array starts at index 1
+      // ...
+      // ...
+      // ...
+      // those weird Matlab people
+      // but it doesn't matter because I've stored the index
+      // besides the values I actually need, the array features the rest of the point coordinates
+      // she also projected them, so that I can... unproject them again
+      let megisWeirdArray = this.boundingBoxesIndices[indexInBoundingBoxes]
 
-      neighbourhood.centerInGPS = [shiftX, shiftY]
-      neighbourhood.centerInPx = viewport.project([shiftX, shiftY])
+      let el_shiftX = (megisWeirdArray[0][0] + megisWeirdArray[1][0]) / 2
+      let el_shiftY = (megisWeirdArray[2][1] + megisWeirdArray[3][1]) / 2
+
+      let shiftX = (minX + maxX) / 2
+      let shiftY = (minY + maxY) / 2
+
+      neighbourhood.centerInPx = [el_shiftX, el_shiftY]
+      neighbourhood.centerInGPS = viewport.unproject([el_shiftX, el_shiftY])
+
+      /* neighbourhood.centerInGPS = [shiftX, shiftY]
+      neighbourhood.centerInPx = viewport.project([shiftX, shiftY]) */
       neighbourhood.min = viewport.project([minX, minY])
       neighbourhood.max = viewport.project([maxX, maxY])
     },
@@ -1136,11 +1134,6 @@ export default {
     //when proper zoom, find indicies of accidents which detail should be visualised
     createAccidentDetail() {
       this.detailAccidents = []
-      /* const colorScale = d3
-        .scaleOrdinal()
-        .domain(this.listOfBarsTypeOfData)
-        .range(this.colorHexes) //d3.scaleOrdinal(d3.schemeDark2) */
-      //this.colorScale = d3.scaleOrdinal(d3.schemeDark2)
       this.accidentsOnScreenIndices.forEach(o => {
         let posi = [accidentData.accidents[o].x, accidentData.accidents[o].y]
         if (
@@ -1156,10 +1149,9 @@ export default {
         }
       })
     },
-    runForceLayout() {
+    // creates new force layout from neighbourhoods that have less than maxSizeOfForceLayoutNeighbourhood of circles
+    createForceLayout() {
       let currentForceArray = []
-      //console.log('we in', this.arrayForForceLayout)
-      //console.log(this.nodesForceLayout)
       const viewport = getViewport(this.$store.state.map)
       for (var i = 0; i < this.arrayForForceLayout.length; i++) {
         this.arrayForForceLayout[i].forEach(n => {
@@ -1180,60 +1172,6 @@ export default {
         return 'nodesOnMap'
       })
 
-      //console.log('all', this.nodesOnMap)
-      //console.log('force', d3.selectAll('.nodesForceLayout'))
-
-      /* while (this.arrayForForceLayout.length > 0) {
-        this.arrayForForceLayout.pop()
-      } */
-
-      /* if (this.simulation) {
-        this.simulation.stop()
-        this.simulation = null
-      } */
-
-      //this.arrayForForceLayout = currentForceArray
-      //let newForce = d3.select(this.nodesForceLayout) //this.nodesForceLayout[0] //
-
-      /* for (var i = 1; i < this.nodesForceLayout.length; i++) {
-        newForce.concat(this.nodesForceLayout[i])
-      } */
-
-      /* this.nodesForceLayout.forEach(d => {
-        newForce.merge(d)
-      }) */
-
-      //console.log('f', newForce)
-
-      //this.nodesForceLayout.push(d3.selectAll('circle.nodesForceLayout'))
-
-      /* for (var i = 0; i < this.arrayForForceLayout.length - 1; i++) {
-        console.log(this.arrayForForceLayout[i])
-        console.log(this.nodesForceLayout[i])
-        const currentSimulation = d3
-          .forceSimulation()
-          .nodes(this.arrayForForceLayout[i])
-          .force(
-            'collide',
-            d3
-              .forceCollide()
-              .radius(this.nodeRadius)
-              .strength(1)
-              .iterations(1)
-          )
-          .on('tick', () => {
-            this.nodesForceLayout[i]
-              .attr('cx', function(d) {
-                return d.x
-              })
-              .attr('cy', function(d) {
-                return d.y
-              })
-          })
-
-        //this.simulation.push(currentSimulation)
-      } */
-
       const currentSimulation = d3
         .forceSimulation()
         .nodes(currentForceArray)
@@ -1246,41 +1184,8 @@ export default {
             .iterations(1)
         )
         .on('tick', this.tick)
-
-      /* currentSimulation.stop()
-
-      while (currentSimulation.alpha() > currentSimulation.alphaMin()) {
-        currentSimulation.tick()
-      } */
-
-      /* currentSimulation.restart()
-      currentSimulation.tick(5)
-      currentSimulation.alpha(0)
-      currentSimulation.alphaMin(0)
-      currentSimulation.alphaTarget(0)
-      currentSimulation.stop() */
-
-      /* for (let i = 0; i < 300; ++i) {
-        // currentSimulation.tick()
-        this.nodesOnMap
-          .attr('cx', function(d) {
-            //if (d.inForceLayout)
-            d.forceGPS = viewport.unproject([d.x, d.y])
-            return d.x
-          })
-          .attr('cy', function(d) {
-            return d.y
-          })
-      }
- */
-      //currentSimulation.stop()
-      //this.simulation.push(currentSimulation)
-      //this.simulation = currentSimulation
-
-      //this.updateNodesOnMap()
-      //console.log('we run lol', currentSimulation)
-      //console.log('we run lol', currentForceArray)
     },
+    // tick function for force layout - moves nodes to their new positions
     tick() {
       const viewport = getViewport(this.$store.state.map)
 
@@ -1304,6 +1209,21 @@ export default {
         this.arrayForForceLayout.pop()
       }
     },
+    // not working; function for dragging g element with aggrVis
+    dragged(d) {
+      console.log(d)
+      let posX = d3.event.dx
+      let posY = d3.event.dy
+
+      let pls = d3.select(function() {
+        return d
+      })
+      console.log('pls', pls)
+
+      pls.attr('transform', function(d, i) {
+        return 'translate(' + [posX, posY] + ')'
+      })
+    },
     //draws aggregated visualizations or updates them if they exists
     drawOrUpdateAggregatedVis() {
       this.makeNodesFromNeighbourhoodsInvisibleOnMap()
@@ -1315,11 +1235,6 @@ export default {
         .ease(d3.easeLinear)
 
       const viewport = getViewport(this.$store.state.map)
-      /* const colorScale = d3
-        .scaleOrdinal()
-        .domain(this.listOfBarsTypeOfData)
-        .range(this.colorHexes) //d3.scaleOrdinal(d3.schemeDark2) */
-      //this.colorScale = d3.scaleOrdinal(d3.schemeDark2)
 
       this.svg
         .selectAll('g.neighbourhood-g')
@@ -1343,6 +1258,13 @@ export default {
         .on('mouseout', d => {
           this.nodesOnMap.style('opacity', 1)
         })
+
+      /* d3.selectAll('g.neighbourhood-g').call(
+        d3
+          .drag()
+          //.on("start", dragstarted)
+          .on('drag', this.dragged)
+      ) */
 
       // Setup
       for (var i = 0; i < this.aggregatedData.length; i++) {
