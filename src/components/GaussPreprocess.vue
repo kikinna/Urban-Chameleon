@@ -78,13 +78,9 @@ import { findBlobs } from '../helpers/FindBlobs.js'
 
             this.paper = Paper.setup(this.canvas);
 
-            //this.drawNeighbourhoodAdepts();
-            console.log('pls')
-
         },
         methods: {
             drawNeighbourhoodAdepts() {
-                // console.log('redrawing')
                 this.clearCanvas();
 
                 let screen_top_left = this.viewport.unproject([0, 0])
@@ -109,7 +105,6 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                 
                 Promise.all(results).then((completed) => {
                     setTimeout(() => {
-                        // console.log('finished drawing')
                         this.neighbourhoodProcessingPipeline()
                     }, 1)
                 })
@@ -148,7 +143,7 @@ import { findBlobs } from '../helpers/FindBlobs.js'
 
                 this.canvas_width = this.canvas_height / this.canvas_aspect_ratio;
 
-                console.log(this.canvas_to_screen_ratio)
+                //console.log(this.canvas_to_screen_ratio)
 
                 this.canvas = document.getElementById('paper-canvas');
                 this.canvas.width = this.canvas_width
@@ -163,7 +158,7 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                 var r = canvasColor[0];
                 var g = canvasColor[1];
                 var b = canvasColor[2];
-                console.log(event.clientX, event.clientY, '-',  r, g, b)
+                //console.log(event.clientX, event.clientY, '-',  r, g, b)
             },
             neighbourhoodProcessingPipeline() {
                 let that = this;
@@ -285,11 +280,24 @@ import { findBlobs } from '../helpers/FindBlobs.js'
                         }
                     }
                 }
+                //delete the one that are undefined and ones that lies inside the others
+                for( let i = 1; i < boundingB.length; i++){
+                    if (boundingB[i] !== undefined) {
+                        let first = boundingB[i]
+                        for(let j = 1; j < boundingB.length; j++){
+                            if(boundingB[j] !== undefined && boundingB[i] !== boundingB[j]){
+                                let second = boundingB[j] 
+                                if(second[0][0] >= first[0][0] && second[1][0] <= first[1][0] &&second[2][1] >= first[2][1] && second[3][1] <= first[3][1]) {
+                                    boundingB.splice(j,1) 
+                                }
+                            }
+                        }
+                    }else{
+                        boundingB.splice(i,1)
+                    }
+                }
                 this.boundingBoxesOfBlobs = [...boundingB]
             },
-            getBoundingBoxes(){
-                return this.boundingBoxesOfBlobs
-            }
 
         }
 

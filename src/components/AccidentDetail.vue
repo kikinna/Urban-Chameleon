@@ -1,11 +1,11 @@
 
 <template>
-    <div v-if="this.$store.state.map.getZoom() > 18.5" class='accidentDetail' v-bind:style="{left: left_top[0] + 'px', top: left_top[1] + 'px'}">
+    <div v-if="this.$store.state.map.getZoom() > 18.5 && this.clicked" class='accidentDetail' v-bind:style="{left: left_top[0] + 'px', top: left_top[1] + 'px'}">
         <!-- 412x294 -->
             <!-- <circle cx=280 cy=70 r=60 style="fill:#5490b0cd"></circle> -->
             <circle cx=280 cy=70 r=60 v-bind:style="{fill:color}"></circle>
             <svg  width="325" height="70">
-                <circle cx=32 cy=28 r=5 v-bind:style="{fill:color}"></circle>
+                <circle cx=32 cy=28 r=5 v-bind:style="{fill:color, stroke:'#ffffff', strokeWidth: '2px'}"></circle>
                 <text class="text_style2" x="185" y="52" >{{accident.Datum }} </text>
                 <text class="text_style2" x="186" y="30" >{{accident.Day }} </text>
                 <image v-if="accident.DayNight == 'Day'" xlink:href= "../assets/Den.png"  x="290" y="12" width="25" height="25"></image>
@@ -48,20 +48,21 @@
         }, 
         data(){
             return{
+                clicked: true,
                 adress:{
                     Noc : "../assets/Noc.png",
                     Den : "../assets/Den.png",
                 },
-                transform:{
-                    k: 1,
-                    x: accident.X,
-                    y:accident.Y
-                }
+                // transform:{
+                //     k: 1,
+                //     x: accident.X,
+                //     y:accident.Y
+                // }
             }
         },
         mounted(){
             this.init();
-            this.num = Math.random()*50;
+            window.addEventListener('mousedown', this.mouseMoved)
         },
         methods: {
             init(){
@@ -69,6 +70,13 @@
             },
             render(){
             },
+            mouseMoved(event){
+                
+                if(event.clientX > Math.floor(this.accident.x - 10) && event.clientX < Math.floor(this.accident.x + 10)
+                    &&  event.clientY > Math.floor(this.accident.y - 10) && event.clientY < Math.floor(this.accident.y + 10)){
+                    this.clicked = !this.clicked
+                }
+            }
         },
         computed: {
             left_top: function() {

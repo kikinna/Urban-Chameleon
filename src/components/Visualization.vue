@@ -105,11 +105,11 @@ export default {
       nodesOnMap: null, //accident nodes
       polygons: null, //svg polygon selection
       tooltip: null, //d3 tooltips
-      kdLibrary: [],
-      kdData: [],
-      tree: [],
-      accidentsOnScreenIndices: [],
-      accidentsOnScreenObj: [],
+      kdLibrary: [], //library for kdTree computing
+      kdData: [], // copy of accidentData.accidents 
+      tree: [], //whole accidentData.accidents stored in kdTree datastructure
+      accidentsOnScreenIndices: [], //indices of every point on screen
+      accidentsOnScreenObj: [], //stored whole objects of points on screen
       wasScreenPoints: [],
       nodeRadius: 5, //default node radius
       maxSizeOfForceLayoutNeighbourhood: 10, //maxSizeOfNeighbourhoodToUseForceLayoutInsteadOfAggrVis IActuallyDidn'tNeedToUseCamelCaseHereButIOnlyNoticedNowHelpMe
@@ -173,14 +173,12 @@ export default {
         '#aaffc3',
         '#000075'
       ],
-      neighbourhoods: [],
-      boundingBoxesIndices: [],
-      imData: [],
-      scale: null,
-      indexies: [],
-      moved: true,
-      upL: null,
-      downR: null
+      boundingBoxesIndices: [],  // stored min max points for bounding box of every neighbourhood - minX,maxX,minY,maxY 
+      imData: [], //gauss preprocess image stored
+      scale: null, // canvas to screen scale (stored from gauss preprocess)
+      moved: true, //if map was moved, set on true, at the end set on false - needed for EventBus 
+      upL: null, //up left point of screen
+      downR: null //down right point of screen
     }
   },
   store,
@@ -193,10 +191,9 @@ export default {
     this.initData()
 
     setTimeout(() => {
-      // console.log('finished drawing')
-      console.log('dnu')
       EventBus.$emit('neigh', this.accidentsOnScreenObj)
     }, 1)
+
     this.initialiseSVGelements()
     this.listeners()
     console.log('(ﾉ◕ヮ◕)ﾉ*:・ﾟ✧')
@@ -206,9 +203,6 @@ export default {
       accidentData.accidents[i].theNeighbourhood = null
       accidentData.accidents[i].index = i
     }
-    //points from which neighbourhood counting begin
-    //this.startingPoints.push(1199)
-    //this.startingPoints.push(478)
     this.computeNeighbourhoodsAndDrawPolygons()
     this.updateVisualizations()
   },
@@ -228,7 +222,6 @@ export default {
 
       this.tree = new this.kdLibrary.kdTree(this.kdData, distance, ['X', 'Y'])
       this.recomputeAccidentsOnScreen(this.tree.root)
-      console.log('koniecInit')
     },
     //initialisation (svg, nodesOnMap, polygons, tooltips)
     initialiseSVGelements() {
@@ -346,7 +339,6 @@ export default {
       this.recomputeAccidentsOnScreen(this.tree.root)
     },
     moveVisualizations() {
-      //console.log('data', this.aggregatedData)
       this.updateNodesOnMap()
       this.drawPolygonUnderNeighbourhoods()
       this.moveAggregatedVis()
@@ -707,6 +699,8 @@ export default {
 
     //make polygon from convex hull of neighbourhood array
     drawPolygonUnderNeighbourhoods() {
+      let viewport = getViewport(this.$store.state.map)
+      //this.upL = viewport.unproject([0, 0])
       d3.selectAll('polygon').remove()
       let that = this
       this.polygons
@@ -717,12 +711,17 @@ export default {
         .append('polygon')
         .attr('points', function(d) {
           let str = ''
+          //console.log(d.hullPoints)
           d.hullPoints.forEach(o => {
-            str +=
-              accidentData.accidents[o].x.toString(10) +
-              ',' +
-              accidentData.accidents[o].y.toString(10) +
-              ' '
+            let pos = viewport.project([accidentData.accidents[o].X,accidentData.accidents[o].Y])
+            // if(accidentData.accidents[o].x > 0 && accidentData.accidents[o].x < window.innerWidth 
+            //   && accidentData.accidents[o].y > 0 && accidentData.accidents[o].y < window.innerHeight){
+              str +=
+                pos[0].toString(10) +
+                ',' +
+                pos[1].toString(10) +
+                ' '
+            //}
           })
           return str
         })
