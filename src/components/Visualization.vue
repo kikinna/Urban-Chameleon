@@ -45,10 +45,10 @@
 
       <!-- <a class="button">Click me</a> -->
     </div>
-    <div class="urban-ui-border" style="position: absolute; right:25px; bottom:25px; width: 100px;">
+    <div class="urban-ui-border" style="position: absolute; right:25px; bottom:25px; width: 200px;">
       <h2 class="ui-text">LEGEND</h2>
       <!-- <div v-for="(category, index) in primaryAttributeTypes" :key="index"> -->
-      <div v-for="(color, index) in colors" :key="index">
+      <div v-for="(color, index) in listOfBarsTypeOfData" :key="index">
         <svg width="15" height="10">
           <circle cx="5" cy="5" r="5" :fill="colorHexes[index]" stroke="white" stroke-width="2px"></circle>
         </svg>
@@ -100,18 +100,20 @@ export default {
       dataD3: [], //accident data
       grid_cells: [], //array of cell arrays; each grid array contains barchart grid positions {x, y, occupied}
       simulation: null, //[], //null, //accident data force simulation
+      partySimulation: null,
       nodesForceLayout: [],
       svg: null, //d3 svg selection
       nodesOnMap: null, //accident nodes
       polygons: null, //svg polygon selection
       tooltip: null, //d3 tooltips
       kdLibrary: [], //library for kdTree computing
-      kdData: [], // copy of accidentData.accidents 
+      kdData: [], // copy of accidentData.accidents
       tree: [], //whole accidentData.accidents stored in kdTree datastructure
       accidentsOnScreenIndices: [], //indices of every point on screen
       accidentsOnScreenObj: [], //stored whole objects of points on screen
       wasScreenPoints: [],
       nodeRadius: 5, //default node radius
+      aggrVisScale: 0.8, //value by which aggrVis g elements are scaled
       maxSizeOfForceLayoutNeighbourhood: 10, //maxSizeOfNeighbourhoodToUseForceLayoutInsteadOfAggrVis IActuallyDidn'tNeedToUseCamelCaseHereButIOnlyNoticedNowHelpMe
       isAggrVisInitialized: false, //flag for deciding if we should draw the aggregated vis or just update it
       doYouWantSomeWafflesCowboy: false, //TODO: temporary flag for deciding whether we want to draw waffle or barchart
@@ -173,10 +175,10 @@ export default {
         '#aaffc3',
         '#000075'
       ],
-      boundingBoxesIndices: [],  // stored min max points for bounding box of every neighbourhood - minX,maxX,minY,maxY 
+      boundingBoxesIndices: [], // stored min max points for bounding box of every neighbourhood - minX,maxX,minY,maxY
       imData: [], //gauss preprocess image stored
       scale: null, // canvas to screen scale (stored from gauss preprocess)
-      moved: true, //if map was moved, set on true, at the end set on false - needed for EventBus 
+      moved: true, //if map was moved, set on true, at the end set on false - needed for EventBus
       upL: null, //up left point of screen
       downR: null //down right point of screen
     }
@@ -356,7 +358,16 @@ export default {
 
       d3.selectAll('g.neighbourhood-g').attr('transform', d => {
         let pos = viewport.project(d.GPSpos) //(d.centerInGPS)
-        return 'translate(' + pos[0] + ', ' + pos[1] + ')'
+        if (d.shiftX) pos[0] -= d.shiftX
+        return (
+          'translate(' +
+          pos[0] +
+          ', ' +
+          pos[1] +
+          ') scale(' +
+          this.aggrVisScale +
+          ')'
+        )
       })
     },
     recomputeAccidentsOnScreen(node) {
@@ -579,9 +590,6 @@ export default {
           d.y = d.pos[1]
           return d.pos[1]
         })
-        .on('mouseout', d => {
-          this.tooltip.style('opacity', 0)
-        })
         .attr('class', d => {
           if (d.inNeighbourhood) {
             return 'neighbourhood'
@@ -713,20 +721,19 @@ export default {
           let str = ''
           //console.log(d.hullPoints)
           d.hullPoints.forEach(o => {
-            let pos = viewport.project([accidentData.accidents[o].X,accidentData.accidents[o].Y])
-            // if(accidentData.accidents[o].x > 0 && accidentData.accidents[o].x < window.innerWidth 
+            let pos = viewport.project([
+              accidentData.accidents[o].X,
+              accidentData.accidents[o].Y
+            ])
+            // if(accidentData.accidents[o].x > 0 && accidentData.accidents[o].x < window.innerWidth
             //   && accidentData.accidents[o].y > 0 && accidentData.accidents[o].y < window.innerHeight){
-              str +=
-                pos[0].toString(10) +
-                ',' +
-                pos[1].toString(10) +
-                ' '
+            str += pos[0].toString(10) + ',' + pos[1].toString(10) + ' '
             //}
           })
           return str
         })
-        //.style('fill', '#60bac668')
-        .style('fill', '#777b7f68')
+        //.style('fill', '#60bac668') // first attempt
+        .style('fill', '#777b7f40') // +- rgba(119, 123, 127, 0.208)
         .style('stroke', '567985cc')
         .style('strokeWidth', '2px')
         .on('click', d => {
@@ -808,7 +815,7 @@ export default {
       }
     },
     //initialisation of grid for aggregated visualization - barchart
-    initGridForBarchart(array) {
+    initGridForBarchart(array, gNeighbourhoodID) {
       const data_structure = {
         bars: [...this.listOfBarsTypeOfData], //[...new Set(array.map(node => node.Type))],
         bar_counts: [],
@@ -842,12 +849,35 @@ export default {
 
       let emptyBarsSoFarCount = 0
       let emptyCollsCount = 0
-      let shift =
+      /* let shift =
         (data_structure.bars.length - 1 - allEmptyBarsCount) *
         (GRID_COLS + 1) *
-        (CELL_SIZE - 1)
+        (CELL_SIZE - 1) */
+
+      let newShift = 0 // shift in x coord for all cells
+      // we calculate it by counting all cells in first row of all bars
+      for (var i = 0; i < data_structure.bars.length; i++) {
+        if (GRID_COLS - data_structure.bar_counts[i] > 0) {
+          newShift += data_structure.bar_counts[i]
+        } else {
+          newShift += GRID_COLS
+        }
+      }
+
+      newShift *= CELL_SIZE
+      newShift /= 2 //we only want to shift it by half the size of whole barchart
+
+      /* let GRID_COLS_COUNT_WITH_NO_EMPTY_COLS = GRID_COLS
+      let GRID_ROWS_COUNT_WITH_NO_EMPTY_COLS = GRID_ROWS */
+
+      /* let colsSoFar = 0
+      let barsWithNotEnoughColls = 0 */
+
+      let lastCell = null
+      let start_x = 0
 
       for (var bar = 0; bar < data_structure.bars.length; bar++) {
+        emptyCollsCount = 0
         const currentBarCells = []
 
         let cells_count = data_structure.bar_counts[bar]
@@ -858,12 +888,39 @@ export default {
           continue
         }
 
-        if (GRID_COLS - cells_count > 0) {
+        /* if (GRID_COLS - cells_count > 0) {
           emptyCollsCount += GRID_COLS - cells_count //TODO: -emptyCollsCount somewhere?
-        }
+          GRID_COLS = cells_count
+          GRID_ROWS = 1
+          emptyBarsSoFarCount++
+          barsWithNotEnoughColls += GRID_COLS - cells_count
+        } else {
+          GRID_COLS = GRID_COLS_COUNT_WITH_NO_EMPTY_COLS
+          GRID_ROWS = GRID_ROWS_COUNT_WITH_NO_EMPTY_COLS
+        } */
 
-        let start_x =
-          (bar - emptyBarsSoFarCount) * (GRID_COLS + 1) * (CELL_SIZE - 1)
+        //colsSoFar += GRID_COLS
+
+        //let start_x = (bar - emptyBarsSoFarCount) * (GRID_COLS + 1) * (CELL_SIZE - 1)
+        //(bar - emptyBarsSoFarCount) * (GRID_COLS + 1) * (CELL_SIZE - 1)
+        /* for (var i = 0; i < bar + 1; i++) {
+          //console.log('hm', data_structure.bar_counts[i])
+          //console.log('hm cols', GRID_COLS_COUNT_WITH_NO_EMPTY_COLS)
+          start_x += data_structure.bar_counts[i] % GRID_COLS //_COUNT_WITH_NO_EMPTY_COLS
+        }
+        start_x++
+        start_x *= CELL_SIZE - 1
+        start_x *= bar - emptyBarsSoFarCount */
+
+        //console.log('startsx', start_x)
+
+        /* start_x =
+          start_x + (GRID_COLS - emptyCollsCount) * CELL_SIZE - shift / 2 */
+        //let lastCell = null
+        if (lastCell) start_x = lastCell.x + CELL_SIZE
+        //console.log('s', start_x)
+
+        let cells_count_before = cells_count
 
         for (var r = 0; r < GRID_ROWS; r++) {
           for (var c = 0; c < GRID_COLS; c++) {
@@ -871,7 +928,7 @@ export default {
 
             var cell
             cell = {
-              x: start_x + c * CELL_SIZE - shift / 2,
+              x: start_x + c * CELL_SIZE,
               y: GRID_COLS - r * CELL_SIZE,
               occupied: false
             }
@@ -880,11 +937,31 @@ export default {
             cells_count--
           }
         }
+
+        if (GRID_COLS - cells_count_before > 0) {
+          lastCell = currentBarCells[cells_count_before - 1]
+        } else {
+          lastCell = currentBarCells[GRID_COLS - 1]
+        }
+
         data_structure.chart_cells.push(currentBarCells)
       }
-
-      //console.log('c', emptyCollsCount)
       this.grid_cells.push(data_structure)
+
+      d3.select('#neighbourhood-' + gNeighbourhoodID).attr('transform', d => {
+        console.log('d', d)
+        d.pos[0] -= newShift
+        d.shiftX = newShift
+        return (
+          'translate(' +
+          d.pos[0] +
+          ', ' +
+          d.pos[1] +
+          ') scale(' +
+          this.aggrVisScale +
+          ')'
+        )
+      })
     },
     //initialisation of grid for aggregated visualization - wafflechart
     initGridForWafflechart(array) {
@@ -910,7 +987,27 @@ export default {
 
       let CELL_SIZE = 10
       let GRID_COLS = Math.ceil(numberOfCells / 10) //5
-      if (GRID_COLS > 20) GRID_COLS = 20
+
+      // this is great programming idk what're you talking about
+      if (GRID_COLS >= 30) {
+        GRID_COLS = 30
+      } else if (GRID_COLS >= 25) {
+        GRID_COLS = 25
+      } else if (GRID_COLS >= 20) {
+        GRID_COLS = 20
+      } else if (GRID_COLS >= 15) {
+        GRID_COLS = 15
+      } else if (GRID_COLS >= 12) {
+        GRID_COLS = 12
+      } else if (GRID_COLS >= 9) {
+        GRID_COLS = 9
+      } else if (GRID_COLS >= 7) {
+        GRID_COLS = 7
+      } else if (GRID_COLS >= 5) {
+        GRID_COLS = 5
+      } else {
+        GRID_COLS = 3
+      }
       let GRID_ROWS = Math.ceil(array.length / GRID_COLS)
       let shiftX = (GRID_COLS * CELL_SIZE) / 2
 
@@ -1186,10 +1283,13 @@ export default {
     },
     // tick function for force layout - moves nodes to their new positions
     tick() {
+      const t = d3.transition().duration(0)
+      //.ease(d3.easeLinear)
       const viewport = getViewport(this.$store.state.map)
 
       this.nodesOnMap
         //d3.selectAll('.nodesForceLayout')
+        .transition(t)
         .attr('cx', function(d) {
           //if (d.inForceLayout)
           d.forceGPS = viewport.unproject([d.x, d.y])
@@ -1246,9 +1346,18 @@ export default {
         .attr('transform', d => {
           //return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
           d.pos = [d.centerInPx[0], (d.min[1] + d.centerInPx[1]) / 2]
+          if (d.shiftX) d.pos[0] -= d.shiftX
           //console.log('d.pos', d.pos)
           d.GPSpos = viewport.unproject(d.pos)
-          return 'translate(' + d.pos[0] + ', ' + d.pos[1] + ')'
+          return (
+            'translate(' +
+            d.pos[0] +
+            ', ' +
+            d.pos[1] +
+            ') scale(' +
+            this.aggrVisScale +
+            ')'
+          )
           //return 'translate(' + d.centerInPx[0] + ', ' + d.min[1] + ')'
         })
         .on('mouseover', d => {
@@ -1327,7 +1436,10 @@ export default {
             this.aggregatedData[i].nodesInNeighbourhood
           )
         } else if (this.aggregatedVisSelected == 'Bar chart') {
-          this.initGridForBarchart(this.aggregatedData[i].nodesInNeighbourhood)
+          this.initGridForBarchart(
+            this.aggregatedData[i].nodesInNeighbourhood,
+            i
+          )
         } else {
           console.log('you dont have any chart selected')
         }
