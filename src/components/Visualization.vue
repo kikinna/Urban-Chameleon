@@ -817,14 +817,11 @@ export default {
     //initialisation of grid for aggregated visualization - barchart
     initGridForBarchart(array, gNeighbourhoodID) {
       const data_structure = {
-        bars: [...this.listOfBarsTypeOfData], //[...new Set(array.map(node => node.Type))],
+        bars: [...this.listOfBarsTypeOfData],
         bar_counts: [],
-        bar_rows: [], // not used anywhere lol
         chart_cells: [],
         barColls: 0
       }
-
-      let allEmptyBarsCount = 0
 
       for (var i = 0; i < data_structure.bars.length; i++) {
         data_structure.bar_counts[i] = array
@@ -832,27 +829,38 @@ export default {
           .reduce(function(n, val) {
             return n + (val === data_structure.bars[i])
           }, 0)
-
-        data_structure.bar_rows[i] = Math.ceil(
-          data_structure.bar_counts[i] / GRID_COLS
-        )
-
-        if (data_structure.bar_counts[i] === 0) allEmptyBarsCount++
       }
 
       let arrayLen = array.length
+      let maxBarNodesCount = Math.max(...data_structure.bar_counts)
       let CELL_SIZE = 10
-      let GRID_COLS = Math.ceil(Math.max(...data_structure.bar_counts) / 10) //5
-      if (GRID_COLS > 9) GRID_COLS = 9
+      let GRID_COLS = Math.ceil(maxBarNodesCount / 15) //5
+      //if (GRID_COLS > 7) GRID_COLS = 7
 
-      let GRID_ROWS = Math.ceil(array.length / GRID_COLS)
+      let GRID_ROWS = Math.ceil(maxBarNodesCount / GRID_COLS)
 
-      let emptyBarsSoFarCount = 0
-      let emptyCollsCount = 0
-      /* let shift =
-        (data_structure.bars.length - 1 - allEmptyBarsCount) *
-        (GRID_COLS + 1) *
-        (CELL_SIZE - 1) */
+      // not really bulletproof calculations tbh but i tried
+      while (GRID_ROWS > 10 && maxBarNodesCount < 60) {
+        if (GRID_ROWS > 10) {
+          GRID_COLS += 1
+        }
+        GRID_ROWS = Math.ceil(maxBarNodesCount / GRID_COLS)
+        if (GRID_COLS > 6) {
+          GRID_COLS = 6
+          break
+        }
+      }
+
+      if (maxBarNodesCount > 120) {
+        if (GRID_COLS > 10) GRID_COLS = 10
+        GRID_ROWS = Math.ceil(maxBarNodesCount / GRID_COLS)
+      } else if (maxBarNodesCount > 80) {
+        if (GRID_COLS > 8) GRID_COLS = 8
+        GRID_ROWS = Math.ceil(maxBarNodesCount / GRID_COLS)
+      } else if (maxBarNodesCount > 60) {
+        if (GRID_COLS > 6) GRID_COLS = 6
+        GRID_ROWS = Math.ceil(maxBarNodesCount / GRID_COLS)
+      }
 
       let newShift = 0 // shift in x coord for all cells
       // we calculate it by counting all cells in first row of all bars
@@ -867,60 +875,16 @@ export default {
       newShift *= CELL_SIZE
       newShift /= 2 //we only want to shift it by half the size of whole barchart
 
-      /* let GRID_COLS_COUNT_WITH_NO_EMPTY_COLS = GRID_COLS
-      let GRID_ROWS_COUNT_WITH_NO_EMPTY_COLS = GRID_ROWS */
-
-      /* let colsSoFar = 0
-      let barsWithNotEnoughColls = 0 */
-
       let lastCell = null
       let start_x = 0
 
       for (var bar = 0; bar < data_structure.bars.length; bar++) {
-        emptyCollsCount = 0
         const currentBarCells = []
 
         let cells_count = data_structure.bar_counts[bar]
-
-        if (cells_count <= 0) {
-          data_structure.chart_cells.push([])
-          emptyBarsSoFarCount++
-          continue
-        }
-
-        /* if (GRID_COLS - cells_count > 0) {
-          emptyCollsCount += GRID_COLS - cells_count //TODO: -emptyCollsCount somewhere?
-          GRID_COLS = cells_count
-          GRID_ROWS = 1
-          emptyBarsSoFarCount++
-          barsWithNotEnoughColls += GRID_COLS - cells_count
-        } else {
-          GRID_COLS = GRID_COLS_COUNT_WITH_NO_EMPTY_COLS
-          GRID_ROWS = GRID_ROWS_COUNT_WITH_NO_EMPTY_COLS
-        } */
-
-        //colsSoFar += GRID_COLS
-
-        //let start_x = (bar - emptyBarsSoFarCount) * (GRID_COLS + 1) * (CELL_SIZE - 1)
-        //(bar - emptyBarsSoFarCount) * (GRID_COLS + 1) * (CELL_SIZE - 1)
-        /* for (var i = 0; i < bar + 1; i++) {
-          //console.log('hm', data_structure.bar_counts[i])
-          //console.log('hm cols', GRID_COLS_COUNT_WITH_NO_EMPTY_COLS)
-          start_x += data_structure.bar_counts[i] % GRID_COLS //_COUNT_WITH_NO_EMPTY_COLS
-        }
-        start_x++
-        start_x *= CELL_SIZE - 1
-        start_x *= bar - emptyBarsSoFarCount */
-
-        //console.log('startsx', start_x)
-
-        /* start_x =
-          start_x + (GRID_COLS - emptyCollsCount) * CELL_SIZE - shift / 2 */
-        //let lastCell = null
-        if (lastCell) start_x = lastCell.x + CELL_SIZE
-        //console.log('s', start_x)
-
         let cells_count_before = cells_count
+
+        if (lastCell) start_x = lastCell.x + CELL_SIZE
 
         for (var r = 0; r < GRID_ROWS; r++) {
           for (var c = 0; c < GRID_COLS; c++) {
@@ -949,7 +913,6 @@ export default {
       this.grid_cells.push(data_structure)
 
       d3.select('#neighbourhood-' + gNeighbourhoodID).attr('transform', d => {
-        console.log('d', d)
         d.pos[0] -= newShift
         d.shiftX = newShift
         return (
@@ -988,7 +951,7 @@ export default {
       let CELL_SIZE = 10
       let GRID_COLS = Math.ceil(numberOfCells / 10) //5
 
-      // this is great programming idk what're you talking about
+      // this is great programming idk what are you talking about
       if (GRID_COLS >= 30) {
         GRID_COLS = 30
       } else if (GRID_COLS >= 25) {
