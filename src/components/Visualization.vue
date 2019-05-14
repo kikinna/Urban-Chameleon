@@ -111,7 +111,6 @@ export default {
       tree: [], //whole accidentData.accidents stored in kdTree datastructure
       accidentsOnScreenIndices: [], //indices of every point on screen
       accidentsOnScreenObj: [], //stored whole objects of points on screen
-      wasScreenPoints: [],
       nodeRadius: 5, //default node radius
       aggrVisScale: 0.8, //value by which aggrVis g elements are scaled
       maxSizeOfForceLayoutNeighbourhood: 10, //maxSizeOfNeighbourhoodToUseForceLayoutInsteadOfAggrVis IActuallyDidn'tNeedToUseCamelCaseHereButIOnlyNoticedNowHelpMe
@@ -331,7 +330,6 @@ export default {
     },
     //update accidents on screen
     updatePoints() {
-      this.wasScreenPoints = [...this.accidentsOnScreenObj]
       this.accidentsOnScreenIndices = []
       this.accidentsOnScreenObj = []
       //set latitude and longitude for left up and right down point
@@ -370,6 +368,7 @@ export default {
         )
       })
     },
+    //get accidents on screen using KD-tree
     recomputeAccidentsOnScreen(node) {
       if (node === null) {
         return
@@ -708,7 +707,6 @@ export default {
     //make polygon from convex hull of neighbourhood array
     drawPolygonUnderNeighbourhoods() {
       let viewport = getViewport(this.$store.state.map)
-      //this.upL = viewport.unproject([0, 0])
       d3.selectAll('polygon').remove()
       let that = this
       this.polygons
@@ -719,20 +717,15 @@ export default {
         .append('polygon')
         .attr('points', function(d) {
           let str = ''
-          //console.log(d.hullPoints)
           d.hullPoints.forEach(o => {
             let pos = viewport.project([
               accidentData.accidents[o].X,
               accidentData.accidents[o].Y
             ])
-            // if(accidentData.accidents[o].x > 0 && accidentData.accidents[o].x < window.innerWidth
-            //   && accidentData.accidents[o].y > 0 && accidentData.accidents[o].y < window.innerHeight){
             str += pos[0].toString(10) + ',' + pos[1].toString(10) + ' '
-            //}
           })
           return str
         })
-        //.style('fill', '#60bac668') // first attempt
         .style('fill', '#777b7f40') // +- rgba(119, 123, 127, 0.208)
         .style('stroke', '567985cc')
         .style('strokeWidth', '2px')
@@ -797,7 +790,6 @@ export default {
           d.inNeighbourhood = true
           neighbourhood.nodesInNeighbourhood.push(newNode)
         })
-        //console.log(this.neighbourhood[i].indexInBoundingBoxes)
         this.getNeighbourhoodCenter(
           neighbourhood,
           this.neighbourhood[i].indexInBoundingBoxes
@@ -1140,7 +1132,7 @@ export default {
         }
       }
     },
-    //returning true if point which was not in hull lies inside the polygon
+    //return true if point which was not in blob lies inside the polygon
     isPointInPolygon(point, polygon) {
       let x = accidentData.accidents[point].x
       let y = accidentData.accidents[point].y
