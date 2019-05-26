@@ -95,7 +95,7 @@ export default {
       aggrVisScale: 0.8, //value by which aggrVis g elements are scaled
       maxSizeOfForceLayoutNeighbourhood: 10, //maxSizeOfNeighbourhoodToUseForceLayoutInsteadOfAggrVis IActuallyDidn'tNeedToUseCamelCaseHereButIOnlyNoticedNowHelpMe
       isAggrVisInitialized: false, //flag for deciding if we should draw the aggregated vis or just update it
-      doYouWantSomeWafflesCowboy: false, //TODO: temporary flag for deciding whether we want to draw waffle or barchart
+      //doYouWantSomeWafflesCowboy: false, //temporary flag for deciding whether we want to draw waffle or barchart
       arrayForForceLayout: [], //array with the neighbourhood nodes, from neighbourhoods with less than maxSizeOfForceLayoutNeighbourhood nodes
       listOfCategoriesInPrimaryAttribute: [], //list of sub categories for the selected data category (primary attribute), e.g., day and night for attribute "day"
       aggregatedVisTypes: ['Waffle chart', 'Bar chart'],
@@ -109,7 +109,7 @@ export default {
         'MainCause',
         'RoadCondition',
         'Weather',
-        'VehicleType',
+        'PlaceSituation',
         'Skyd'
       ],
       primaryAttributeSelected: 'Type', // currently selected primary attribute
@@ -118,16 +118,16 @@ export default {
         //colorbrewer dark 12
         '#a6cee3',
         '#1f78b4',
-        '#b2df8a', //gr
+        '#b2df8a',
         '#33a02c',
         '#fb9a99',
         '#e31a1c',
         '#fdbf6f',
         '#ff7f00',
         '#cab2d6',
-        '#6a3d9a'
-        //'#ffff99',
-        //'#b15928'
+        '#6a3d9a',
+        '#ffff99',
+        '#b15928'
       ],
       boundingBoxesIndices: [], // stored min max points for bounding box of every neighbourhood - minX,maxX,minY,maxY
       imData: [], //gauss preprocess image stored
@@ -250,7 +250,20 @@ export default {
         .on('click', d => {
           this.tooltip
             .style('opacity', 1.0)
-            .html(d[this.primaryAttributeSelected])
+            .html(
+              this.primaryAttributeSelected +
+                ': ' +
+                d[this.primaryAttributeSelected] +
+                '<br/>' +
+                'Vehicle type: ' +
+                d.VehicleType +
+                '<br/>' +
+                'Damage: ' +
+                d.Damage +
+                '<br/>' +
+                'Main cause: ' +
+                d.MainCause
+            )
             .style('left', d3.event.pageX + 'px')
             .style('top', d3.event.pageY - 28 + 'px')
         })
@@ -566,8 +579,16 @@ export default {
             .html(
               this.primaryAttributeSelected +
                 ': ' +
+                d[this.primaryAttributeSelected] +
                 '<br/>' +
-                d[this.primaryAttributeSelected]
+                'Vehicle type: ' +
+                d.VehicleType +
+                '<br/>' +
+                'Damage: ' +
+                d.Damage +
+                '<br/>' +
+                'Main cause: ' +
+                d.MainCause
             )
             .style('left', d3.event.pageX + 'px')
             .style('top', d3.event.pageY - 28 + 'px')
@@ -578,14 +599,6 @@ export default {
     },
     // changes primary attribute based on which are circles colored
     changePrimaryAttribute() {
-      /* this.listOfCategoriesInPrimaryAttribute = Array.from(
-        new Set(
-          accidentData.accidents.map(
-            node => node[this.primaryAttributeSelected]
-          )
-        )
-      ) */
-
       this.listOfCategoriesInPrimaryAttribute = [
         ...new Set(
           accidentData.accidents.map(
@@ -607,6 +620,10 @@ export default {
         return this.colorScale(d[this.primaryAttributeSelected])
       })
       this.updateVisualizations()
+
+      if (this.$store.state.map.getZoom() > 18.5) {
+        this.createAccidentDetail()
+      }
     },
     //updates all visualizations - svg nodes, aggregated visualizations
     updateVisualizations() {
@@ -617,7 +634,6 @@ export default {
 
       if (this.arrayForForceLayout.length > 0) this.createForceLayout()
       this.makeNodesFromNeighbourhoodsInvisibleOnMap()
-      //TODO: remove visualisations and set this.isAggrVisInitialized to false on some zoom level
 
       this.transitionNodesFromAggrVisToMapToTheirPosition()
       this.emptyAggrVisArrays() // empty array of grid cells before reinitializing it in the for loop for each neighbourhood
@@ -751,6 +767,9 @@ export default {
             inNeighbourhood: true,
             neighbourhoodPosition: d.neighbourhoodPosition,
             Type: d[this.primaryAttributeSelected],
+            VehicleType: d.VehicleType,
+            Damage: d.Damage,
+            MainCause: d.MainCause,
             primaryAttribute: d[this.primaryAttributeSelected],
             center: [0, 0]
           }
@@ -889,7 +908,7 @@ export default {
         )
       })
     },
-    //initialisation of grid for aggregated visualization - wafflechart
+    //initialization of grid for aggregated visualization - wafflechart
     initGridForWafflechart(array) {
       const data_structure = {
         typesOfData: [...this.listOfCategoriesInPrimaryAttribute],
@@ -912,9 +931,14 @@ export default {
       let arrayLen = array.length
 
       let CELL_SIZE = 10
-      let GRID_COLS = Math.ceil(numberOfCells / 10) //5
+      let GRID_COLS = Math.ceil(numberOfCells / 10)
 
       // this is great programming idk what are you talking about
+      // but srsly, switch is slow for greater/lower
+      // https://stackoverflow.com/questions/6665997/switch-statement-for-greater-than-less-than
+      // basically we step the number of collumns in a way that there
+      // will be more similar waffle charts, so that comparison
+      // between them is easier
       if (GRID_COLS >= 30) {
         GRID_COLS = 30
       } else if (GRID_COLS >= 25) {
@@ -939,8 +963,6 @@ export default {
 
       let counterArray = 0
 
-      //let cells_count = data_structure.type_counts[type]
-      //
       for (var r = 0; r < GRID_ROWS; r++) {
         for (var c = 0; c < GRID_COLS; c++) {
           if (arrayLen <= 0) break
@@ -1165,7 +1187,7 @@ export default {
           posi[1] < window.innerHeight
         ) {
           accidentData.accidents[o].color = this.colorScale(
-            accidentData.accidents[o].Type
+            accidentData.accidents[o][this.primaryAttributeSelected]
           )
           this.detailAccidents.push(accidentData.accidents[o].myIndex)
         }
@@ -1173,16 +1195,7 @@ export default {
     },
     // creates new force layout from neighbourhoods that have less than maxSizeOfForceLayoutNeighbourhood of circles
     createForceLayout() {
-      let forceArray = []
-      const viewport = getViewport(this.$store.state.map)
-      for (var i = 0; i < this.arrayForForceLayout.length; i++) {
-        this.arrayForForceLayout[i].forEach(n => {
-          this.dataD3.accidents[n].inForceLayout = true
-          Vue.set(this.dataD3.accidents[n], 'inForceLayout', true)
-          //console.log('d', this.dataD3.accidents[n])
-          forceArray.push(this.dataD3.accidents[n])
-        })
-      }
+      let forceArray = this.accidentsOnScreenObj
 
       this.nodesOnMap.attr('class', d => {
         if (d.inNeighbourhood) {
@@ -1191,26 +1204,12 @@ export default {
         return 'nodesOnMap'
       })
 
-      const currentSimulation = d3.forceSimulation(this.accidentsOnScreenObj)
-      //.nodes(forceArray)
-
-      currentSimulation
+      d3.forceSimulation(forceArray)
         .force(
           'collide',
           d3
             .forceCollide()
             .radius(this.circleRadius)
-            /* .radius(d => {
-              //console.log(d)
-              /* if (d.inForceLayout) {
-                //console.log('yay')
-                //return 1
-              } else {
-                //console.log('nope')
-                //return 0
-              } 
-              return 5
-            }) */
             .strength(1)
             .iterations(1)
         )
@@ -1219,7 +1218,6 @@ export default {
     // tick function for force layout - moves nodes to their new positions
     tick() {
       const t = d3.transition().duration(0)
-      //.ease(d3.easeLinear)
       const viewport = getViewport(this.$store.state.map)
 
       this.nodesOnMap
@@ -1321,7 +1319,21 @@ export default {
           .on('click', d => {
             this.tooltip
               .style('opacity', 1.0)
-              .html(d.primaryAttribute)
+              .html(
+                this.primaryAttributeSelected +
+                  ': ' +
+                  d[this.primaryAttributeSelected] +
+                  '<br/>' +
+                  'Vehicle type: ' +
+                  d.VehicleType +
+                  '<br/>' +
+                  'Damage: ' +
+                  d.Damage +
+                  '<br/>' +
+                  'Main cause: ' +
+                  d.MainCause
+              )
+              //.html(d.primaryAttribute)
               .style('left', d3.event.pageX + 'px')
               .style('top', d3.event.pageY - 28 + 'px')
           })
@@ -1420,8 +1432,8 @@ h2 {
 .tooltip {
   position: absolute;
   text-align: center;
-  width: 90px;
-  height: 50px;
+  width: 150px;
+  height: 100px;
   padding: 2px;
   font: 12px 'Avenir';
   font-weight: 470;
@@ -1440,4 +1452,10 @@ h2 {
   stroke: rgb(255, 255, 255);
   stroke-width: 2px;
 }
+
+/*
+( •_•)
+( •_•)>⌐■-■
+(⌐■_■)
+*/
 </style>
