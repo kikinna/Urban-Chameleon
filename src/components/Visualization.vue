@@ -7,8 +7,6 @@
       :index="index"
     ></AccidentDetail>
 
-    <!-- Warning message show when there are too many dots on screen <el-button plain @click="warningMessage">Won't close automatically</el-button>-->
-
     <div class="control-pane urban-ui-border">
       <h2 class="ui-text">Unit visualization</h2>
       <b-select
@@ -45,7 +43,7 @@
 <script>
 import * as d3 from 'd3'
 import store from '../store.js'
-import accidentData from '../data/accidentsBrno2018.js'
+import accidentData from '../../public/data/accidentsBrno2018.js'
 import AccidentDetail from './AccidentDetail.vue'
 import { EventBus } from '../helpers/EventBus.js'
 import {
@@ -94,10 +92,9 @@ export default {
       tree: [], //whole accidentData.accidents stored in kdTree datastructure
       accidentsOnScreenIndices: [], //indices of every point on screen
       accidentsOnScreenObj: [], //stored whole objects of points on screen
-      circleRadius: 5, //default circle radius of nodes
+      dotRadius: 5, //default circle radius of dots/nodes
       aggrVisScale: 0.8, //value by which aggrVis g elements are scaled
       maxSizeOfForceLayoutNeighbourhood: 10, //maxSizeOfNeighbourhoodToUseForceLayoutInsteadOfAggrVis IActuallyDidn'tNeedToUseCamelCaseHereButIOnlyNoticedNowHelpMe
-      isAggrVisInitialized: false, //flag for deciding if we should draw the aggregated vis or just update it
       //doYouWantSomeWafflesCowboy: false, //temporary flag for deciding whether we want to draw waffle or barchart
       arrayForForceLayout: [], //array with the neighbourhood nodes, from neighbourhoods with less than maxSizeOfForceLayoutNeighbourhood nodes
       listOfCategoriesInPrimaryAttribute: [], //list of sub categories for the selected data category (primary attribute), e.g., day and night for attribute "day"
@@ -197,10 +194,6 @@ export default {
 
       this.listOfCategoriesInPrimaryAttribute.sort()
 
-      console.log('aaaaaa', this.listOfCategoriesInPrimaryAttribute)
-
-      //console.log('bbbbbbb', sortArrayAlphabetically(arr))
-
       this.colorScale = d3
         .scaleOrdinal()
         .domain(this.listOfCategoriesInPrimaryAttribute)
@@ -237,7 +230,7 @@ export default {
           d.inForceLayout = false
           d.inNeighbourhood = false
         })
-        .attr('r', this.circleRadius)
+        .attr('r', this.dotRadius)
         .attr('fill', d => {
           return this.colorScale(d[this.primaryAttributeSelected])
         })
@@ -264,8 +257,11 @@ export default {
                 'Damage: ' +
                 d.Damage +
                 '<br/>' +
-                'Main cause: ' +
-                d.MainCause
+                'Injuries: ' +
+                (d.HeavyInjuries + d.LightInjuries) +
+                '<br/>' +
+                'Death Toll: ' +
+                d.DeathToll
             )
             .style('left', d3.event.pageX + 'px')
             .style('top', d3.event.pageY - 28 + 'px')
@@ -275,12 +271,12 @@ export default {
         })
     },
     warningMessage() {
-      this.$notify({
-        title: 'Warning',
+      this.$notify.info({
+        title: 'Info',
         message:
           'Here the visualization should transition into Level 4 - Aggregated visualization because the unit visualizations' +
-          ' become more computationally expensive and less readable due to the amount of data items.',
-        type: 'warning'
+          ' become more computationally expensive and less readable due to the amount of data items. ' +
+          'This is not part of the prototype for the bachelor thesis.'
       })
     },
     listeners() {
@@ -290,17 +286,14 @@ export default {
         this.moveVisualizations()
         let zoom = this.$store.state.map.getZoom()
 
-        if (zoom > 15) this.aggrVisScale = 1
-        else if (zoom > 14) this.aggrVisScale = 0.9
-        else if (zoom > 13) this.aggrVisScale = 0.8
-        else if (zoom > 12) this.aggrVisScale = 0.7
+        if (zoom > 15) this.aggrVisScale = 0.9
+        else if (zoom > 14) this.aggrVisScale = 0.8
+        else if (zoom > 13) this.aggrVisScale = 0.7
         else this.aggrVisScale = 0.7
 
         if (this.$store.state.map.getZoom() < 12) {
           this.warningMessage()
         }
-
-        //this.nodesOnMap.style('strokeWidth', '1px')
       })
       this.$root.$on('map-move', () => {
         this.updatePoints()
@@ -570,7 +563,7 @@ export default {
           d.inForceLayout = false
           d.isInNeighbourhood = false
         })
-        .attr('r', this.circleRadius)
+        .attr('r', this.dotRadius)
         .attr('fill', d => {
           return this.colorScale(d[this.primaryAttributeSelected])
         })
@@ -603,8 +596,11 @@ export default {
                 'Damage: ' +
                 d.Damage +
                 '<br/>' +
-                'Main cause: ' +
-                d.MainCause
+                'Injuries: ' +
+                (d.HeavyInjuries + d.LightInjuries) +
+                '<br/>' +
+                'Death Toll: ' +
+                d.DeathToll
             )
             .style('left', d3.event.pageX + 'px')
             .style('top', d3.event.pageY - 28 + 'px')
@@ -629,10 +625,7 @@ export default {
         .domain(this.listOfCategoriesInPrimaryAttribute)
         .range(this.colorHexes)
 
-      console.log('aaaaaa', this.listOfCategoriesInPrimaryAttribute)
-
       this.nodesOnMap.attr('fill', d => {
-        //console.log('d', d[this.primaryAttributeSelected])
         return this.colorScale(d[this.primaryAttributeSelected])
       })
       this.updateVisualizations()
@@ -789,7 +782,9 @@ export default {
             Type: d[this.primaryAttributeSelected],
             VehicleType: d.VehicleType,
             Damage: d.Damage,
-            MainCause: d.MainCause,
+            HeavyInjuries: d.HeavyInjuries,
+            LightInjuries: d.LightInjuries,
+            DeathToll: d.DeathToll,
             primaryAttribute: d[this.primaryAttributeSelected],
             center: [0, 0]
           }
@@ -1229,7 +1224,7 @@ export default {
           'collide',
           d3
             .forceCollide()
-            .radius(this.circleRadius)
+            .radius(this.dotRadius)
             .strength(1)
             .iterations(1)
         )
@@ -1307,7 +1302,7 @@ export default {
           .join('circle')
           .attr('class', 'circlesInAggregatedVis')
           .attr('r', () => {
-            return this.circleRadius
+            return this.dotRadius
           })
           .attr('fill', d => {
             return this.colorScale(d.primaryAttribute)
@@ -1350,10 +1345,12 @@ export default {
                   'Damage: ' +
                   d.Damage +
                   '<br/>' +
-                  'Main cause: ' +
-                  d.MainCause
+                  'Injuries: ' +
+                  (d.HeavyInjuries + d.LightInjuries) +
+                  '<br/>' +
+                  'Death Toll: ' +
+                  d.DeathToll
               )
-              //.html(d.primaryAttribute)
               .style('left', d3.event.pageX + 'px')
               .style('top', d3.event.pageY - 28 + 'px')
           })
@@ -1422,7 +1419,6 @@ h2 {
 .control-pane {
   bottom: 25px;
   left: 25px;
-  /* position: relative; */
   width: 200px;
 }
 
@@ -1451,7 +1447,7 @@ h2 {
 
 .tooltip {
   position: absolute;
-  text-align: center;
+  text-align: left;
   width: 150px;
   height: 100px;
   padding: 2px;
