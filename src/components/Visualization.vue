@@ -192,6 +192,12 @@ export default {
         )
       ]
 
+      this.listOfCategoriesInPrimaryAttribute.sort()
+
+      console.log('aaaaaa', this.listOfCategoriesInPrimaryAttribute)
+
+      //console.log('bbbbbbb', sortArrayAlphabetically(arr))
+
       this.colorScale = d3
         .scaleOrdinal()
         .domain(this.listOfCategoriesInPrimaryAttribute)
@@ -572,11 +578,32 @@ export default {
     },
     // changes primary attribute based on which are circles colored
     changePrimaryAttribute() {
-      this.listOfCategoriesInPrimaryAttribute = new Set(
-        accidentData.accidents.map(node => node[this.primaryAttributeSelected])
-      )
+      /* this.listOfCategoriesInPrimaryAttribute = Array.from(
+        new Set(
+          accidentData.accidents.map(
+            node => node[this.primaryAttributeSelected]
+          )
+        )
+      ) */
+
+      this.listOfCategoriesInPrimaryAttribute = [
+        ...new Set(
+          accidentData.accidents.map(
+            node => node[this.primaryAttributeSelected]
+          )
+        )
+      ]
+      this.listOfCategoriesInPrimaryAttribute.sort()
+
+      this.colorScale = d3
+        .scaleOrdinal()
+        .domain(this.listOfCategoriesInPrimaryAttribute)
+        .range(this.colorHexes)
+
+      console.log('aaaaaa', this.listOfCategoriesInPrimaryAttribute)
+
       this.nodesOnMap.attr('fill', d => {
-        console.log('d', d[this.primaryAttributeSelected])
+        //console.log('d', d[this.primaryAttributeSelected])
         return this.colorScale(d[this.primaryAttributeSelected])
       })
       this.updateVisualizations()
