@@ -48,10 +48,8 @@ export default {
       canvas_height: 720,
       canvas_width: 710.4,
       canvas_aspect_ratio: 0.5625, // h/w
-      boundingBoxesOfBlobs: [],
-      imageResult: [],
-      indexies: [],
-      accidentsOnScreen: [],
+      boundingBoxesOfBlobs: [], //array with minimal and maximal points of x and y-axis od a blob
+      accidentsOnScreen: [], 
       moved: true
     }
   },
@@ -120,6 +118,7 @@ export default {
         this.viewport = getViewport(this.$store.state.map)
         this.moved = true
       })
+      //event for comunication with visualization component
       EventBus.$on('neigh', data => {
         if (this.moved) {
           this.accidentsOnScreen = data
@@ -141,8 +140,7 @@ export default {
       this.canvas = document.getElementById('paper-canvas')
       this.canvas.width = this.canvas_width
       this.canvas.height = this.canvas_height
-      // this.canvas.width = 1903;
-      // this.canvas.height = 969;
+
       this.devicePixelRatio = window.devicePixelRatio || 1
       this.canvas_context = this.canvas.getContext('2d')
     },
@@ -223,7 +221,8 @@ export default {
               0,
               0
             )
-            that.bbOfHullOfBlob()
+            // --- 6. BOUNDING BOXES ---
+            that.boundingBoxes()
             setTimeout(() => {
               let data = {
                 boundingBoxes: that.boundingBoxesOfBlobs,
@@ -285,7 +284,6 @@ export default {
         that.canvas_context.putImageData(result, 0, 0)
       })
     },
-
     blobDetection(imageData) {
       // let imageData = this.canvas_context.getImageData(0, 0, this.canvas.width, this.canvas.height);
       // let that = this;
@@ -304,8 +302,7 @@ export default {
       // this.canvas_context.putImageData(imageData, 0, 0)
       this.$store.commit('storeNeighbourhoodImage', imageData)
     },
-
-    bbOfHullOfBlob() {
+    boundingBoxes() {
       let imageData = this.$store.state.neighbourhoodImage
       let boundingB = []
       let scale = this.canvas_to_screen_ratio
@@ -351,7 +348,7 @@ export default {
           }
         }
       }
-      //delete the one that are undefined and ones that lies inside the others
+      //delete the ones that are undefined and ones that lies inside the other box
       for (let i = 1; i < boundingB.length; i++) {
         if (boundingB[i] !== undefined) {
           let first = boundingB[i]

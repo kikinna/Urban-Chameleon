@@ -98,6 +98,7 @@ export default {
       this.render()
     },
     render() {},
+    //making the card visible and not visible by clicking on it
     mouseMoved(event) {
       if (
         event.clientX > Math.floor(this.accident.x - 10) &&
