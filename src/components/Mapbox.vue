@@ -1,3 +1,4 @@
+
 <template>
   <div :id="mapOptions.hasOwnProperty('container') ? mapOptions.container : 'map'"></div>
 </template>
@@ -15,7 +16,7 @@ export default {
   props: {
     accessToken: {
       type: String,
-      required: true
+      required: false // not necessary for maptiler, only for mapbox studio maps
     },
     mapOptions: {
       type: Object,
@@ -26,17 +27,8 @@ export default {
       default: () => {
         return {
           show: true,
-          position: 'top-right'
-        }
-      }
-    },
-    geolocateControl: {
-      type: Object,
-      default: () => {
-        return {
-          show: false,
-          position: 'top-left',
-          options: {}
+          position: 'top-right',
+          options: { showCompass: false }
         }
       }
     },
@@ -44,18 +36,9 @@ export default {
       type: Object,
       default: () => {
         return {
-          show: false,
+          show: true,
           position: 'top-left',
           options: {}
-        }
-      }
-    },
-    fullscreenControl: {
-      type: Object,
-      default: () => {
-        return {
-          show: false,
-          position: 'top-right'
         }
       }
     }
@@ -66,21 +49,12 @@ export default {
 
     //Save map object to data
     this._map = map
-    //this.$store.dispatch('loadMap');
-    //this.$store.commit('loadMap', this._map, this.mapOptions.container);
 
     //Add Controls to map
     this.addControls(map)
 
     //Register Map Events
     this.registerEvents(map)
-
-    //remove draw controls: lineString, polygon, trash, marker...
-    document
-      .querySelector(
-        '#map > div.mapboxgl-control-container > div.mapboxgl-ctrl-top-right > div:nth-child(1)'
-      )
-      .remove()
   },
   methods: {
     mapInit() {
@@ -353,40 +327,10 @@ export default {
         map.addControl(nav, this.navControl.position)
       }
 
-      //Geolocation Control
-      if (this.geolocateControl.show) {
-        const geolocate = new mapboxgl.GeolocateControl(
-          this.geolocateControl.options
-        )
-        map.addControl(geolocate, this.geolocateControl.position)
-
-        geolocate.on('geolocate', position => {
-          this.$emit('geolocate-geolocate', geolocate, position)
-        })
-
-        geolocate.on('trackuserlocationstart', () => {
-          this.$emit('geolocate-trackuserlocationstart', geolocate)
-        })
-
-        geolocate.on('trackuserlocationend', () => {
-          this.$emit('geolocate-trackuserlocationend', geolocate)
-        })
-
-        geolocate.on('error', positionError => {
-          this.$emit('geolocate-error', geolocate, positionError)
-        })
-      }
-
       //Scale Control
       if (this.scaleControl.show) {
         const scale = new mapboxgl.ScaleControl(this.scaleControl.options)
         map.addControl(scale, this.scaleControl.position)
-      }
-
-      //Fullscreen Control
-      if (this.fullscreenControl.show) {
-        const fullscreen = new mapboxgl.FullscreenControl()
-        map.addControl(fullscreen, this.fullscreenControl.position)
       }
     }
   },

@@ -1,12 +1,12 @@
 // Blob detection algorithm from http://blog.acipo.com/blob-detection-js/
 
-export function findBlobs(src) {
-  var xSize = src.width,
-    ySize = src.height,
-    srcPixels = src.data,
-    x,
-    y,
-    pos
+export function findBlobs (src) {
+  var xSize = src.width
+  var ySize = src.height
+  var srcPixels = src.data
+  var x
+  var y
+  var pos
   // This will hold the indecies of the regions we find
   var blobMap = []
   var label = 1
@@ -48,28 +48,28 @@ export function findBlobs(src) {
           ss = blobMap[y + 1][x - 0] || 0
           se = blobMap[y + 1][x + 1] || 0
           minIndex = ww
-          if (0 < ww && ww < minIndex) {
+          if (ww > 0 && ww < minIndex) {
             minIndex = ww
           }
-          if (0 < ee && ee < minIndex) {
+          if (ee > 0 && ee < minIndex) {
             minIndex = ee
           }
-          if (0 < nn && nn < minIndex) {
+          if (nn > 0 && nn < minIndex) {
             minIndex = nn
           }
-          if (0 < ne && ne < minIndex) {
+          if (ne > 0 && ne < minIndex) {
             minIndex = ne
           }
-          if (0 < nw && nw < minIndex) {
+          if (nw > 0 && nw < minIndex) {
             minIndex = nw
           }
-          if (0 < ss && ss < minIndex) {
+          if (ss > 0 && ss < minIndex) {
             minIndex = ss
           }
-          if (0 < se && se < minIndex) {
+          if (se > 0 && se < minIndex) {
             minIndex = se
           }
-          if (0 < sw && sw < minIndex) {
+          if (sw > 0 && sw < minIndex) {
             minIndex = sw
           }
           // This point starts a new blob -- increase the label count and
@@ -140,9 +140,9 @@ export function findBlobs(src) {
   }
   // The blobs may have unusual labels: [1,38,205,316,etc..]
   // Let's rename them: [1,2,3,4,etc..]
-//   console.log('labelTable', labelTable)
+  //   console.log('labelTable', labelTable)
   var uniqueLabels = unique(labelTable)
-//   console.log('uniqueLabels', uniqueLabels)
+  //   console.log('uniqueLabels', uniqueLabels)
   var i = 0
   for (label in uniqueLabels) {
     labelTable[label] = i++
@@ -158,14 +158,14 @@ export function findBlobs(src) {
   return blobMap
 }
 
-export function unique(arr) {
+export function unique (arr) {
   /// Returns an object with the counts of unique elements in arr
   /// unique([1,2,1,1,1,2,3,4]) === { 1:4, 2:2, 3:1, 4:1 }
 
-  var value,
-    counts = {}
-  var i,
-    l = arr.length
+  var value
+  var counts = {}
+  var i
+  var l = arr.length
   for (i = 0; i < l; i += 1) {
     value = arr[i]
     if (counts[value]) {

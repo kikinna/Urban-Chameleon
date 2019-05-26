@@ -64,4 +64,3 @@ export function occupyNearestBarchart (p, data_structure) {
   if (candidate) candidate.occupied = true
   return candidate
 }
-

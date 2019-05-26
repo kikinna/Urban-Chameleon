@@ -1,9 +1,9 @@
-export function sortPoints(anchorP, points, that) {
+export function sortPoints (anchorP, points, that) {
   return points.sort((a, b) => {
-    //console.log('a,b',a,b)
+    // console.log('a,b',a,b)
     let polarA = that.findPolarAngle(anchorP, a)
     let polarB = that.findPolarAngle(anchorP, b)
-    //console.log('polarA,polarB', polarA,polarB)
+    // console.log('polarA,polarB', polarA,polarB)
     if (polarA < polarB) {
       return -1
     }
@@ -14,9 +14,9 @@ export function sortPoints(anchorP, points, that) {
   })
 }
 
-export function checkPoints(p0, p1, p2, that) {
+export function checkPoints (p0, p1, p2, that) {
   let difAngle
-  //console.log('p0,p1,p2',p0,p1,p2)
+  // console.log('p0,p1,p2',p0,p1,p2)
   let cwAngle = that.findPolarAngle(p0, p1)
   let ccwAngle = that.findPolarAngle(p0, p2)
 
@@ -30,10 +30,10 @@ export function checkPoints(p0, p1, p2, that) {
   return true
 }
 
-export function addPoint(x, y, index, that) {
+export function addPoint (x, y, index, that) {
   // let point = accidentData.accidents[index]
   // let anchorP = accidentData.accidents[this.anchorPoint]
-  //check if this point will be anchor point
+  // check if this point will be anchor point
   if (
     that.anchorPoint === null ||
     y < that.anchorPoint.Y ||
@@ -47,12 +47,12 @@ export function addPoint(x, y, index, that) {
     that.points.push(index)
   }
 }
-export function getAngle(deltaX, deltaY, that) {
+export function getAngle (deltaX, deltaY, that) {
   let ONE_RADIAN = 57.295779513082
   let angle = Math.atan2(deltaY, deltaX) * ONE_RADIAN
 
   if (that.reverse) {
-    //this part is not working yet and im not sure if its needed
+    // this part is not working yet and im not sure if its needed
     if (angle <= 0) {
       angle += 360
     }
@@ -63,9 +63,9 @@ export function getAngle(deltaX, deltaY, that) {
   }
   return angle
 }
-//TIETO ESTE NEVIEM AKO PRESUNUT KEDZE TAM AJ DATA VYUZIVAM
+// TIETO ESTE NEVIEM AKO PRESUNUT KEDZE TAM AJ DATA VYUZIVAM
 
-//found some implementations where something like this was used, but was not needed now, but maybe will be ¯\_(ツ)_/¯
+// found some implementations where something like this was used, but was not needed now, but maybe will be ¯\_(ツ)_/¯
 //   export function checkIfPositive(points){
 //     //console.log(points)
 //     points.forEach(

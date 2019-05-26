@@ -1,5 +1,5 @@
 import WebMercatorViewport from 'viewport-mercator-project'
-import * as d3 from 'd3' //multiple imports of d3 // only used in drawPolygon, which will be replaced by convex hull
+import * as d3 from 'd3' // multiple imports of d3 // only used in drawPolygon, which will be replaced by convex hull
 
 /**
  * Manages coordinate system transformations
@@ -13,7 +13,7 @@ import * as d3 from 'd3' //multiple imports of d3 // only used in drawPolygon, w
  * unprojects pixel coordinates to map coordinates
  * [x, y] => [lng, lat]
  */
-export function getViewport(map) {
+export function getViewport (map) {
   const center = map.getCenter()
   const zoom = map.getZoom()
   const pitch = map.getPitch()
@@ -31,8 +31,8 @@ export function getViewport(map) {
   return viewport
 }
 
-//Measures distance between two geo points in meters
-export function measureGeoDistance(lat1, lon1, lat2, lon2) {
+// Measures distance between two geo points in meters
+export function measureGeoDistance (lat1, lon1, lat2, lon2) {
   // generally used geo measurement function
   var R = 6378.137 // Radius of earth in KM
   var dLat = (lat2 * Math.PI) / 180 - (lat1 * Math.PI) / 180
@@ -48,16 +48,16 @@ export function measureGeoDistance(lat1, lon1, lat2, lon2) {
   return d * 1000 // meters
 }
 
-export function drawPolygon(svg, map) {
+export function drawPolygon (svg, map) {
   const viewport = getViewport(map)
 
-  //large house party
+  // large house party
   const latlon1 = viewport.project([16.59512715090524, 49.20013082305056])
   const latlon2 = viewport.project([16.595096320004444, 49.19380583417316])
   const latlon3 = viewport.project([16.605566189434686, 49.19358091860195])
   const latlon4 = viewport.project([16.605512948005973, 49.19883456531343])
 
-  //The data for our line
+  // The data for our line
   let lineData = [
     { x: latlon1[0], y: latlon1[1] },
     { x: latlon2[0], y: latlon2[1] },
@@ -66,17 +66,17 @@ export function drawPolygon(svg, map) {
     { x: latlon1[0], y: latlon1[1] }
   ]
 
-  //This is the accessor function we talked about above
+  // This is the accessor function we talked about above
   let lineFunction = d3
     .line()
-    .x(function(d) {
+    .x(function (d) {
       return d.x
     })
-    .y(function(d) {
+    .y(function (d) {
       return d.y
     })
 
-  //The SVG Container
+  // The SVG Container
   let svgContainer = svg
     .append('svg')
     .attr('class', 'polygon')
@@ -85,7 +85,7 @@ export function drawPolygon(svg, map) {
 
   d3.selectAll('.line').remove()
 
-  //The line SVG Path we draw
+  // The line SVG Path we draw
   svgContainer
     .append('path')
     .attr('class', 'line')

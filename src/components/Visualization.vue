@@ -29,27 +29,12 @@
         </b-select>
       </section>
 
-      <h2 class="ui-text">Change map style</h2>
-      <section>
-        <b-select v-model="mapStyleSelected" @input="changeMapStyle" size="is-small">
-          <option v-for="type in mapStyles" :value="type" :key="type.id">{{ type }}</option>
-        </b-select>
-      </section>
-
-      <h2 class="ui-text">Change color style</h2>
-      <section>
-        <b-select v-model="colorStyleSelected" @input="changeColorStyle" size="is-small">
-          <option v-for="type in colorStyles" :value="type" :key="type.id">{{ type }}</option>
-        </b-select>
-      </section>
-
       <!-- <a class="button">Click me</a> -->
     </div>
     <div class="urban-ui-border" style="position: absolute; right:25px; bottom:25px; width: 200px;">
       <h2 class="ui-text">LEGEND</h2>
-      <!-- <div v-for="(category, index) in primaryAttributeTypes" :key="index"> -->
-      <div v-for="(color, index) in listOfBarsTypeOfData" :key="index">
-        <svg width="15" height="10">
+      <div v-for="(color, index) in listOfCategoriesInPrimaryAttribute" :key="index">
+        <svg width="20" height="10">
           <circle cx="5" cy="5" r="5" :fill="colorHexes[index]" stroke="white" stroke-width="2px"></circle>
         </svg>
         <span style="font-size:small">{{ color }}</span>
@@ -60,7 +45,7 @@
 <script>
 import * as d3 from 'd3'
 import store from '../store.js'
-import accidentData from '../data/accidents2018full.js'
+import accidentData from '../data/accidentsBrno2018.js'
 import AccidentDetail from './AccidentDetail.vue'
 import { EventBus } from '../helpers/EventBus.js'
 import {
@@ -95,13 +80,8 @@ export default {
       anchorPoint: null, //anchor point of counting in progress neighbourhood
       reverse: false, //helper for angles in convexhull counting
       aggregatedData: [], //array of neighbourhoods, each neighbourhood is and array containing data for the nodes in aggregated vis
-      //transition: null, //animated transition for all, uhuh, not working as intended
-      //neighbourhoodNodesInSVG: [], //array of neighbourhoods, each neighbourhood is an array containing nodes in aggregated vis
       dataD3: [], //accident data
       grid_cells: [], //array of cell arrays; each grid array contains barchart grid positions {x, y, occupied}
-      simulation: null, //[], //null, //accident data force simulation
-      partySimulation: null,
-      nodesForceLayout: [],
       svg: null, //d3 svg selection
       nodesOnMap: null, //accident nodes
       polygons: null, //svg polygon selection
@@ -111,16 +91,15 @@ export default {
       tree: [], //whole accidentData.accidents stored in kdTree datastructure
       accidentsOnScreenIndices: [], //indices of every point on screen
       accidentsOnScreenObj: [], //stored whole objects of points on screen
-      nodeRadius: 5, //default node radius
+      circleRadius: 5, //default circle radius of nodes
       aggrVisScale: 0.8, //value by which aggrVis g elements are scaled
       maxSizeOfForceLayoutNeighbourhood: 10, //maxSizeOfNeighbourhoodToUseForceLayoutInsteadOfAggrVis IActuallyDidn'tNeedToUseCamelCaseHereButIOnlyNoticedNowHelpMe
       isAggrVisInitialized: false, //flag for deciding if we should draw the aggregated vis or just update it
       doYouWantSomeWafflesCowboy: false, //TODO: temporary flag for deciding whether we want to draw waffle or barchart
       arrayForForceLayout: [], //array with the neighbourhood nodes, from neighbourhoods with less than maxSizeOfForceLayoutNeighbourhood nodes
-      listOfBarsTypeOfData: [], //used in barchart to order bars grouped by the type of data
-      numberOfCurrentNeighbourhoods: 0,
+      listOfCategoriesInPrimaryAttribute: [], //list of sub categories for the selected data category (primary attribute), e.g., day and night for attribute "day"
       aggregatedVisTypes: ['Waffle chart', 'Bar chart'],
-      aggregatedVisSelected: 'Waffle chart',
+      aggregatedVisSelected: 'Waffle chart', // currently selected unit visualization
       primaryAttributeTypes: [
         'Day',
         'DayNight',
@@ -133,46 +112,22 @@ export default {
         'VehicleType',
         'Skyd'
       ],
-      primaryAttributeSelected: 'Type',
-      mapStyleSelected: 'Light',
-      mapStyles: ['Light', 'Dark', 'Other'],
-      colorStyleSelected: 'schemeDark2',
-      colorStyles: ['schemeDark2', '15distinctColors'],
+      primaryAttributeSelected: 'Type', // currently selected primary attribute
       colorScale: null,
-      //colors: ['red', 'blue', 'pink'],
-      colors: [
-        'red',
-        'green',
-        'yellow',
-        'blue',
-        'orange',
-        'cyan',
-        'magenta',
-        'pink',
-        'teal',
-        'lavender',
-        'brown',
-        'beige',
-        'maroon',
-        'mint',
-        'navy'
-      ],
       colorHexes: [
-        '#e6194B',
-        '#3cb44b',
-        '#ffe119',
-        '#4363d8',
-        '#f58231',
-        '#42d4f4',
-        '#f032e6',
-        '#fabebe',
-        '#469990',
-        '#e6beff',
-        '#9A6324',
-        '#fffac8',
-        '#800000',
-        '#aaffc3',
-        '#000075'
+        //colorbrewer dark 12
+        '#a6cee3',
+        '#1f78b4',
+        '#b2df8a', //gr
+        '#33a02c',
+        '#fb9a99',
+        '#e31a1c',
+        '#fdbf6f',
+        '#ff7f00',
+        '#cab2d6',
+        '#6a3d9a'
+        //'#ffff99',
+        //'#b15928'
       ],
       boundingBoxesIndices: [], // stored min max points for bounding box of every neighbourhood - minX,maxX,minY,maxY
       imData: [], //gauss preprocess image stored
@@ -195,7 +150,7 @@ export default {
       EventBus.$emit('neigh', this.accidentsOnScreenObj)
     }, 1)
 
-    this.initialiseSVGelements()
+    this.initSVGelements()
     this.listeners()
     console.log('(ﾉ◕ヮ◕)ﾉ*:・ﾟ✧')
 
@@ -224,12 +179,12 @@ export default {
       this.tree = new this.kdLibrary.kdTree(this.kdData, distance, ['X', 'Y'])
       this.recomputeAccidentsOnScreen(this.tree.root)
     },
-    //initialisation (svg, nodesOnMap, polygons, tooltips)
-    initialiseSVGelements() {
+    //initialization (svg, nodesOnMap, polygons, tooltips)
+    initSVGelements() {
       const viewport = getViewport(this.$store.state.map)
 
       // counts unique types of data in dataset
-      this.listOfBarsTypeOfData = [
+      this.listOfCategoriesInPrimaryAttribute = [
         ...new Set(
           accidentData.accidents.map(
             node => node[this.primaryAttributeSelected]
@@ -237,7 +192,10 @@ export default {
         )
       ]
 
-      this.colorScale = d3.scaleOrdinal(d3.schemeDark2) //this.changeColorStyle()
+      this.colorScale = d3
+        .scaleOrdinal()
+        .domain(this.listOfCategoriesInPrimaryAttribute)
+        .range(this.colorHexes)
 
       this.svg = d3
         .select(this.$store.state.map.getCanvasContainer()) //'map'
@@ -246,6 +204,7 @@ export default {
         .attr('width', window.innerWidth)
         .attr('height', window.innerHeight)
 
+      // animated transition of dots
       const t = d3
         .transition()
         .duration(750)
@@ -254,7 +213,7 @@ export default {
       this.polygons = this.svg.append('g')
 
       this.tooltip = d3
-        .select(this.$store.state.map.getCanvasContainer()) //'map'
+        .select(this.$store.state.map.getCanvasContainer())
         .append('div')
         .attr('class', 'tooltip')
         .style('opacity', 0)
@@ -266,12 +225,12 @@ export default {
         .data(this.accidentsOnScreenObj)
         .join('circle')
         .each(d => {
-          d.inForceLayout = false //TODO
+          d.inForceLayout = false
           d.inNeighbourhood = false
         })
-        .attr('r', this.nodeRadius)
+        .attr('r', this.circleRadius)
         .attr('fill', d => {
-          return this.colorScale(d[this.primaryAttributeSelected]) //'black'
+          return this.colorScale(d[this.primaryAttributeSelected])
         })
         .attr('cx', d => {
           d.pos = viewport.project([d.X, d.Y])
@@ -298,14 +257,19 @@ export default {
       this.$root.$on('map-zoom', () => {
         this.updatePoints()
         this.moveVisualizations()
+        let zoom = this.$store.state.map.getZoom()
+
+        if (zoom > 15) this.aggrVisScale = 1
+        else if (zoom > 14) this.aggrVisScale = 0.9
+        else if (zoom > 13) this.aggrVisScale = 0.8
+        else if (zoom > 12) this.aggrVisScale = 0.7
+        else this.aggrVisScale = 0.7
+
+        //this.nodesOnMap.style('strokeWidth', '1px')
       })
       this.$root.$on('map-move', () => {
         this.updatePoints()
         this.moveVisualizations()
-      })
-      this.$root.$on('map-zoomend', () => {
-        //this.zoomed = true
-        // this.zoomVisualizations()
       })
       this.$root.$on('map-moveend', () => {
         //called at the end of zoom and move
@@ -338,17 +302,11 @@ export default {
       this.downR = viewport.unproject([window.innerWidth, window.innerHeight])
       this.recomputeAccidentsOnScreen(this.tree.root)
     },
+    //move all visualizations on map move
     moveVisualizations() {
       this.updateNodesOnMap()
       this.drawPolygonUnderNeighbourhoods()
       this.moveAggregatedVis()
-      //this.updateVisualizations()
-    },
-    zoomVisualizations() {
-      this.removeNeighbourhoods()
-      this.computeNeighbourhoodsAndDrawPolygons() //compute new neighbourhoods, make and draw polygons
-      this.moveAggregatedVis()
-      this.updateVisualizations()
     },
     //updates positions of aggregated visualizations (the g element)
     moveAggregatedVis() {
@@ -574,9 +532,10 @@ export default {
         .data(this.accidentsOnScreenObj)
         .join('circle')
         .each(d => {
+          d.inForceLayout = false
           d.isInNeighbourhood = false
         })
-        .attr('r', this.nodeRadius)
+        .attr('r', this.circleRadius)
         .attr('fill', d => {
           return this.colorScale(d[this.primaryAttributeSelected])
         })
@@ -595,45 +554,31 @@ export default {
           }
           return 'nodesOnMap'
         })
+        .on('click', d => {
+          this.tooltip
+            .style('opacity', 1.0)
+            .html(
+              this.primaryAttributeSelected +
+                ': ' +
+                '<br/>' +
+                d[this.primaryAttributeSelected]
+            )
+            .style('left', d3.event.pageX + 'px')
+            .style('top', d3.event.pageY - 28 + 'px')
+        })
+        .on('mouseout', d => {
+          this.tooltip.style('opacity', 0)
+        })
     },
     // changes primary attribute based on which are circles colored
     changePrimaryAttribute() {
-      this.listOfBarsTypeOfData = new Set(
+      this.listOfCategoriesInPrimaryAttribute = new Set(
         accidentData.accidents.map(node => node[this.primaryAttributeSelected])
       )
-      console.log(this.listOfBarsTypeOfData)
       this.nodesOnMap.attr('fill', d => {
+        console.log('d', d[this.primaryAttributeSelected])
         return this.colorScale(d[this.primaryAttributeSelected])
       })
-      this.updateVisualizations()
-    },
-    // changes map style
-    changeMapStyle() {
-      if (this.mapStyleSelected === 'Light') {
-        this.$store.state.map.setStyle(
-          'https://maps.tilehosting.com/styles/positron/style.json?key=erAyQhECgFpHi6K8tzqm'
-        ) //'https://api.maptiler.com/maps/positron/style.json?key=erAyQhECgFpHi6K8tzqm'
-      } else if (this.mapStyleSelected === 'Dark') {
-        this.$store.state.map.setStyle(
-          'https://api.maptiler.com/maps/darkmatter/style.json?key=erAyQhECgFpHi6K8tzqm'
-        )
-      } else if (this.mapStyleSelected === 'Other') {
-        this.$store.state.map.setStyle(
-          'https://api.maptiler.com/maps/hybrid/style.json?key=erAyQhECgFpHi6K8tzqm'
-        )
-      }
-    },
-    // changes color style/scheme
-    changeColorStyle() {
-      if (this.colorStyleSelected === 'schemeDark2') {
-        this.colorScale = d3.scaleOrdinal(d3.schemeDark2)
-      } else if (this.colorStyleSelected === '15distinctColors') {
-        this.colorScale = d3
-          .scaleOrdinal()
-          .domain(this.listOfBarsTypeOfData)
-          .range(this.colorHexes)
-      }
-
       this.updateVisualizations()
     },
     //updates all visualizations - svg nodes, aggregated visualizations
@@ -703,7 +648,6 @@ export default {
       this.computeNeighbourhoods()
       this.drawPolygonUnderNeighbourhoods()
     },
-
     //make polygon from convex hull of neighbourhood array
     drawPolygonUnderNeighbourhoods() {
       let viewport = getViewport(this.$store.state.map)
@@ -806,10 +750,10 @@ export default {
         })
       }
     },
-    //initialisation of grid for aggregated visualization - barchart
+    //initialization of grid for aggregated visualization - barchart
     initGridForBarchart(array, gNeighbourhoodID) {
       const data_structure = {
-        bars: [...this.listOfBarsTypeOfData],
+        bars: [...this.listOfCategoriesInPrimaryAttribute],
         bar_counts: [],
         chart_cells: [],
         barColls: 0
@@ -921,8 +865,8 @@ export default {
     //initialisation of grid for aggregated visualization - wafflechart
     initGridForWafflechart(array) {
       const data_structure = {
-        typesOfData: [...this.listOfBarsTypeOfData],
-        bars: [...this.listOfBarsTypeOfData],
+        typesOfData: [...this.listOfCategoriesInPrimaryAttribute],
+        bars: [...this.listOfCategoriesInPrimaryAttribute],
         chart_cells: [],
         type_counts: []
       }
@@ -1202,35 +1146,44 @@ export default {
     },
     // creates new force layout from neighbourhoods that have less than maxSizeOfForceLayoutNeighbourhood of circles
     createForceLayout() {
-      let currentForceArray = []
+      let forceArray = []
       const viewport = getViewport(this.$store.state.map)
       for (var i = 0; i < this.arrayForForceLayout.length; i++) {
         this.arrayForForceLayout[i].forEach(n => {
-          currentForceArray.push(this.dataD3.accidents[n])
           this.dataD3.accidents[n].inForceLayout = true
-          //Vue.set(this.dataD3.accidents[n], 'isForce', true)
-          //currentForceArray.push(this.dataD3.accidents[n.indexInAccidentData])
+          Vue.set(this.dataD3.accidents[n], 'inForceLayout', true)
+          //console.log('d', this.dataD3.accidents[n])
+          forceArray.push(this.dataD3.accidents[n])
         })
       }
 
       this.nodesOnMap.attr('class', d => {
-        /* if (d.inForceLayout) {
-          return 'nodesForceLayout'
-        } else */
         if (d.inNeighbourhood) {
           return 'neighbourhood'
         }
         return 'nodesOnMap'
       })
 
-      const currentSimulation = d3
-        .forceSimulation()
-        .nodes(currentForceArray)
+      const currentSimulation = d3.forceSimulation(this.accidentsOnScreenObj)
+      //.nodes(forceArray)
+
+      currentSimulation
         .force(
           'collide',
           d3
             .forceCollide()
-            .radius(this.nodeRadius)
+            .radius(this.circleRadius)
+            /* .radius(d => {
+              //console.log(d)
+              /* if (d.inForceLayout) {
+                //console.log('yay')
+                //return 1
+              } else {
+                //console.log('nope')
+                //return 0
+              } 
+              return 5
+            }) */
             .strength(1)
             .iterations(1)
         )
@@ -1243,10 +1196,8 @@ export default {
       const viewport = getViewport(this.$store.state.map)
 
       this.nodesOnMap
-        //d3.selectAll('.nodesForceLayout')
         .transition(t)
         .attr('cx', function(d) {
-          //if (d.inForceLayout)
           d.forceGPS = viewport.unproject([d.x, d.y])
           return d.x
         })
@@ -1263,26 +1214,10 @@ export default {
         this.arrayForForceLayout.pop()
       }
     },
-    // not working; function for dragging g element with aggrVis
-    dragged(d) {
-      console.log(d)
-      let posX = d3.event.dx
-      let posY = d3.event.dy
-
-      let pls = d3.select(function() {
-        return d
-      })
-      console.log('pls', pls)
-
-      pls.attr('transform', function(d, i) {
-        return 'translate(' + [posX, posY] + ')'
-      })
-    },
     //draws aggregated visualizations or updates them if they exists
     drawOrUpdateAggregatedVis() {
       this.makeNodesFromNeighbourhoodsInvisibleOnMap()
       // animated transition of nodes in aggregated vis
-      // Possible shift to mounted? Maybe?
       const t = d3
         .transition()
         .duration(1200)
@@ -1299,10 +1234,8 @@ export default {
         })
         .attr('class', 'neighbourhood-g')
         .attr('transform', d => {
-          //return 'translate(' + d.centerInPx[0] + ', ' + d.centerInPx[1] + ')'
           d.pos = [d.centerInPx[0], (d.min[1] + d.centerInPx[1]) / 2]
           if (d.shiftX) d.pos[0] -= d.shiftX
-          //console.log('d.pos', d.pos)
           d.GPSpos = viewport.unproject(d.pos)
           return (
             'translate(' +
@@ -1313,21 +1246,7 @@ export default {
             this.aggrVisScale +
             ')'
           )
-          //return 'translate(' + d.centerInPx[0] + ', ' + d.min[1] + ')'
         })
-        .on('mouseover', d => {
-          this.nodesOnMap.style('opacity', 0.7)
-        })
-        .on('mouseout', d => {
-          this.nodesOnMap.style('opacity', 1)
-        })
-
-      /* d3.selectAll('g.neighbourhood-g').call(
-        d3
-          .drag()
-          //.on("start", dragstarted)
-          .on('drag', this.dragged)
-      ) */
 
       // Setup
       for (var i = 0; i < this.aggregatedData.length; i++) {
@@ -1343,18 +1262,16 @@ export default {
           .join('circle')
           .attr('class', 'circlesInAggregatedVis')
           .attr('r', () => {
-            return this.nodeRadius
+            return this.circleRadius
           })
           .attr('fill', d => {
             return this.colorScale(d.primaryAttribute)
           })
           .attr('cx', d => {
             if (d.neighbourhoodPosition) {
-              //console.log('already in', d)
               d.x = d.neighbourhoodPosition[0]
               return d.x
             } else {
-              //console.log('newbie', d.x, d.pos)
               d.pos = viewport.project([d.X, d.Y])
               d.x = d.pos[0]
               Vue.set(
@@ -1395,8 +1312,6 @@ export default {
             this.aggregatedData[i].nodesInNeighbourhood,
             i
           )
-        } else {
-          console.log('you dont have any chart selected')
         }
 
         // For each neighbourhood nodes find a position in a grid and move it there w/ transition
@@ -1417,20 +1332,6 @@ export default {
               let currentNodeInAccData =
                 accidentData.accidents[d.indexInAccidentData]
               currentNodeInAccData.neighbourhoodPosition = [d.x, d.y]
-
-              //TODO: MAYBEEEEE??? but would need actual position, so - centerInPx
-              //currentNodeInAccData.x = d.x
-              //currentNodeInAccData.y = d.y
-
-              /* let newForceGPS = viewport.unproject([d.x, d.y])
-              let pos = viewport.project(newForceGPS)
-              Vue.set(d, 'cx', pos[0])
-              Vue.set(d, 'cy', pos[1])
-              d.neighbourhoodPosition = [d.x, d.y]
-              currentNodeInAccData.neighbourhoodPosition = [d.x, d.y]
-
-              Vue.set(d, 'neighbourhoodPosition', [d.x, d.y])
-              Vue.set(currentNodeInAccData, 'neighbourhoodPosition', [d.x, d.y]) */
             }
           })
           .attr('cx', d => d.x)

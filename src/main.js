@@ -9,7 +9,7 @@ Vue.use(Buefy)
 Vue.config.productionTip = false
 
 new Vue({
-  //el: '#app',
+  // el: '#app',
   store,
   components: {},
   methods: {},

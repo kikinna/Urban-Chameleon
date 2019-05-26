@@ -12,32 +12,12 @@
         dragRotate: false,
         touchZoomRotate: false
       }"
-      :geolocate-control="{
-        show: true,
-        position: 'top-left',
-        options: {
-          positionOptions: {
-            enableHighAccuracy: true
-          },
-          trackUserLocation: true
-        }
-      }"
-      :scale-control="{
-        show: true,
-        position: 'top-left'
-      }"
-      :fullscreen-control="{
-        show: false,
-        position: 'top-left'
-      }"
       @map-init="mapInit"
-      @map-load="mapLoaded"
       @map-click="mapClicked"
       @map-mousemove="mapMouseMoved"
-      @geolocate-geolocate="geolocate"
       @map-zoom="changeLevelOfDetail"
     ></Mapbox>
-    <GaussPreprocess></GaussPreprocess>
+    <NeighborhoodDetection></NeighborhoodDetection>
 
     <Visualization></Visualization>
   </div>
@@ -46,7 +26,7 @@
 <script>
 import Mapbox from './components/Mapbox.vue'
 import Visualization from './components/Visualization.vue'
-import GaussPreprocess from './components/GaussPreprocess.vue'
+import NeighborhoodDetection from './components/NeighborhoodDetection.vue'
 import store from './store.js'
 
 export default {
@@ -61,20 +41,13 @@ export default {
   components: {
     Mapbox,
     Visualization,
-    GaussPreprocess
+    NeighborhoodDetection
   },
   store,
-  created() {
-    // Try to load data here? Not. Somewhere else.
-    // this.paper = paper.setup(document.getElementById('gauss-preprocess'));
-  },
   methods: {
     mapInit(map) {
-      const Draw = new MapboxDraw()
-      map.addControl(Draw)
       this.$store.commit('loadMap', map)
     },
-    mapLoaded(map) {},
     mapClicked(map, e) {
       console.log(map.getZoom())
     },
@@ -83,13 +56,6 @@ export default {
         layers: ['points']
       })
       map.getCanvas().style.cursor = features.length ? 'pointer' : ''
-    },
-    geolocate(control, position) {
-      console.log(
-        `User position: ${position.coords.latitude}, ${
-          position.coords.longitude
-        }`
-      )
     },
     changeLevelOfDetail(map) {
       /*if (map.getZoom() > 15) {
