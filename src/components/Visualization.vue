@@ -154,11 +154,6 @@ export default {
     this.listeners()
     console.log('(ﾉ◕ヮ◕)ﾉ*:・ﾟ✧')
 
-    //add index attribute to easier access later
-    for (var i = 0; i < accidentData.accidents.length; i++) {
-      accidentData.accidents[i].theNeighbourhood = null
-      accidentData.accidents[i].index = i
-    }
     this.computeNeighbourhoodsAndDrawPolygons()
     this.updateVisualizations()
   },
@@ -166,8 +161,11 @@ export default {
     //creating kdTree and initialising data on screen
     initData() {
       let viewport = getViewport(this.$store.state.map)
+      
+      //set GPS location of left up and down right screen position
       this.upL = viewport.unproject([0, 0])
       this.downR = viewport.unproject([window.innerWidth, window.innerHeight])
+
       //preseting attributes of accidents for easier manipulation
       for (var i = 0; i < accidentData.accidents.length; i++) {
         accidentData.accidents[i].theNeighbourhood = null
@@ -175,7 +173,6 @@ export default {
       }
 
       this.kdLibrary = require('kd-tree-javascript')
-
       this.tree = new this.kdLibrary.kdTree(this.kdData, distance, ['X', 'Y'])
       this.recomputeAccidentsOnScreen(this.tree.root)
     },
@@ -301,7 +298,7 @@ export default {
       })
       this.$root.$on('map-moveend', () => {
         //called at the end of zoom and move
-        //when zoom is big enough (https://www.youtube.com/watch?v=CCVdQ8xXBfk) , cards about accident detail are shown
+        //when the zoom is big enough, cards about accident detail are shown
         if (this.$store.state.map.getZoom() > 18.5) {
           this.createAccidentDetail()
         }
@@ -324,7 +321,7 @@ export default {
     updatePoints() {
       this.accidentsOnScreenIndices = []
       this.accidentsOnScreenObj = []
-      //set latitude and longitude for left up and right down point
+      //set latitude and longitude for left up and right down point of screen
       let viewport = getViewport(this.$store.state.map)
       this.upL = viewport.unproject([0, 0])
       this.downR = viewport.unproject([window.innerWidth, window.innerHeight])
@@ -429,14 +426,12 @@ export default {
             }
             let neigh = {
               hullPoints: hull, //convexhull points
-              //adepts: [...adepts], //accident which was in the boundingbox but not in the blob
               points: [...this.points], //all neighbourhood points
               anchorPoint: this.anchorPoint,
               indexInBoundingBoxes: i
             }
             neigh.points.push(this.anchorPoint)
 
-            //sorry ze sa ti hrabem vo funkciach megi ∠( ᐛ 」∠)＿
             if (this.points.length < this.maxSizeOfForceLayoutNeighbourhood) {
               this.arrayForForceLayout.push(neigh.points)
             } else {
@@ -1159,6 +1154,7 @@ export default {
       }
       return inside
     },
+    //before the point is added to neighbourhood will be chcecked, if it is not a anchor point where the convex hull computing begin
     addPointToNeighbourhood(index) {
       let point = accidentData.accidents[index]
       let anchorP = accidentData.accidents[this.anchorPoint]
@@ -1194,18 +1190,10 @@ export default {
     createAccidentDetail() {
       this.detailAccidents = []
       this.accidentsOnScreenIndices.forEach(o => {
-        let posi = [accidentData.accidents[o].x, accidentData.accidents[o].y]
-        if (
-          posi[0] > 0 &&
-          posi[0] < window.innerWidth &&
-          posi[1] > 0 &&
-          posi[1] < window.innerHeight
-        ) {
-          accidentData.accidents[o].color = this.colorScale(
-            accidentData.accidents[o][this.primaryAttributeSelected]
-          )
-          this.detailAccidents.push(accidentData.accidents[o].myIndex)
-        }
+        accidentData.accidents[o].color = this.colorScale(
+          accidentData.accidents[o][this.primaryAttributeSelected]
+        )
+        this.detailAccidents.push(accidentData.accidents[o].myIndex)
       })
     },
     // creates new force layout from neighbourhoods that have less than maxSizeOfForceLayoutNeighbourhood of circles
