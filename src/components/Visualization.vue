@@ -161,7 +161,7 @@ export default {
     //creating kdTree and initialising data on screen
     initData() {
       let viewport = getViewport(this.$store.state.map)
-      
+
       //set GPS location of left up and down right screen position
       this.upL = viewport.unproject([0, 0])
       this.downR = viewport.unproject([window.innerWidth, window.innerHeight])
