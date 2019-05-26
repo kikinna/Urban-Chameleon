@@ -7,6 +7,8 @@
       :index="index"
     ></AccidentDetail>
 
+    <!-- Warning message show when there are too many dots on screen <el-button plain @click="warningMessage">Won't close automatically</el-button>-->
+
     <div class="control-pane urban-ui-border">
       <h2 class="ui-text">Unit visualization</h2>
       <b-select
@@ -28,8 +30,6 @@
           <option v-for="type in primaryAttributeTypes" :value="type" :key="type.id">{{ type }}</option>
         </b-select>
       </section>
-
-      <!-- <a class="button">Click me</a> -->
     </div>
     <div class="urban-ui-border" style="position: absolute; right:25px; bottom:25px; width: 200px;">
       <h2 class="ui-text">LEGEND</h2>
@@ -65,6 +65,9 @@ import {
 } from '../helpers/mathHelper.js'
 import { distance } from '../helpers/kdTreeHelper.js'
 import Vue from 'vue'
+import Element from 'element-ui'
+
+Vue.use(Element)
 
 export default {
   name: 'Visualization',
@@ -271,6 +274,15 @@ export default {
           this.tooltip.style('opacity', 0)
         })
     },
+    warningMessage() {
+      this.$notify({
+        title: 'Warning',
+        message:
+          'Here the visualization should transition into Level 4 - Aggregated visualization because the unit visualizations' +
+          ' become more computationally expensive and less readable due to the amount of data items.',
+        type: 'warning'
+      })
+    },
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
@@ -283,6 +295,10 @@ export default {
         else if (zoom > 13) this.aggrVisScale = 0.8
         else if (zoom > 12) this.aggrVisScale = 0.7
         else this.aggrVisScale = 0.7
+
+        if (this.$store.state.map.getZoom() < 12) {
+          this.warningMessage()
+        }
 
         //this.nodesOnMap.style('strokeWidth', '1px')
       })
@@ -622,6 +638,7 @@ export default {
       this.updateVisualizations()
 
       if (this.$store.state.map.getZoom() > 18.5) {
+        // Level 1
         this.createAccidentDetail()
       }
     },
@@ -632,7 +649,10 @@ export default {
       this.updateNodesOnMap()
       this.drawOrUpdateAggregatedVis()
 
-      if (this.arrayForForceLayout.length > 0) this.createForceLayout()
+      if (this.$store.state.map.getZoom() > 12) {
+        // Level 4
+        if (this.arrayForForceLayout.length > 0) this.createForceLayout()
+      }
       this.makeNodesFromNeighbourhoodsInvisibleOnMap()
 
       this.transitionNodesFromAggrVisToMapToTheirPosition()
