@@ -296,18 +296,29 @@ export default {
     listeners() {
       //all events
       this.$root.$on('map-zoom', () => {
-        this.updatePoints()
-        this.moveVisualizations()
+        // console.log(this.$store.state.map.getZoom())
+        console.log('map-zoom')
+        // this.updatePoints()
+        // this.moveVisualizations()
       })
       this.$root.$on('map-move', () => {
-        this.updatePoints()
-        this.moveVisualizations()
+        console.log('map-move')
+        // this.updatePoints()
+        // this.moveVisualizations()
       })
       this.$root.$on('map-zoomend', () => {
         //this.zoomed = true
         // this.zoomVisualizations()
+        console.log('map-zoomend')
+        console.log(this.$store.state.map.getZoom())
+        this.updatePoints()
+        this.moveVisualizations()
       })
       this.$root.$on('map-moveend', () => {
+        console.log('map-moveend')
+        
+        this.updatePoints()
+        this.moveVisualizations()
         //called at the end of zoom and move
         //when zoom is big enough (https://www.youtube.com/watch?v=CCVdQ8xXBfk) , cards about accident detail are shown
         if (this.$store.state.map.getZoom() > 18.5) {
