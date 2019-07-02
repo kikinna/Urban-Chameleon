@@ -16,6 +16,7 @@
 <script>
 import store from '../store.js'
 import Paper from 'paper'
+import opencv from 'opencv.js'
 import accidentData from '../../public/data/accidentsBrno2018.js'
 import Visualization from './Visualization.vue'
 import { EventBus } from '../helpers/EventBus.js'
