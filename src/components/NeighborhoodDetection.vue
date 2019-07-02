@@ -119,12 +119,12 @@ export default {
         this.moved = true
       })
       //event for comunication with visualization component
-      EventBus.$on('neigh', data => {
-        if (this.moved) {
-          this.accidentsOnScreen = data
-          this.drawNeighbourhoodAdepts()
-          this.moved = false
-        }
+      EventBus.$on('start-neighbourhood-detection', data => {
+        // if (this.moved) {
+        //   this.accidentsOnScreen = data
+        //   this.drawNeighbourhoodAdepts()
+        //   this.moved = false
+        // }
       })
     },
     initCanvas() {
@@ -144,18 +144,18 @@ export default {
       this.devicePixelRatio = window.devicePixelRatio || 1
       this.canvas_context = this.canvas.getContext('2d')
     },
-    mouseMoved(event) {
-      var canvasColor = this.canvas_context.getImageData(
-        event.clientX,
-        event.clientY,
-        1,
-        1
-      ).data // rgba e [0,255]
-      var r = canvasColor[0]
-      var g = canvasColor[1]
-      var b = canvasColor[2]
-      //console.log(event.clientX, event.clientY, '-',  r, g, b)
-    },
+    // mouseMoved(event) {
+    //   var canvasColor = this.canvas_context.getImageData(
+    //     event.clientX,
+    //     event.clientY,
+    //     1,
+    //     1
+    //   ).data // rgba e [0,255]
+    //   var r = canvasColor[0]
+    //   var g = canvasColor[1]
+    //   var b = canvasColor[2]
+    //   //console.log(event.clientX, event.clientY, '-',  r, g, b)
+    // },
     neighbourhoodProcessingPipeline() {
       let that = this
       let imageData = this.canvas_context.getImageData(
@@ -228,7 +228,7 @@ export default {
                 boundingBoxes: that.boundingBoxesOfBlobs,
                 scale: that.canvas_to_screen_ratio
               }
-              EventBus.$emit('emittedEvent', data)
+              EventBus.$emit('finished-neighbourhood-detection', data)
             }, 1)
           })
       })

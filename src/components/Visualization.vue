@@ -147,7 +147,7 @@ export default {
     this.initData()
 
     setTimeout(() => {
-      EventBus.$emit('neigh', this.accidentsOnScreenObj)
+      EventBus.$emit('start-neighbourhood-detection', this.accidentsOnScreenObj)
     }, 1)
 
     this.initSVGelements()
@@ -303,10 +303,10 @@ export default {
           this.createAccidentDetail()
         }
         this.moved = true
-        EventBus.$emit('neigh', this.accidentsOnScreenObj)
+        EventBus.$emit('start-neighbourhood-detection', this.accidentsOnScreenObj)
       })
       //event for comunication between Visualisation and GaussPreprocess
-      EventBus.$on('emittedEvent', data => {
+      EventBus.$on('finished-neighbourhood-detection', data => {
         this.boundingBoxesIndices = data.boundingBoxes
         this.scale = data.scale
         this.imData = this.$store.state.neighbourhoodImage
@@ -637,10 +637,10 @@ export default {
       this.updateNodesOnMap()
       this.drawOrUpdateAggregatedVis()
 
-      if (this.$store.state.map.getZoom() > 12) {
-        // Level 4
-        if (this.arrayForForceLayout.length > 0) this.createForceLayout()
-      }
+      // if (this.$store.state.map.getZoom() > 12) {
+      //   // Level 4
+      //   if (this.arrayForForceLayout.length > 0) this.createForceLayout()
+      // }
       this.makeNodesFromNeighbourhoodsInvisibleOnMap()
 
       this.transitionNodesFromAggrVisToMapToTheirPosition()
