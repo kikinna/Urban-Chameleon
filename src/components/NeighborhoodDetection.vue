@@ -1,6 +1,11 @@
+/** 
+https://docs.opencv.org/master/d7/d1c/tutorial_js_watershed.html
+*/
+
 <template>
   <div id="gauss">
     <canvas id="paper-canvas" resize></canvas>
+    <!-- <canvas id="opencv-canvas" resize> </canvas> -->
     <!-- <a class="button test" @click="glur" style="left: 10px;">Blur</a>
         <a class="button test" @click="thresholdUnit" style="left: 68px;">Unit Threshold</a>
         <a class="button test" @click="thresholdArea" style="left: 202px;">Area Threshold</a>
@@ -16,7 +21,7 @@
 <script>
 import store from '../store.js'
 import Paper from 'paper'
-import opencv from 'opencv.js'
+import cv from 'opencv.js'
 import accidentData from '../../public/data/accidentsBrno2018.js'
 import Visualization from './Visualization.vue'
 import { EventBus } from '../helpers/EventBus.js'
@@ -65,23 +70,32 @@ export default {
   mounted() {
     // this.listeners();
     this.initCanvas()
+    // this.initOpenCVCanvas();
     this.glur_module = require('glur')
     this.threshold_module = require('image-filter-threshold')
-    window.addEventListener('mousedown', this.mouseMoved)
+    window.addEventListener('mousedown', this.mouseClicked)
     this.viewport = getViewport(this.$store.state.map)
 
     this.paper = Paper.setup(this.canvas)
   },
   methods: {
+    initOpenCVCanvas() {
+      let canvas = cv.imread('opencv-canvas')
+      console.log(canvas)
+      cv.circle(canvas, new cv.Point(50, 50), 100)
+      // let circle = new cv.Circle(50, 50, 115)
+    },
     drawNeighbourhoodAdepts() {
       this.clearCanvas()
 
+      // get GPS location of screen bbox
       let screen_top_left = this.viewport.unproject([0, 0])
       let screen_bottom_right = this.viewport.unproject([
         window.innerWidth,
         window.innerHeight
       ])
 
+      // draw data points into canvas
       let results = this.accidentsOnScreen.map(d => {
         let accident_screen_pos = this.viewport.project([d.X, d.Y])
 
@@ -100,9 +114,12 @@ export default {
         this.accident_dots.push(accident_dot.blendMode)
       })
 
+      // call image processing pipeline 
       Promise.all(results).then(completed => {
         setTimeout(() => {
-          this.neighbourhoodProcessingPipeline()
+          // this.neighbourhoodProcessingPipeline()
+          // this.imageProcessingInOpencv()
+          this.testWatershed();
         }, 1)
       })
     },
@@ -121,11 +138,11 @@ export default {
       })
       //event for comunication with visualization component
       EventBus.$on('start-neighbourhood-detection', data => {
-        // if (this.moved) {
-        //   this.accidentsOnScreen = data
-        //   this.drawNeighbourhoodAdepts()
-        //   this.moved = false
-        // }
+        if (this.moved) {
+          this.accidentsOnScreen = data
+          this.drawNeighbourhoodAdepts()
+          this.moved = false
+        }
       })
     },
     initCanvas() {
@@ -145,18 +162,203 @@ export default {
       this.devicePixelRatio = window.devicePixelRatio || 1
       this.canvas_context = this.canvas.getContext('2d')
     },
-    // mouseMoved(event) {
-    //   var canvasColor = this.canvas_context.getImageData(
-    //     event.clientX,
-    //     event.clientY,
-    //     1,
-    //     1
-    //   ).data // rgba e [0,255]
-    //   var r = canvasColor[0]
-    //   var g = canvasColor[1]
-    //   var b = canvasColor[2]
-    //   //console.log(event.clientX, event.clientY, '-',  r, g, b)
-    // },
+    mouseClicked(event) {
+      var canvasColor = this.canvas_context.getImageData(
+        event.clientX,
+        event.clientY,
+        1,
+        1
+      ).data // rgba e [0,255]
+      var r = canvasColor[0]
+      var g = canvasColor[1]
+      var b = canvasColor[2]
+      console.log(event.clientX, event.clientY, '-',  r, g, b)
+    },
+
+
+    imageProcessingInOpencv() {
+      let src = cv.imread('paper-canvas')
+      
+      // convert image to grayscale (src -> gray)
+      let gray = new cv.Mat()
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0)
+
+      // smooth the image using gaussian blur (gray -> blurred)
+      let blurred = new cv.Mat()
+      let ksize = new cv.Size(7,7)
+      cv.GaussianBlur(gray, blurred, ksize, 0, 0, cv.BORDER_DEFAULT)
+      cv.imshow('paper-canvas', blurred)
+
+      // get markers from the image = threshold (blurred -> marker)
+      let markers = new cv.Mat()
+      cv.threshold(blurred, markers, 15, 255, cv.THRESH_BINARY)
+      cv.imshow('paper-canvas', markers)
+
+      // All the other pixels in markers, whose relation to the outlined regions 
+      // is not known and should be defined by the algorithm, should be set to 0's
+
+      let labelled_markers = new cv.Mat()
+      // let unknown = new cv.Mat()
+
+      markers.convertTo(markers, cv.CV_8U, 1, 0)
+      cv.connectedComponents(markers, labelled_markers)
+      for (let i = 0; i < labelled_markers.rows; i++) {
+          for (let j = 0; j < labelled_markers.cols; j++) {
+              labelled_markers.intPtr(i, j)[0] = labelled_markers.ucharPtr(i, j)[0] + 1;
+              // if (unknown.ucharPtr(i, j)[0] == 255) {
+              //     labelled_markers.intPtr(i, j)[0] = 0;
+              // }
+          }
+      }
+
+      cv.imshow('paper-canvas', labelled_markers)
+
+      cv.cvtColor(blurred, blurred, cv.COLOR_GRAY2RGB, 0)
+      // cv.imshow('paper-canvas', blurred)
+      // cv.watershed(blurred , marker)
+      // cv.imshow('paper-canvas', blurred)
+
+      let labels = new cv.Mat()
+      let dst = new cv.Mat()
+      let unknown = new cv.Mat()
+
+
+
+      
+
+      // cv.connectedComponents(marker, labels)
+      // cv.imshow('paper-canvas', labels)
+      // console.log(labels)
+      // for (let i = 0; i < labels.rows; i++) {
+      //   for (let j = 0; j < labels.cols; j++) {
+      //       labels.intPtr(i, j)[0] = labels.ucharPtr(i, j)[0] + 1;
+      //       if (unknown.ucharPtr(i, j)[0] == 255) {
+      //           labels.intPtr(i, j)[0] = 0;
+      //       }
+      //   }
+      // }
+      // cv.cvtColor(src, src, cv.COLOR_RGBA2RGB, 0);
+      // cv.watershed(src, labels)
+
+      // for (let i = 0; i < labels.rows; i++) {
+      //   for (let j = 0; j < labels.cols; j++) {
+      //       if (labels.intPtr(i, j)[0] == -1) {
+      //           blurred.ucharPtr(i, j)[0] = 255; // R
+      //           blurred.ucharPtr(i, j)[1] = 0; // G
+      //           blurred.ucharPtr(i, j)[2] = 0; // B
+      //       }
+      //   }
+      // }
+      // cv.imshow('paper-canvas', blurred)
+    },
+
+    testWatershed() {
+      let src = cv.imread('paper-canvas');
+      let dst = new cv.Mat();
+      let gray = new cv.Mat();
+      let opening = new cv.Mat();
+      let coinsBg = new cv.Mat();
+      let coinsFg = new cv.Mat();
+      let distTrans = new cv.Mat();
+      let unknown = new cv.Mat();
+      let markers = new cv.Mat();
+
+      // -------- v1
+
+      // convert image to grayscale (src -> gray)
+      // let gray = new cv.Mat()
+      // cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0)
+
+      // smooth the image using gaussian blur (gray -> blurred)
+      // let blurred = new cv.Mat()
+      // let ksize = new cv.Size(7,7)
+      // cv.GaussianBlur(gray, blurred, ksize, 0, 0, cv.BORDER_DEFAULT)
+      // cv.imshow('paper-canvas', blurred)
+
+      // let srcGray = new cv.Mat()
+      // cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0)
+      // ------ v1
+
+      // ------ v2
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+
+      let blurred = new cv.Mat()
+      let ksize = new cv.Size(7,7)
+      let fg = new cv.Mat();
+      cv.GaussianBlur(gray, blurred, ksize, 0, 0, cv.BORDER_DEFAULT)
+
+      cv.threshold(blurred, gray, 13, 255, cv.THRESH_BINARY)
+      cv.threshold(blurred, fg, 20, 255, cv.THRESH_BINARY)
+      // ------ v2
+
+
+/*
+      // gray and threshold image
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+      // cv.threshold(gray, gray, 0, 255, cv.THRESH_BINARY_INV + cv.THRESH_OTSU);
+      cv.threshold(gray, gray, 13, 255, cv.THRESH_BINARY)
+      // cv.threshold(blurred, gray, 10, 255, cv.THRESH_BINARY)
+*/
+
+      // get background
+      // -> how does values (3 and 15 influence computational complexity and image processing)
+      let M = cv.Mat.ones(5, 5, cv.CV_8U);
+      // cv.erode(gray, gray, M);
+      // cv.dilate(gray, opening, M);
+      // cv.dilate(opening, coinsBg, M, new cv.Point(-1, -1), 3);
+      cv.dilate(gray, coinsBg, M, new cv.Point(-1, -1), 15);
+
+
+      // distance transform
+      // // cv.distanceTransform(gray, distTrans, cv.DIST_L2, 5);
+      // cv.distanceTransform(opening, distTrans, cv.DIST_L2, 5);
+      // cv.normalize(distTrans, distTrans, 1, 0, cv.NORM_INF);
+
+      // cv.imshow('paper-canvas', fg);
+
+      // get foreground
+      // cv.threshold(gray, coinsFg, 0.7 * 1, 255, cv.THRESH_BINARY);
+      // cv.threshold(distTrans, coinsFg, 0.7 * 1, 255, cv.THRESH_BINARY);
+      // cv.imshow('paper-canvas', fg)
+      fg.convertTo(fg, cv.CV_8U, 1, 0);
+      // coinsFg.convertTo(coinsFg, cv.CV_8U, 1, 0);
+      cv.subtract(coinsBg, fg, unknown);
+      // cv.imshow('paper-canvas', unknown)
+
+
+      // get connected components markers
+      cv.connectedComponents(fg, markers);
+      for (let i = 0; i < markers.rows; i++) {
+        for (let j = 0; j < markers.cols; j++) {
+          markers.intPtr(i, j)[0] = markers.ucharPtr(i, j)[0] + 1;
+              if (unknown.ucharPtr(i, j)[0] == 255) {
+                markers.intPtr(i, j)[0] = 0;
+              }
+          }
+      }
+      // cv.imshow('paper-canvas', blurred);
+
+      // cv.cvtColor(blurred, blurred, cv.COLOR_GRAY2RGB, 0);
+      // cv.watershed(blurred, markers);
+      cv.cvtColor(src, src, cv.COLOR_RGBA2RGB, 0);
+      cv.watershed(src, markers);
+      // cv.cvtColor(gray, gray, cv.COLOR_RGBA2RGB, 0);
+      // cv.watershed(gray, markers);
+      // draw barriers
+      for (let i = 0; i < markers.rows; i++) {
+        for (let j = 0; j < markers.cols; j++) {
+          if (markers.intPtr(i, j)[0] == -1) {
+            src.ucharPtr(i, j)[0] = 0; // R
+                  src.ucharPtr(i, j)[1] = 255; // G
+                  src.ucharPtr(i, j)[2] = 0; // B
+              }
+          }
+      }
+      cv.imshow('paper-canvas', src);
+    },
+
+
+
     neighbourhoodProcessingPipeline() {
       let that = this
       let imageData = this.canvas_context.getImageData(
@@ -384,7 +586,7 @@ export default {
 
 #gauss {
   position: absolute;
-  z-index: -10;
+  z-index: +10;
   /* opacity: 0.7;  */
   /* width: 1903px;
   height: 960px; */

@@ -22,7 +22,7 @@ export function findBlobs (src) {
   }
   // Temporary variables for neighboring pixels and other stuff
   var nn, nw, ne, ww, ee, sw, ss, se, minIndex
-  var luma = 0
+  // var luma = 0
   var isVisible = 0
   // We're going to run this algorithm twice
   // The first time identifies all of the blobs candidates the second pass
@@ -143,7 +143,7 @@ export function findBlobs (src) {
   //   console.log('labelTable', labelTable)
   var uniqueLabels = unique(labelTable)
   //   console.log('uniqueLabels', uniqueLabels)
-  var i = 0
+  // var i = 0
   for (label in uniqueLabels) {
     labelTable[label] = i++
   }

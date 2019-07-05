@@ -13,15 +13,15 @@ export function sortArrayAlphabetically (array) {
 }
 
 // left as an excercise for the reader
-export function occupyNearestWafflechart (p, data_structure) {
+export function occupyNearestWafflechart (p, dataStructure) {
   var minDist = Infinity
   var d
   var candidate = null
 
-  // console.log('cells', data_structure.chart_cells)
+  // console.log('cells', dataStructure.chart_cells)
   // console.log('LOOJK AT MEEE', p)
 
-  let cells = data_structure.chart_cells // .currentBarCells
+  let cells = dataStructure.chart_cells // .currentBarCells
 
   for (var i = 0; i < cells.length; i++) {
     if (
@@ -40,16 +40,16 @@ export function occupyNearestWafflechart (p, data_structure) {
 }
 
 // left as an excercise for the reader but it's barchart
-export function occupyNearestBarchart (p, data_structure) {
-  let bar_i = data_structure.bars.indexOf(p.Type)
+export function occupyNearestBarchart (p, dataStructure) {
+  let bar_i = dataStructure.bars.indexOf(p.Type)
   // console.log(p.group, bar_i)
   var minDist = Infinity
   var d
   var candidate = null
 
-  // console.log(data_structure.chart_cells)
+  // console.log(dataStructure.chart_cells)
 
-  let cells = data_structure.chart_cells // .currentBarCells
+  let cells = dataStructure.chart_cells // .currentBarCells
 
   // console.log(this.cells[bar_i])
   for (var i = 0; i < cells[bar_i].length; i++) {
