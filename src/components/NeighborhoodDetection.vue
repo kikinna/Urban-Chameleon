@@ -106,7 +106,7 @@ export default {
             (accident_screen_pos[1] / this.devicePixelRatio) *
               this.canvas_to_screen_ratio
           ),
-          5
+          10 / this.devicePixelRatio
         ) // * this.canvas_to_screen_ratio)//8 / this.devicePixelRatio)
         accident_dot.fillColor = new Paper.Color(this.dot_intensity, 0, 0)
         accident_dot.blendMode = 'add'
@@ -160,6 +160,7 @@ export default {
       this.canvas.height = this.canvas_height
 
       this.devicePixelRatio = window.devicePixelRatio || 1
+      console.log(this.devicePixelRatio)
       this.canvas_context = this.canvas.getContext('2d')
     },
     mouseClicked(event) {
@@ -263,6 +264,9 @@ export default {
       let unknown = new cv.Mat();
       let markers = new cv.Mat();
 
+      let src_full = new cv.Mat();
+      cv.threshold(src, src_full, 20, 255, cv.THRESH_BINARY)
+
       // -------- v1
 
       // convert image to grayscale (src -> gray)
@@ -341,7 +345,8 @@ export default {
       // cv.cvtColor(blurred, blurred, cv.COLOR_GRAY2RGB, 0);
       // cv.watershed(blurred, markers);
       cv.cvtColor(src, src, cv.COLOR_RGBA2RGB, 0);
-      cv.watershed(src, markers);
+      cv.cvtColor(src_full, src_full, cv.COLOR_RGBA2RGB, 0);
+      cv.watershed(src_full, markers);
       // cv.cvtColor(gray, gray, cv.COLOR_RGBA2RGB, 0);
       // cv.watershed(gray, markers);
       // draw barriers
