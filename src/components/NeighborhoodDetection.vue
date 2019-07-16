@@ -106,7 +106,7 @@ export default {
             (accident_screen_pos[1] / this.devicePixelRatio) *
               this.canvas_to_screen_ratio
           ),
-          10 / this.devicePixelRatio
+          8 / this.devicePixelRatio
         ) // * this.canvas_to_screen_ratio)//8 / this.devicePixelRatio)
         accident_dot.fillColor = new Paper.Color(this.dot_intensity, 0, 0)
         accident_dot.blendMode = 'add'
@@ -209,7 +209,7 @@ export default {
               // if (unknown.ucharPtr(i, j)[0] == 255) {
               //     labelled_markers.intPtr(i, j)[0] = 0;
               // }
-          }
+          } 
       }
 
       cv.imshow('paper-canvas', labelled_markers)
@@ -287,12 +287,16 @@ export default {
       cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
 
       let blurred = new cv.Mat()
-      let ksize = new cv.Size(7,7)
+      let ksize = new cv.Size(9,9)
       let fg = new cv.Mat();
       cv.GaussianBlur(gray, blurred, ksize, 0, 0, cv.BORDER_DEFAULT)
 
-      cv.threshold(blurred, gray, 13, 255, cv.THRESH_BINARY)
-      cv.threshold(blurred, fg, 20, 255, cv.THRESH_BINARY)
+      cv.imshow('paper-canvas', blurred);
+      // return;
+
+      cv.threshold(blurred, gray, 13, 255, cv.THRESH_BINARY) // 13
+      cv.threshold(blurred, fg, 22, 255, cv.THRESH_BINARY) // 20
+      // cv.imshow('paper-canvas', fg)
       // ------ v2
 
 
@@ -347,18 +351,57 @@ export default {
       cv.cvtColor(src, src, cv.COLOR_RGBA2RGB, 0);
       cv.cvtColor(src_full, src_full, cv.COLOR_RGBA2RGB, 0);
       cv.watershed(src_full, markers);
+
       // cv.cvtColor(gray, gray, cv.COLOR_RGBA2RGB, 0);
       // cv.watershed(gray, markers);
+      cv.imshow('paper-canvas', markers);
+      // let markersImg = new cv.Mat();
+      // markers.convertTo(markersImg, cv.)
+      console.log(markers)
+
+      // let set = new Set();
+
+
       // draw barriers
       for (let i = 0; i < markers.rows; i++) {
         for (let j = 0; j < markers.cols; j++) {
           if (markers.intPtr(i, j)[0] == -1) {
             src.ucharPtr(i, j)[0] = 0; // R
-                  src.ucharPtr(i, j)[1] = 255; // G
-                  src.ucharPtr(i, j)[2] = 0; // B
-              }
+            // src.ucharPtr(i, j)[1] = 255; // G
+            // src.ucharPtr(i, j)[2] = 0; // B
+          } 
+          else if (markers.intPtr(i, j)[0] == 1) {
+            src.ucharPtr(i, j)[0] = 0; // R   
           }
+           else {
+            src.ucharPtr(i, j)[0] = markers.intPtr(i, j)[0];
+          }
+          // set.add(markers.intPtr(i, j)[0]); // stores the labels of regions
+        }
       }
+
+      let srcGray = new cv.Mat();
+      console.log(src.type());
+      cv.cvtColor(src, srcGray, cv.COLOR_RGBA2GRAY, 0)
+      // src.convertTo(src, cv.CV_8UC1);
+      // src.
+
+
+      let contours = new cv.MatVector();
+      let hierarchy = new cv.Mat();
+      cv.findContours(srcGray, contours, hierarchy, cv.RETR_EXTERNAL , cv.CHAIN_APPROX_SIMPLE);
+      console.log(contours.size())
+      console.log(contours)
+
+      // let dst = new cv.Mat();
+      for (let i = 0; i < contours.size(); ++i) {
+          let color = new cv.Scalar(Math.round(Math.random() * 255), Math.round(Math.random() * 255),
+                                    Math.round(Math.random() * 255));
+          cv.drawContours(src, contours, i, color, 1.5, cv.LINE_8, hierarchy, 100);
+      }
+
+      // console.log(set);
+      // cv.imshow('paper-canvas', src);
       cv.imshow('paper-canvas', src);
     },
 
