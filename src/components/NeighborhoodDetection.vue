@@ -359,9 +359,6 @@ export default {
       // markers.convertTo(markersImg, cv.)
       console.log(markers)
 
-      // let set = new Set();
-
-
       // draw barriers
       for (let i = 0; i < markers.rows; i++) {
         for (let j = 0; j < markers.cols; j++) {
@@ -382,27 +379,36 @@ export default {
 
       let srcGray = new cv.Mat();
       console.log(src.type());
+      
+      // convert to CV_8UC1
       cv.cvtColor(src, srcGray, cv.COLOR_RGBA2GRAY, 0)
-      // src.convertTo(src, cv.CV_8UC1);
-      // src.
 
 
       let contours = new cv.MatVector();
       let hierarchy = new cv.Mat();
-      cv.findContours(srcGray, contours, hierarchy, cv.RETR_EXTERNAL , cv.CHAIN_APPROX_SIMPLE);
-      console.log(contours.size())
-      console.log(contours)
+      cv.findContours(srcGray, contours, hierarchy, cv.RETR_EXTERNAL , cv.CHAIN_APPROX_TC89_L1);
 
-      // let dst = new cv.Mat();
       for (let i = 0; i < contours.size(); ++i) {
           let color = new cv.Scalar(Math.round(Math.random() * 255), Math.round(Math.random() * 255),
                                     Math.round(Math.random() * 255));
           cv.drawContours(src, contours, i, color, 1.5, cv.LINE_8, hierarchy, 100);
       }
 
-      // console.log(set);
-      // cv.imshow('paper-canvas', src);
       cv.imshow('paper-canvas', src);
+    },
+
+    testDrawNeighbourhoods(contours) {
+      for (let i = 0; i < contours.size(); ++i) {
+          let curr_contour = contours.get(i);
+          let polygon = new Paper.Path();
+          polygon.fillColor = '0000ff77'
+
+          console.log(curr_contour.data)
+          for (let index = 0; index < curr_contour.data.length; index+=4) {
+            polygon.add(new Paper.Point(curr_contour.data[index]*3, curr_contour.data[++index]*3))
+          }
+          polygon.closed = true;
+      }
     },
 
 
